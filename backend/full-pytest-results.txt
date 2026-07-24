@@ -1,0 +1,39 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\kames\.codex\.chatgpt-projects\g-p-6a37c905c4808191824be5bf9ac7dad1\analysis-copy\backend
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.14.2, cov-7.1.0
+collected 434 items
+
+tests\test_academic_calendar_service.py ........                         [  1%]
+tests\test_admin_service.py ..............                               [  5%]
+tests\test_auth_service.py .........                                     [  7%]
+tests\test_class_service.py ........                                     [  8%]
+tests\test_core_dependencies.py ......                                   [ 10%]
+tests\test_core_security.py ........                                     [ 12%]
+tests\test_credit_service.py ........                                    [ 14%]
+tests\test_day_order_service.py ...........................              [ 20%]
+tests\test_department_service.py ...........                             [ 22%]
+tests\test_dependencies.py ............                                  [ 25%]
+tests\test_leave_cancellation.py ................                        [ 29%]
+tests\test_leave_service.py ...................                          [ 33%]
+tests\test_main.py ..                                                    [ 34%]
+tests\test_notification_service.py .........                             [ 36%]
+tests\test_room_service.py ...........                                   [ 38%]
+tests\test_routes.py ..........................                          [ 44%]
+tests\test_schemas.py .............................                      [ 51%]
+tests\test_security.py .............                                     [ 54%]
+tests\test_services_admin_service.py ...........                         [ 56%]
+tests\test_services_auth_service.py ......                               [ 58%]
+tests\test_services_day_order_service.py ...........                     [ 60%]
+tests\test_services_department_subject.py ..........                     [ 63%]
+tests\test_subject_service.py .......                                    [ 64%]
+tests\test_substitution_dashboard.py ....                                [ 65%]
+tests\test_substitution_service.py ......................                [ 70%]
+tests\test_teacher_name_normalizer.py .................................. [ 78%]
+.............................................................            [ 92%]
+tests\test_timetable_import_service.py ........................          [ 98%]
+tests\test_timetable_service.py ........                                 [100%]
+
+======================= 434 passed in 63.79s (0:01:03) ========================
