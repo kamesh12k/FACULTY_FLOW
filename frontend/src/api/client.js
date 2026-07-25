@@ -37,4 +37,17 @@ api.interceptors.response.use(
   }
 )
 
+export function getApiErrorMessage(err, fallbackMessage = 'An unexpected error occurred.') {
+  if (!err) return fallbackMessage
+  const detail = err.response?.data?.detail
+  if (typeof detail === 'string') return detail
+  if (detail && typeof detail === 'object') {
+    if (detail.title) return detail.title
+    if (detail.reason) return detail.reason
+    if (detail.message) return detail.message
+  }
+  if (err.message) return err.message
+  return fallbackMessage
+}
+
 export default api

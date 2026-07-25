@@ -26,7 +26,8 @@ package-lock.json
 .pytest_cache/
 htmlcov/
 *.log
-backend/tests/
+*-results.txt
+full-pytest-*.txt
 
 # Scratch files
 scratch/

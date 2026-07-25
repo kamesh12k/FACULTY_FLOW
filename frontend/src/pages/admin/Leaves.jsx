@@ -474,20 +474,25 @@ export default function AdminLeaves() {
           <div className="flex justify-center py-12"><Spinner /></div>
         ) : leaves.length === 0 ? <EmptyState message="No leave requests yet." /> : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
+            <table className="w-full text-xs sm:text-sm">
+            <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
-                <th className="px-4 py-3 w-8">
+                <th className="px-2.5 py-3 w-8 text-center">
                   {pendingGroupKeys.length > 0 && (
                     <input type="checkbox" checked={selected.size === pendingGroupKeys.length} onChange={toggleSelectAll} />
                   )}
                 </th>
-                {['Teacher', 'Date', 'Day Order', 'Period', 'Reason', 'Status', 'Substitute', 'Actions'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
-                ))}
+                <th className="px-2.5 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Teacher</th>
+                <th className="px-2.5 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
+                <th className="px-2.5 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Day Order</th>
+                <th className="px-2.5 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Period</th>
+                <th className="px-2.5 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Reason</th>
+                <th className="px-2.5 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                <th className="px-2.5 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Substitute</th>
+                <th className="px-2.5 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-slate-100">
               {groupedLeavesList.map(group => {
                 const firstReq = group.requests[0]
                 const approved = group.requests.filter(r => r.status === 'approved')
@@ -496,87 +501,85 @@ export default function AdminLeaves() {
                 const hasUnassigned = approved.some(r => !r.alter_assignment)
 
                 return (
-                  <tr key={group.key} className="hover:bg-gray-50/50">
-                    <td className="px-4 py-3">
+                  <tr key={group.key} className="hover:bg-slate-50/60">
+                    <td className="px-2.5 py-2.5 text-center">
                       {group.status === 'pending' && (
                         <input type="checkbox" checked={selected.has(group.key)} onChange={() => toggleSelect(group.key)} />
                       )}
                     </td>
-                    <td className="px-4 py-3 font-medium text-gray-800">{group.teacher?.name}</td>
-                    <td className="px-4 py-3 text-gray-500">{group.date}</td>
-                    <td className="px-4 py-3 text-gray-500">DO {group.day_order}</td>
-                    <td className="px-4 py-3 text-gray-500">
+                    <td className="px-2.5 py-2.5 font-semibold text-slate-800 whitespace-nowrap">{group.teacher?.name}</td>
+                    <td className="px-2.5 py-2.5 text-slate-600 whitespace-nowrap text-xs">{group.date}</td>
+                    <td className="px-2.5 py-2.5 text-slate-600 whitespace-nowrap text-xs font-medium">DO {group.day_order}</td>
+                    <td className="px-2.5 py-2.5 text-slate-600 whitespace-nowrap text-xs">
                       P{group.requests.map(r => r.period_number).sort().join(', P')}
                     </td>
-                    <td className="px-4 py-3 text-gray-500 max-w-xs truncate">
-                      <div className="flex items-center gap-1.5">
+                    <td className="px-2.5 py-2.5 text-slate-600 max-w-[140px] truncate text-xs" title={firstReq?.reason}>
+                      <div className="flex items-center gap-1 truncate">
                         {group.is_emergency && <AlertTriangleIcon className="w-3.5 h-3.5 text-red-500 shrink-0" />}
-                        {firstReq?.reason}
+                        <span className="truncate">{firstReq?.reason}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3"><StatusBadge status={group.status} /></td>
-                    <td className="px-4 py-3">
+                    <td className="px-2.5 py-2.5 whitespace-nowrap"><StatusBadge status={group.status} /></td>
+                    <td className="px-2.5 py-2.5">
                       {approved.length > 0 ? (
                         covered.length === approved.length ? (
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-gray-750">{subsNames.join(', ')}</p>
+                          <div className="space-y-0.5">
+                            <p className="text-xs font-medium text-slate-800 truncate max-w-[130px]" title={subsNames.join(', ')}>{subsNames.join(', ')}</p>
                             <div className="flex items-center gap-1">
                               <AssignmentTypeBadge type={covered[0]?.alter_assignment.assignment_type} small />
-                              {covered.some(r => r.alter_assignment.is_locked) && <LockIcon className="w-3.5 h-3.5 text-gray-400" />}
+                              {covered.some(r => r.alter_assignment.is_locked) && <LockIcon className="w-3.5 h-3.5 text-slate-400" />}
                             </div>
                           </div>
                         ) : (
-                          <span className="text-xs text-amber-600 font-medium">Needs substitute ({covered.length}/{approved.length})</span>
+                          <span className="text-xs text-amber-600 font-semibold whitespace-nowrap">Needs sub ({covered.length}/{approved.length})</span>
                         )
                       ) : (
-                        <span className="text-xs text-gray-300">—</span>
+                        <span className="text-xs text-slate-300">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2 flex-wrap">
+                    <td className="px-2.5 py-2.5 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1.5">
                         {group.status === 'pending' && (
                           <>
                             <button
                               onClick={() => handleApproveGroup(group)}
                               disabled={!!actionLoading}
-                              className="text-xs px-2.5 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                              className="text-xs px-2 py-1 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
                             >
-                              {actionLoading === group.key + '_approve' ? '…' : 'Approve All'}
+                              {actionLoading === group.key + '_approve' ? '…' : 'Approve'}
                             </button>
                             <button
                               onClick={() => handleRejectGroup(group)}
                               disabled={!!actionLoading}
-                              className="text-xs px-2.5 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                              className="text-xs px-2 py-1 bg-rose-600 text-white font-medium rounded-lg hover:bg-rose-700 transition-colors disabled:opacity-50"
                             >
-                              {actionLoading === group.key + '_reject' ? '…' : 'Reject All'}
+                              {actionLoading === group.key + '_reject' ? '…' : 'Reject'}
                             </button>
                           </>
                         )}
                         {group.status === 'approved' && hasUnassigned && (
                           <button
                             onClick={() => openSubModal(group)}
-                            className="text-xs px-2.5 py-1 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                            className="text-xs px-2.5 py-1 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors"
                           >
                             Assign Sub
                           </button>
                         )}
                         {group.status === 'approved' && !hasUnassigned && approved.length > 0 && (
-                          <div className="flex gap-1.5">
-                            <button
-                              onClick={() => openSubModal(group)}
-                              title="Swap substitute"
-                              className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-primary-600 hover:border-primary-300"
-                            >
-                              <SwapIcon className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => openSubModal(group)}
+                            title="Swap substitute"
+                            className="p-1 rounded-lg border border-slate-200 text-slate-500 hover:text-primary-600 hover:border-primary-300"
+                          >
+                            <SwapIcon className="w-3.5 h-3.5" />
+                          </button>
                         )}
                         {group.status !== 'cancelled' && group.status !== 'rejected' && (
                           <button
                             onClick={() => openCancelModal(group)}
                             disabled={!!actionLoading}
                             title="Cancel leaves"
-                            className="text-xs px-2 py-1 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 hover:text-red-700 transition-colors disabled:opacity-30 font-medium"
+                            className="text-xs px-2 py-1 border border-rose-200 text-rose-600 rounded-lg hover:bg-rose-50 hover:text-rose-700 transition-colors disabled:opacity-30 font-medium"
                           >
                             {actionLoading === group.key + '_cancel_open' ? '...' : 'Cancel'}
                           </button>
@@ -632,7 +635,18 @@ export default function AdminLeaves() {
             <div className="rounded-lg border border-gray-200 bg-white p-3 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Candidate filters</p>
-                {actionLoading === 'filter_candidates' && <span className="text-xs text-primary-600">Updating…</span>}
+                <div className="flex items-center gap-2">
+                  {actionLoading === 'filter_candidates' && <span className="text-xs text-primary-600">Updating…</span>}
+                  {(candidateFilters.crossDepartment || candidateFilters.handlesClass || candidateFilters.department || candidateFilters.search) && (
+                    <button
+                      type="button"
+                      onClick={() => applyCandidateFilters({ crossDepartment: false, handlesClass: false, department: '', search: '' })}
+                      className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="flex flex-wrap gap-3 items-center">
                 <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer">
@@ -648,6 +662,14 @@ export default function AdminLeaves() {
                   {candidateDepartments.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
                 <input className="tt-input text-xs py-1.5 min-w-[160px]" placeholder="Search teacher…" value={candidateFilters.search} onChange={e => setCandidateFilters({ ...candidateFilters, search: e.target.value })} />
+                <button
+                  type="button"
+                  onClick={() => applyCandidateFilters({ crossDepartment: false, handlesClass: false, department: '', search: '' })}
+                  disabled={!candidateFilters.crossDepartment && !candidateFilters.handlesClass && !candidateFilters.department && !candidateFilters.search}
+                  className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition shrink-0 ml-auto sm:ml-0"
+                >
+                  Clear All
+                </button>
               </div>
             </div>
 

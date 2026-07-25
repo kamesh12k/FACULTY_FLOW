@@ -50,41 +50,6 @@ export const timetableApi = {
   reviewSubmission: (id, data) => api.post(`/timetable/submissions/${id}/review`, data),
   bulkReviewSubmissions: (submissionIds, approved) => api.post('/timetable/submissions/bulk-review', { submission_ids: submissionIds, approved }),
   cancelSubmission: (id) => api.delete(`/timetable/submissions/${id}`),
-
-
-  /**
-   * Import timetable from an Excel file via the admin import endpoint.
-   * @param {File} file  - The .xlsx file to upload
-   * @param {Function} onUploadProgress - axios progress callback
-   */
-  importExcel: (file, onUploadProgress) => {
-    const form = new FormData()
-    form.append('file', file)
-    return api.post('/admin/timetable/import', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      onUploadProgress,
-    })
-  },
-  previewImportExcel: (file, onUploadProgress) => {
-    const form = new FormData()
-    form.append('file', file)
-    return api.post('/admin/timetable/import/preview', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      onUploadProgress,
-    })
-  },
-  commitImportExcel: (slots, semesterForNewClasses = null) => {
-    return api.post('/admin/timetable/import/commit', {
-      slots,
-      semester_for_new_classes: semesterForNewClasses
-    })
-  },
-  previewImportJson: (payload) => {
-    return api.post('/admin/timetable/import/json/preview', payload)
-  },
-  getJsonPromptTemplate: () => {
-    return api.get('/admin/timetable/import/json/prompt-template')
-  },
 }
 
 export const departmentsApi = {

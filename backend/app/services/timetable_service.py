@@ -166,8 +166,11 @@ def get_by_class(class_id: int, db: Session, tenant_department_id: int | None = 
 def delete_slot(slot_id: int, db: Session, tenant_department_id: int | None = None) -> None:
     slot = db.query(TimetableSlot).filter(TimetableSlot.id == slot_id).first()
     if slot:
-        if tenant_department_id is not None and slot.class_.department_id != tenant_department_id:
-            raise HTTPException(status_code=403, detail="Access denied")
+        if tenant_department_id is not None:
+            is_class_dept = slot.class_ and slot.class_.department_id == tenant_department_id
+            is_teacher_dept = slot.teacher and slot.teacher.department_id == tenant_department_id
+            if not (is_class_dept or is_teacher_dept):
+                raise HTTPException(status_code=403, detail="Access denied")
         db.delete(slot)
         db.commit()
 

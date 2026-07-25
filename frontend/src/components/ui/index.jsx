@@ -738,3 +738,36 @@ export function Badge({ children, variant = 'neutral' }) {
     </span>
   )
 }
+
+// 23. ConfirmDialog Modal
+export function ConfirmDialog({ open, title = 'Are you sure?', message, confirmText = 'Confirm', confirmVariant = 'danger', loading = false, onConfirm, onClose }) {
+  if (!open) return null
+  return (
+    <Modal open={open} onClose={onClose} title={title} size="sm">
+      <div className="space-y-4">
+        {message && <p className="text-sm text-slate-600 font-medium leading-relaxed">{message}</p>}
+        <div className="flex gap-2 pt-2 justify-end">
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button variant={confirmVariant} size="sm" loading={loading} onClick={onConfirm}>
+            {confirmText}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+// 24. PageHeader
+export function PageHeader({ title, description, actions }) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">{title}</h1>
+        {description && <p className="text-sm text-slate-500 font-medium mt-1">{description}</p>}
+      </div>
+      {actions && <div className="flex items-center gap-2.5 self-start sm:self-auto">{actions}</div>}
+    </div>
+  )
+}

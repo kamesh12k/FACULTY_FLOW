@@ -18,7 +18,6 @@ from app.routes import (
     departments, subjects, classes, rooms, day_order, admin, academic_calendar,
     campus_operations, teacher_substitution, substitutions, principal,
 )
-from app.routes import admin_timetable_import
 from app.services.admin_service import bootstrap_default_super_admin
 
 logging.basicConfig(level=logging.INFO)
@@ -65,8 +64,11 @@ app = FastAPI(
     version="3.0.0",
     description="Manage teacher leave requests, substitute assignments, credit workload balancing, timetables, and the academic calendar (Day Order rotation + holiday management).",
 )
+from app.core.exceptions import DomainException, domain_exception_handler
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(DomainException, domain_exception_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -115,7 +117,6 @@ app.include_router(academic_calendar.router)
 app.include_router(campus_operations.router)
 app.include_router(teacher_substitution.router)
 app.include_router(substitutions.router)
-app.include_router(admin_timetable_import.router)
 app.include_router(principal.router)
 
 

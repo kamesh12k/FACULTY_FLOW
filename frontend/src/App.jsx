@@ -13,7 +13,6 @@ import FirstLoginSetup from './pages/auth/FirstLoginSetup'
 import AdminDashboard from './pages/admin/Dashboard'
 import Teachers from './pages/admin/Teachers'
 import AdminTimetable from './pages/admin/Timetable'
-import TimetableImport from './pages/admin/TimetableImport'
 import TimetableApprovals from './pages/admin/TimetableApprovals'
 import AdminLeaves from './pages/admin/Leaves'
 import AdminLeaveEntry from './pages/admin/AdminLeaveEntry'
@@ -34,6 +33,7 @@ import PrincipalDashboard from './pages/admin/PrincipalDashboard'
 // Common pages
 import TodaySubstitutions from './pages/common/TodaySubstitutions'
 import ClassFacultyDirectory from './pages/common/ClassFacultyDirectory'
+import ClasswiseTimetable from './pages/common/ClasswiseTimetable'
 
 // Teacher pages
 import TeacherDashboard from './pages/teacher/Dashboard'
@@ -74,7 +74,6 @@ export default function App() {
               <Route path="/admin/academic-calendar/reports" element={<AcademicCalendarReports />} />
               <Route path="/admin/teachers" element={<Teachers />} />
               <Route path="/admin/timetable" element={<AdminTimetable />} />
-              <Route path="/admin/timetable/import" element={<TimetableImport />} />
               <Route path="/admin/timetable/approvals" element={<TimetableApprovals />} />
               <Route path="/admin/leaves" element={<AdminLeaves />} />
               <Route path="/admin/leave-entry" element={<AdminLeaveEntry />} />
@@ -82,6 +81,7 @@ export default function App() {
               <Route path="/admin/subjects" element={<AdminSubjects />} />
               <Route path="/admin/classes" element={<AdminClasses />} />
               <Route path="/admin/class-directory" element={<ClassFacultyDirectory />} />
+              <Route path="/admin/class-timetable" element={<ClasswiseTimetable />} />
               <Route path="/admin/departments" element={<AdminDepartments />} />
               <Route path="/admin/rooms" element={<AdminRooms />} />
               <Route path="/admin/resource-availability" element={<ResourceAvailability />} />
@@ -97,6 +97,7 @@ export default function App() {
           <Route element={<RequireCredentialsSet />}>
             <Route element={<AppShell />}>
               <Route path="/principal/dashboard" element={<PrincipalDashboard />} />
+              <Route path="/principal/class-timetable" element={<ClasswiseTimetable />} />
             </Route>
           </Route>
         </Route>
@@ -107,6 +108,7 @@ export default function App() {
             <Route element={<AppShell />}>
               <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
               <Route path="/teacher/timetable" element={<MyTimetable />} />
+              <Route path="/teacher/class-timetable" element={<ClasswiseTimetable />} />
               <Route path="/teacher/class-directory" element={<ClassFacultyDirectory />} />
               <Route path="/teacher/leave/apply" element={<ApplyLeave />} />
               <Route path="/teacher/leaves" element={<LeaveHistory />} />

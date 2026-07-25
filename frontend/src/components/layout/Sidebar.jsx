@@ -47,7 +47,7 @@ const ADMIN_NAV = [
     items: [
       { to: '/admin/academic-calendar', label: 'Calendar & Day Order', icon: <CalIcon /> },
       { to: '/admin/timetable', label: 'Timetable', icon: <CalIcon /> },
-      { to: '/admin/timetable/import', label: 'Import Timetable', icon: <PlusIcon /> },
+      { to: '/admin/class-timetable', label: 'Classwise Timetable', icon: <CalIcon /> },
       { to: '/admin/timetable/approvals', label: 'Timetable Approvals', icon: <DocIcon /> },
       { to: '/admin/class-directory', label: 'Class Faculty Directory', icon: <UsersIcon /> },
       { to: '/admin/resource-availability', label: 'Room Availability', icon: <ChartIcon /> },
@@ -79,6 +79,7 @@ const TEACHER_NAV = [
     items: [
       { to: '/teacher/dashboard', label: 'Home', icon: <GridIcon />, end: true },
       { to: '/teacher/timetable', label: 'My Timetable', icon: <CalIcon /> },
+      { to: '/teacher/class-timetable', label: 'Classwise Timetable', icon: <CalIcon /> },
       { to: '/teacher/class-directory', label: 'Class Faculty Directory', icon: <UsersIcon /> },
       { to: '/teacher/leave/apply', label: 'Apply for Leave', icon: <PlusIcon /> },
       { to: '/teacher/leaves', label: 'Leave History', icon: <DocIcon /> },
@@ -109,6 +110,7 @@ const PRINCIPAL_NAV = [
     section: null,
     items: [
       { to: '/principal/dashboard', label: 'Home', icon: <GridIcon />, end: true },
+      { to: '/principal/class-timetable', label: 'Classwise Timetable', icon: <CalIcon /> },
     ],
   },
 ]
@@ -146,7 +148,7 @@ export default function Sidebar() {
     : 'bg-white border-slate-150 text-slate-800'
 
   return (
-    <aside className={`hidden lg:flex shrink-0 border-r min-h-screen flex-col transition-all duration-300 ${collapsed ? 'w-[76px]' : 'w-64'} ${sidebarCls}`}>
+    <aside className={`hidden lg:flex shrink-0 border-r sticky top-0 h-screen flex-col transition-all duration-300 ${collapsed ? 'w-[76px]' : 'w-64'} ${sidebarCls}`}>
       {/* Sidebar Header with Toggle & Logo */}
       <div className={`px-5.5 py-4 border-b flex items-center justify-between gap-3 ${themePreset?.sidebarStyle === 'dark' ? 'border-slate-850' : 'border-slate-100'}`}>
         {!collapsed && (
