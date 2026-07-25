@@ -214,6 +214,216 @@ The frontend needs no `.env` for local development — Vite's proxy handles rout
 
 ---
 
+---
+
+## IT Administrator Hosting Guide: Internet & Existing Domain Integration
+
+This guide provides step-by-step instructions for IT administrators, system engineers, and network administrators to host FAFLOW on the public internet, attach SSL/TLS certificates, and integrate FAFLOW into an existing college website.
+
+---
+
+### System Architecture & Ports Overview
+
+In production, FAFLOW runs behind **Nginx** (acting as a reverse proxy, SSL termination node, and static file server) connected to a **Gunicorn + Uvicorn** FastAPI backend and a **PostgreSQL** database:
+
+```
+[ Internet Client ]
+       │  (HTTPS 443 / SSL)
+       ▼
+[ Nginx Reverse Proxy & Static Host ]
+       │
+       ├──► Serves Static SPA (frontend/dist/)
+       │
+       └──► Proxies API Requests (http://127.0.0.1:8000) ──► [ Gunicorn/FastAPI ] ──► [ PostgreSQL ]
+```
+
+| Component | Default Port | Internal/External | Recommended Production Service |
+|---|---|---|---|
+| **Nginx Web Server** | `80` (HTTP), `443` (HTTPS) | Public | Nginx Systemd Service |
+| **FastAPI Backend** | `8000` | Localhost Only (`127.0.0.1`) | Gunicorn + Uvicorn Workers |
+| **PostgreSQL Database** | `5432` | Localhost / Private Subnet | PostgreSQL 14+ / Managed Service |
+
+---
+
+### Scenario A: Hosting on a Dedicated Subdomain (Recommended)
+*Example: `https://faflow.yourcollege.edu` or `https://faculty.yourcollege.edu`*
+
+#### Step 1: DNS & Domain Record Setup
+1. In your domain provider (Cloudflare, GoDaddy, Namecheap, or College DNS Server), add an **A Record**:
+   - **Host / Name**: `faflow` (or `faculty`)
+   - **Value / IP**: Your Server's Public IPv4 Address (e.g. `203.0.113.45`)
+   - **TTL**: Auto / 300s
+
+#### Step 2: Configure Systemd Service for Backend
+Create `/etc/systemd/system/faflow-backend.service`:
+
+```ini
+[Unit]
+Description=FAFLOW FastAPI Backend Service
+After=network.target postgresql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/faflow/backend
+EnvironmentFile=/var/www/faflow/backend/.env
+ExecStart=/var/www/faflow/backend/venv/bin/gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 127.0.0.1:8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start the backend service:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable faflow-backend
+sudo systemctl start faflow-backend
+sudo systemctl status faflow-backend
+```
+
+#### Step 3: Nginx Subdomain Configuration
+Create `/etc/nginx/sites-available/faflow.conf`:
+
+```nginx
+server {
+    listen 80;
+    server_name faflow.yourcollege.edu;
+
+    # Root directory for compiled React build
+    root /var/www/faflow/frontend/dist;
+    index index.html;
+
+    # Client upload size limit for documents/excel
+    client_max_body_size 25M;
+
+    # Frontend Single-Page Application fallback
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Proxy API calls directly to Gunicorn backend
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+Link configuration and test Nginx syntax:
+```bash
+sudo ln -s /etc/nginx/sites-available/faflow.conf /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+#### Step 4: Secure with Let's Encrypt SSL (HTTPS)
+```bash
+sudo apt install certbot python3-certbot-nginx -y
+sudo certbot --nginx -d faflow.yourcollege.edu
+```
+
+---
+
+### Scenario B: Hosting Under Existing College Website Subpath
+*Example: Hosting FAFLOW under `https://yourcollege.edu/faflow/`*
+
+If your college already has an active main website running on `yourcollege.edu`, you can host FAFLOW seamlessly under a subpath `/faflow/`.
+
+#### Step 1: Configure Frontend Base Path
+In `frontend/vite.config.js` or build environment, specify the base path:
+```bash
+cd frontend
+npm run build -- --base=/faflow/
+```
+
+#### Step 2: Update Nginx Location Blocks on Existing Website
+In your main website's Nginx configuration `/etc/nginx/sites-available/yourcollege.conf`:
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name yourcollege.edu;
+
+    # ... Existing college website configuration ...
+
+    # ── FAFLOW Application Subpath ──
+    location /faflow/ {
+        alias /var/www/faflow/frontend/dist/;
+        try_files $uri $uri/ /faflow/index.html;
+    }
+
+    # ── FAFLOW API Subpath ──
+    location /faflow/api/ {
+        proxy_pass http://127.0.0.1:8000/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Reload Nginx:
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+#### Step 3: Backend CORS Environment Variable
+In `backend/.env`, set `FRONTEND_ORIGIN` to match your college domain:
+```env
+FRONTEND_ORIGIN=https://yourcollege.edu
+```
+
+---
+
+### Scenario C: Hosting Behind Cloudflare / Reverse Proxy Load Balancer
+
+If FAFLOW is hosted behind Cloudflare or a Hardware Load Balancer (F5 / Fortinet):
+
+1. **SSL Mode**: Set Cloudflare SSL/TLS encryption mode to **Full (Strict)**.
+2. **Real IP Headers**: Ensure Nginx restores the real client IP:
+   ```nginx
+   set_real_ip_from 103.21.244.0/22;
+   set_real_ip_from 103.31.4.0/22;
+   # ... add Cloudflare IP ranges ...
+   real_ip_header CF-Connecting-IP;
+   ```
+
+---
+
+### Automated Database Backup Cron Job
+
+Create a daily automated PostgreSQL database backup script `/var/www/faflow/scripts/backup_db.sh`:
+
+```bash
+#!/bin/bash
+BACKUP_DIR="/var/www/faflow/backups"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+mkdir -p $BACKUP_DIR
+
+pg_dump -U credits_app -h localhost credits_db | gzip > "$BACKUP_DIR/faflow_backup_$TIMESTAMP.sql.gz"
+
+# Keep last 30 days of backups
+find $BACKUP_DIR -type f -name "*.sql.gz" -mtime +30 -delete
+```
+
+Add to system crontab (`crontab -e`):
+```cron
+0 2 * * * /bin/bash /var/www/faflow/scripts/backup_db.sh
+```
+
+---
+
 ## Post-deployment checklist
 
 - [ ] `SECRET_KEY` is unique and at least 32 characters — not the placeholder from `.env.example`
@@ -230,8 +440,9 @@ The frontend needs no `.env` for local development — Vite's proxy handles rout
 
 **`pip install` fails on Python 3.13/3.14** — see the Troubleshooting section in `README.md`; the short version is `pip install --upgrade -r requirements.txt` to make sure you're getting current package releases, not stale cached ones.
 
-**Backend won't start / config errors** — run `python3 preflight_check.py` from inside `backend/`. It checks your `.env`, database connection, and schema before you waste time chasing a confusing stack trace.
+**Backend won't start / config errors** — run `python3 manage.py verify` from inside `backend/`. It checks your `.env`, database connection, and schema before you waste time chasing a confusing stack trace.
 
 **Locked out of the admin account entirely** — `cd backend && python3 scripts/factory_reset.py`. This wipes all data and resets to the bootstrap `admin`/`admin` login, so only use it as a last resort. A backup is written automatically first.
 
 **Anything else** — `README.md` has a fuller troubleshooting section, and `database/README.md` covers schema/migration-specific issues.
+

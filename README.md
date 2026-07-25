@@ -388,9 +388,15 @@ python manage.py seed
 
 ---
 
-## Production Deployment
+## Production Deployment & IT Administrator Hosting
 
-See `DEPLOYMENT.md` for full instructions (Gunicorn + Nginx + systemd, SSL, database backups, environment checklist).
+For comprehensive production deployment and internet hosting guides, refer to [`DEPLOYMENT.md`](file:///c:/Users/kames/Downloads/FACREDIT-enhanced-20260724-v5/DEPLOYMENT.md):
+
+* **[Dedicated Subdomain Hosting](DEPLOYMENT.md#scenario-a-hosting-on-a-dedicated-subdomain-recommended)** — Step-by-step setup for hosting on `faflow.yourcollege.edu` using Nginx, Systemd (`faflow-backend.service`), Gunicorn, and free SSL certificates via Let's Encrypt Certbot.
+* **[Subpath Integration on Existing Website](DEPLOYMENT.md#scenario-b-hosting-under-existing-college-website-subpath)** — Step-by-step instructions to integrate FAFLOW into your existing college domain (`https://yourcollege.edu/faflow/`) using Nginx reverse proxy location blocks and Vite base path compilation (`npm run build -- --base=/faflow/`).
+* **[Cloudflare & Enterprise Load Balancer Setup](DEPLOYMENT.md#scenario-c-hosting-behind-cloudflare--reverse-proxy-load-balancer)** — Configuring Cloudflare Full (Strict) SSL and restoring client IP headers.
+* **[Automated Backups & Cron Jobs](DEPLOYMENT.md#automated-database-backup-cron-job)** — Setting up daily automated PostgreSQL database backups and log rotation.
+* **[Post-Deployment Checklist](DEPLOYMENT.md#post-deployment-checklist)** — Security keys, CORS configuration, and production verification checklist.
 
 ---
 
