@@ -17,7 +17,7 @@ For commercial licensing:
 
 A production-ready web application for managing teacher leave requests, substitute assignments, and credit-based workload balancing — with full classroom, subject, room, Day Order, and Academic Calendar / Holiday management.
 
-**Version:** 3.4.0 (Enterprise Hardening & Rate Limiting, React Error Boundary, DB Pool Resiliency, and Performance Indexing)
+**Version:** 5.0.0 (Production Release — Classwise Timetable, Cross-Dept Management, Reusable UI/Hooks, Domain Exception Architecture & CLI manage.py)
 
 
 ---
@@ -29,13 +29,14 @@ A production-ready web application for managing teacher leave requests, substitu
 3. [Technology Stack](#technology-stack)
 4. [Architecture](#architecture)
 5. [Quick Start (Development)](#quick-start-development)
-6. [Production Deployment](#production-deployment)
-7. [Admin Guide](#admin-guide)
-8. [Academic Calendar & Day Order](#academic-calendar--day-order)
-9. [Factory Reset](#factory-reset)
-10. [Security](#security)
-11. [Troubleshooting](#troubleshooting)
-12. [Credits](#credits)
+6. [CLI Management Tool (`manage.py`)](#cli-management-tool-managepy)
+7. [Production Deployment](#production-deployment)
+8. [Admin Guide](#admin-guide)
+9. [Academic Calendar & Day Order](#academic-calendar--day-order)
+10. [Factory Reset](#factory-reset)
+11. [Security](#security)
+12. [Troubleshooting](#troubleshooting)
+13. [Credits](#credits)
 
 ---
 
@@ -206,18 +207,38 @@ users (system_admin / principal / department-scoped admin / department-scoped te
 /admin/departments
 /admin/academic-calendar, /admin/academic-calendar/reports
 /admin/teachers, /admin/subjects, /admin/classes, /admin/rooms
-/admin/timetable, /admin/timetable/import
+/admin/timetable, /admin/class-timetable, /admin/timetable/approvals
 /admin/leaves, /admin/leave-entry
 /admin/credits
 /admin/resource-availability, /admin/today-substitutions
 /admin/settings
 
-/principal/dashboard
+/principal/dashboard, /principal/class-timetable
 
-/teacher/dashboard, /teacher/timetable
+/teacher/dashboard, /teacher/timetable, /teacher/class-timetable
 /teacher/leave/apply, /teacher/leaves
 /teacher/credits, /teacher/preferences
 /teacher/substitution, /teacher/today-coverage
+```
+
+---
+
+## CLI Management Tool (`manage.py`)
+
+The project includes a unified CLI management utility located at `backend/manage.py`. Run commands using your Python virtual environment:
+
+```bash
+# Verify system environment & server connectivity
+python manage.py verify
+
+# Run full backend pytest test suite (315+ test cases)
+python manage.py test
+
+# Check database connection and pool status
+python manage.py health
+
+# Seed conflict-free cross-department test slots
+python manage.py seed
 ```
 
 ---
