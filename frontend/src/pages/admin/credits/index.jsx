@@ -39,10 +39,10 @@ export default function AdminCredits() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState(null)
+  const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'balances' | 'activity'
 
-  // Modal state (manual adjustment)
+  // Single adjustment modal state
   const [modalOpen, setModalOpen] = useState(false)
-  const [prefillTeacher, setPrefillTeacher] = useState(null)
   const [form, setForm] = useState({ teacher_id: '', change: '', reason: '', category: 'manual_adjustment' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -74,8 +74,6 @@ export default function AdminCredits() {
   }, [loadData])
 
   const openAdjustModal = (teacher = null) => {
-    setPrefillTeacher(teacher)
-    // teacher may come from report (has teacher_id) or from allTeachers list (has id)
     const tid = teacher ? (teacher.teacher_id ?? teacher.id ?? '') : ''
     setForm({
       teacher_id: String(tid),
@@ -100,7 +98,6 @@ export default function AdminCredits() {
       })
       setModalOpen(false)
       setForm({ teacher_id: '', change: '', reason: '', category: 'manual_adjustment' })
-      setPrefillTeacher(null)
       loadData(true)
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to adjust credits.')
@@ -124,102 +121,135 @@ export default function AdminCredits() {
     }
   }
 
-  const handleOpenHistory = (teacher) => {
-    setDrawerTeacher(teacher)
-  }
-
-  const handleAttentionReview = (teacher) => {
-    setDrawerTeacher(teacher)
-  }
-
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4">
         <Spinner size="lg" />
-        <p className="text-sm text-gray-400">Loading Credit Intelligence Dashboard…</p>
+        <p className="text-sm font-semibold text-slate-500">Loading Credit Intelligence System…</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 max-w-screen-2xl">
+    <div className="space-y-6 max-w-screen-2xl mx-auto pb-10">
 
-      {/* ── Page Header ── */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <svg className="w-6 h-6 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-            </svg>
-            Credits Intelligence Dashboard
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Faculty credit management &middot; {report.length} teachers &middot; {transactions.length} transactions total
-          </p>
+      {/* ── Enterprise Hero Header ── */}
+      <div className="rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 shadow-md relative overflow-hidden">
+        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-indigo-500/10 to-transparent pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <span className="px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] font-extrabold uppercase tracking-wider border border-indigo-500/30">
+                Institutional Financial Controls
+              </span>
+              {lastUpdated && (
+                <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
+                  Updated {lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-2.5 flex items-center gap-3 text-white">
+              <span>💳</span> Credits Intelligence & Audit System
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl font-medium leading-relaxed">
+              Real-time faculty credit accounting, automated substitution balancing, and risk reconciliation radar.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <button
+              onClick={() => loadData(true)}
+              disabled={refreshing}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white/10 hover:bg-white/20 text-white rounded-xl backdrop-blur-md border border-white/10 transition active:scale-95 disabled:opacity-50"
+            >
+              <RefreshIcon className="w-3.5 h-3.5" spinning={refreshing} />
+              Sync Data
+            </button>
+            <button
+              onClick={() => openAdjustModal()}
+              className="btn-primary text-xs py-2 px-3.5 rounded-xl font-bold flex items-center gap-1.5 shadow-sm active:scale-95"
+            >
+              <span>+</span> Adjust Credits
+            </button>
+            <button
+              onClick={handleClearHistory}
+              disabled={refreshing}
+              className="px-3 py-2 text-xs font-semibold text-rose-300 hover:text-white bg-rose-950/40 hover:bg-rose-900/60 rounded-xl border border-rose-800/40 transition disabled:opacity-40"
+              title="Reset credit history"
+            >
+              Reset History
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          {lastUpdated && (
-            <span className="text-[11px] text-gray-400 hidden sm:block">
-              Updated {lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          )}
-          <button
-            onClick={handleClearHistory}
-            disabled={refreshing}
-            className="inline-flex items-center justify-center rounded bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 text-xs font-semibold border border-red-200 transition disabled:opacity-40"
-          >
-            Clear History
-          </button>
-          <button
-            onClick={() => loadData(true)}
-            disabled={refreshing}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-600 bg-white hover:bg-gray-50 border border-gray-200 rounded transition-colors"
-          >
-            <RefreshIcon className="w-3.5 h-3.5" spinning={refreshing} />
-            Refresh
-          </button>
-          <button
-            onClick={() => openAdjustModal()}
-            className="btn-primary flex items-center gap-1.5 text-xs py-2 px-3 rounded shadow-sm"
-          >
-            <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-            </svg>
-            Adjust Credits
-          </button>
+        {/* Navigation Tabs */}
+        <div className="mt-8 pt-4 border-t border-white/10 flex items-center gap-2 overflow-x-auto">
+          {[
+            ['overview', '📊 Executive Overview'],
+            ['balances', '💳 Faculty Balance Matrix'],
+            ['activity', '📜 Transaction Audit Stream'],
+          ].map(([tabKey, tabLabel]) => (
+            <button
+              key={tabKey}
+              onClick={() => setActiveTab(tabKey)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                activeTab === tabKey
+                  ? 'bg-white text-slate-900 shadow-md font-extrabold'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              {tabLabel}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* ── Feature 1: KPI Cards ── */}
-      <KPICards report={report} transactions={transactions} />
+      {/* ── Tab 1: Executive Overview ── */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6 animate-fadeIn">
+          <KPICards report={report} transactions={transactions} />
 
-      {/* ── Features 2 & 3: Leaderboard + Attention ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Leaderboard report={report} />
-        <AttentionPanel
-          report={report}
-          transactions={transactions}
-          onReview={handleAttentionReview}
-        />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Leaderboard report={report} />
+            <AttentionPanel
+              report={report}
+              transactions={transactions}
+              onReview={(t) => setDrawerTeacher(t)}
+            />
+          </div>
 
-      </div>
+          <BalanceTable
+            report={report}
+            transactions={transactions}
+            onViewHistory={(t) => setDrawerTeacher(t)}
+            onAdjust={openAdjustModal}
+          />
+        </div>
+      )}
 
-      {/* ── Feature 4: Modern Balance Table ── */}
-      <BalanceTable
-        report={report}
-        transactions={transactions}
-        onViewHistory={handleOpenHistory}
-        onAdjust={openAdjustModal}
-      />
+      {/* ── Tab 2: Faculty Balance Matrix ── */}
+      {activeTab === 'balances' && (
+        <div className="space-y-6 animate-fadeIn">
+          <BalanceTable
+            report={report}
+            transactions={transactions}
+            onViewHistory={(t) => setDrawerTeacher(t)}
+            onAdjust={openAdjustModal}
+          />
+        </div>
+      )}
 
-      {/* ── Feature 5: Activity Timeline ── */}
-      <ActivityTimeline transactions={transactions} report={report} />
+      {/* ── Tab 3: Transaction Audit Stream ── */}
+      {activeTab === 'activity' && (
+        <div className="space-y-6 animate-fadeIn">
+          <ActivityTimeline transactions={transactions} report={report} />
+          <ExportBar report={report} transactions={transactions} />
+        </div>
+      )}
 
-      {/* ── Feature 7: Export Bar ── */}
-      <ExportBar report={report} transactions={transactions} />
-
-      {/* ── Feature 6: Credit History Drawer ── */}
+      {/* ── Credit History Drawer ── */}
       {drawerTeacher && (
         <CreditHistoryDrawer
           teacher={drawerTeacher}
@@ -229,21 +259,20 @@ export default function AdminCredits() {
         />
       )}
 
-      {/* ── Manual Adjustment Modal ── */}
+      {/* ── Single Adjustment Modal ── */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Manual Credit Adjustment">
         <form onSubmit={handleAdjust} className="space-y-4">
           <ErrorAlert message={error} />
 
-          {/* Teacher select */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Select Teacher</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Faculty Member</label>
             <select
               required
               className="input w-full"
               value={form.teacher_id}
               onChange={e => setForm({ ...form, teacher_id: e.target.value })}
             >
-              <option value="">Choose teacher…</option>
+              <option value="">Select teacher…</option>
               {[...allTeachers]
                 .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
                 .map(t => {
@@ -261,9 +290,8 @@ export default function AdminCredits() {
             </select>
           </div>
 
-          {/* Credit category */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Credit Category</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Credit Category</label>
             <select
               required
               className="input w-full"
@@ -276,9 +304,8 @@ export default function AdminCredits() {
             </select>
           </div>
 
-          {/* Adjustment value */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Adjustment Value</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Adjustment Value</label>
             <input
               type="number"
               required
@@ -287,36 +314,24 @@ export default function AdminCredits() {
               value={form.change}
               onChange={e => setForm({ ...form, change: e.target.value })}
             />
-            <p className="text-[10px] text-gray-400 mt-1">Enter a positive integer to credit, or negative to deduct.</p>
+            <p className="text-[10px] text-gray-400 mt-1 font-medium">Positive integer to award credits, negative integer to deduct.</p>
           </div>
 
-          {/* Reason */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Reason for Adjustment</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Reason for Adjustment</label>
             <textarea
               required
-              placeholder="e.g., Exam duty cover — Semester examination invigilation"
+              placeholder="e.g. Exam invigilation duty cover..."
               className="input w-full h-20 py-2 resize-none"
               value={form.reason}
               onChange={e => setForm({ ...form, reason: e.target.value })}
             />
           </div>
 
-          {/* Actions */}
           <div className="flex gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => setModalOpen(false)}
-              className="btn-secondary flex-1"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="btn-primary flex-1"
-            >
-              {saving ? 'Saving…' : 'Apply Adjustment'}
+            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary flex-1">Cancel</button>
+            <button type="submit" disabled={saving} className="btn-primary flex-1">
+              {saving ? 'Applying…' : 'Apply Adjustment'}
             </button>
           </div>
         </form>

@@ -3,7 +3,7 @@ from fastapi import HTTPException
 
 from app.models.class_ import Class
 from app.models.timetable import TimetableSlot
-from app.schemas.class_ import ClassCreate, ClassUpdate
+from app.schemas.class_ import ClassCreate, ClassUpdate, BulkClassCreate, BulkClassCreateOut
 
 
 def list_classes(db: Session, tenant_department_id: int | None = None) -> list[Class]:
@@ -13,6 +13,8 @@ def list_classes(db: Session, tenant_department_id: int | None = None) -> list[C
 
 
 def create_class(data: ClassCreate, db: Session, tenant_department_id: int | None = None) -> Class:
+    if tenant_department_id is not None and data.department_id != tenant_department_id:
+        raise HTTPException(status_code=403, detail="HODs can only create classes for their own department")
     dept_id = tenant_department_id if tenant_department_id is not None else data.department_id
     exists = db.query(Class).filter(
         Class.name == data.name,
@@ -31,6 +33,90 @@ def create_class(data: ClassCreate, db: Session, tenant_department_id: int | Non
     db.commit()
     db.refresh(cls)
     return cls
+
+
+def bulk_create_classes(
+    data: BulkClassCreate, db: Session, tenant_department_id: int | None = None
+) -> BulkClassCreateOut:
+    if tenant_department_id is not None and data.department_id != tenant_department_id:
+        raise HTTPException(status_code=403, detail="HODs can only create classes for their own department")
+    dept_id = tenant_department_id if tenant_department_id is not None else data.department_id
+
+    existing_classes = {
+        (c.name.strip().lower(), c.section.strip().lower())
+        for c in db.query(Class.name, Class.section).all()
+    }
+
+    created_count = 0
+    skipped_count = 0
+
+    if data.mode == "section_range":
+        start_char = data.start_section.strip().upper()[:1] or "A"
+        end_char = data.end_section.strip().upper()[:1] or "D"
+        start_ord = ord(start_char)
+        end_ord = ord(end_char)
+
+        if end_ord < start_ord:
+            raise HTTPException(status_code=400, detail="End section must be greater than or equal to start section")
+        if (end_ord - start_ord + 1) > 26:
+            raise HTTPException(status_code=400, detail="Section range cannot exceed 26 sections (A-Z)")
+
+        class_name = data.name_prefix.strip()
+        for char_code in range(start_ord, end_ord + 1):
+            sec = chr(char_code)
+            key = (class_name.lower(), sec.lower())
+
+            if key in existing_classes:
+                skipped_count += 1
+                continue
+
+            cls = Class(
+                name=class_name,
+                section=sec,
+                department_id=dept_id,
+                semester=data.semester,
+            )
+            db.add(cls)
+            existing_classes.add(key)
+            created_count += 1
+    else:
+        # numeric_range
+        if data.end_num < data.start_num:
+            raise HTTPException(status_code=400, detail="End number must be greater than or equal to start number")
+        if (data.end_num - data.start_num + 1) > 100:
+            raise HTTPException(status_code=400, detail="Cannot create more than 100 classes in a single request")
+
+        sec = data.section.strip() or "A"
+        for idx, num in enumerate(range(data.start_num, data.end_num + 1)):
+            class_name = f"{data.name_prefix}{num}".strip()
+            key = (class_name.lower(), sec.lower())
+
+            if key in existing_classes:
+                skipped_count += 1
+                continue
+
+            if data.auto_increment_semester:
+                calc_sem = min(8, max(1, data.semester + (idx * 2)))
+            else:
+                calc_sem = data.semester
+
+            cls = Class(
+                name=class_name,
+                section=sec,
+                department_id=dept_id,
+                semester=calc_sem,
+            )
+            db.add(cls)
+            existing_classes.add(key)
+            created_count += 1
+
+    db.commit()
+    return BulkClassCreateOut(
+        created_count=created_count,
+        skipped_count=skipped_count,
+        message=f"Created {created_count} class(es) successfully. Skipped {skipped_count} existing class(es)."
+    )
+
 
 
 def update_class(class_id: int, data: ClassUpdate, db: Session, tenant_department_id: int | None = None) -> Class:
@@ -59,8 +145,8 @@ def delete_class(class_id: int, db: Session, tenant_department_id: int | None = 
     if not cls:
         raise HTTPException(status_code=404, detail="Class not found")
         
-    in_use = db.query(TimetableSlot).filter(TimetableSlot.class_id == class_id).first()
-    if in_use:
-        raise HTTPException(status_code=400, detail="Cannot delete a class that has timetable slots")
+    from app.models.timetable_submission import TimetableSubmission
+    db.query(TimetableSlot).filter(TimetableSlot.class_id == class_id).delete(synchronize_session=False)
+    db.query(TimetableSubmission).filter(TimetableSubmission.class_id == class_id).delete(synchronize_session=False)
     db.delete(cls)
     db.commit()

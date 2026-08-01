@@ -1,49 +1,59 @@
-﻿// credits/utils.js — Shared helpers for the Credits Dashboard
+// credits/utils.js — Shared helpers for the Credits Dashboard
 
 // --- Category Config ---
 
 export const CATEGORY_CONFIG = {
   substitute_class: {
-    label: "Substitute Class",
-    icon: "📚",
+    label: "Substitution Covered",
+    icon: "🔄",
+    type: "credit",
     color: "emerald",
-    bgClass: "bg-emerald-100",
+    bgClass: "bg-emerald-50 border-emerald-200 text-emerald-800",
+    pillClass: "bg-emerald-100 text-emerald-800 border-emerald-200/80 font-bold",
     textClass: "text-emerald-700",
     borderClass: "border-emerald-200",
     dotClass: "bg-emerald-500",
   },
-  manual_adjustment: {
-    label: "Manual Adjustment",
-    icon: "⚙️",
-    color: "violet",
-    bgClass: "bg-violet-100",
-    textClass: "text-violet-700",
-    borderClass: "border-violet-200",
-    dotClass: "bg-violet-500",
+  leave_deduction: {
+    label: "Leave Taken",
+    icon: "🏖️",
+    type: "deduction",
+    color: "rose",
+    bgClass: "bg-rose-50 border-rose-200 text-rose-800",
+    pillClass: "bg-rose-100 text-rose-800 border-rose-200/80 font-bold",
+    textClass: "text-rose-700",
+    borderClass: "border-rose-200",
+    dotClass: "bg-rose-500",
   },
   exam_duty: {
     label: "Exam Duty",
     icon: "📝",
-    color: "blue",
-    bgClass: "bg-blue-100",
-    textClass: "text-blue-700",
-    borderClass: "border-blue-200",
-    dotClass: "bg-blue-500",
+    type: "credit",
+    color: "sky",
+    bgClass: "bg-sky-50 border-sky-200 text-sky-800",
+    pillClass: "bg-sky-100 text-sky-800 border-sky-200/80 font-bold",
+    textClass: "text-sky-700",
+    borderClass: "border-sky-200",
+    dotClass: "bg-sky-500",
   },
   department_duty: {
     label: "Department Duty",
     icon: "🏛️",
+    type: "credit",
     color: "indigo",
-    bgClass: "bg-indigo-100",
+    bgClass: "bg-indigo-50 border-indigo-200 text-indigo-800",
+    pillClass: "bg-indigo-100 text-indigo-800 border-indigo-200/80 font-bold",
     textClass: "text-indigo-700",
     borderClass: "border-indigo-200",
     dotClass: "bg-indigo-500",
   },
   workshop: {
-    label: "Workshop",
+    label: "Workshop / Training",
     icon: "🔧",
+    type: "credit",
     color: "amber",
-    bgClass: "bg-amber-100",
+    bgClass: "bg-amber-50 border-amber-200 text-amber-800",
+    pillClass: "bg-amber-100 text-amber-800 border-amber-200/80 font-bold",
     textClass: "text-amber-700",
     borderClass: "border-amber-200",
     dotClass: "bg-amber-500",
@@ -51,42 +61,78 @@ export const CATEGORY_CONFIG = {
   event_coordination: {
     label: "Event Coordination",
     icon: "🎯",
-    color: "pink",
-    bgClass: "bg-pink-100",
-    textClass: "text-pink-700",
-    borderClass: "border-pink-200",
-    dotClass: "bg-pink-500",
+    type: "credit",
+    color: "purple",
+    bgClass: "bg-purple-50 border-purple-200 text-purple-800",
+    pillClass: "bg-purple-100 text-purple-800 border-purple-200/80 font-bold",
+    textClass: "text-purple-700",
+    borderClass: "border-purple-200",
+    dotClass: "bg-purple-500",
+  },
+  manual_adjustment: {
+    label: "Admin Adjustment",
+    icon: "⚙️",
+    type: "neutral",
+    color: "violet",
+    bgClass: "bg-violet-50 border-violet-200 text-violet-800",
+    pillClass: "bg-violet-100 text-violet-800 border-violet-200/80 font-bold",
+    textClass: "text-violet-700",
+    borderClass: "border-violet-200",
+    dotClass: "bg-violet-500",
   },
   penalty: {
-    label: "Penalty / Leave",
+    label: "Absence Penalty",
     icon: "📉",
+    type: "deduction",
     color: "red",
-    bgClass: "bg-red-100",
+    bgClass: "bg-red-50 border-red-200 text-red-800",
+    pillClass: "bg-red-100 text-red-800 border-red-200/80 font-bold",
     textClass: "text-red-700",
     borderClass: "border-red-200",
     dotClass: "bg-red-500",
   },
   correction: {
-    label: "Correction / Undo",
+    label: "Data Correction",
     icon: "↩️",
+    type: "neutral",
     color: "slate",
-    bgClass: "bg-slate-100",
+    bgClass: "bg-slate-50 border-slate-200 text-slate-800",
+    pillClass: "bg-slate-100 text-slate-700 border-slate-200 font-bold",
     textClass: "text-slate-600",
     borderClass: "border-slate-200",
     dotClass: "bg-slate-400",
   },
   other: {
-    label: "Other",
+    label: "General Record",
     icon: "📋",
+    type: "neutral",
     color: "gray",
-    bgClass: "bg-gray-100",
+    bgClass: "bg-gray-50 border-gray-200 text-gray-800",
+    pillClass: "bg-gray-100 text-gray-700 border-gray-200 font-bold",
     textClass: "text-gray-600",
     borderClass: "border-gray-200",
     dotClass: "bg-gray-400",
   },
 }
 
-export function getCategoryConfig(category) {
+export function getCategoryConfig(categoryOrTx) {
+  let category = typeof categoryOrTx === 'string' ? categoryOrTx : categoryOrTx?.category
+  const reason = typeof categoryOrTx === 'object' ? (categoryOrTx?.reason || '').toLowerCase() : ''
+
+  if (!category || category === 'other' || category === 'manual_adjustment') {
+    if (reason.includes('substitut') || reason.includes('cover')) category = 'substitute_class'
+    else if (reason.includes('leave') || reason.includes('absent')) category = 'leave_deduction'
+    else if (reason.includes('exam') || reason.includes('invigil')) category = 'exam_duty'
+    else if (reason.includes('dept') || reason.includes('department')) category = 'department_duty'
+    else if (reason.includes('workshop') || reason.includes('train')) category = 'workshop'
+    else if (reason.includes('event') || reason.includes('sympos')) category = 'event_coordination'
+    else if (reason.includes('penalty') || reason.includes('deduct')) category = 'penalty'
+  }
+
+  if (category === 'penalty' && (reason.includes('leave') || reason.includes('absent'))) {
+    category = 'leave_deduction'
+  }
+
   return CATEGORY_CONFIG[category] || CATEGORY_CONFIG.other
 }
 
@@ -257,8 +303,9 @@ export function computeAttentionFlags(report, transactions) {
 export function computeCreditBreakdown(transactions) {
   const breakdown = {}
   for (const tx of transactions) {
-    const cat = tx.category || "other"
-    if (!breakdown[cat]) breakdown[cat] = { earned: 0, deducted: 0, count: 0 }
+    const catConfig = getCategoryConfig(tx)
+    const cat = catConfig.label
+    if (!breakdown[cat]) breakdown[cat] = { earned: 0, deducted: 0, count: 0, config: catConfig }
     if (tx.change > 0) breakdown[cat].earned += tx.change
     else breakdown[cat].deducted += Math.abs(tx.change)
     breakdown[cat].count++

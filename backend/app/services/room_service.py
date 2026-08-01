@@ -3,7 +3,7 @@ from fastapi import HTTPException
 
 from app.models.room import Room
 from app.models.timetable import TimetableSlot
-from app.schemas.room import RoomCreate, RoomUpdate, RoomAvailabilityOut
+from app.schemas.room import RoomCreate, RoomUpdate, RoomAvailabilityOut, BulkRoomCreate, BulkRoomCreateOut
 
 
 def list_rooms(db: Session, room_type: str | None = None) -> list[Room]:
@@ -23,6 +23,49 @@ def create_room(data: RoomCreate, db: Session) -> Room:
     return room
 
 
+def bulk_create_rooms(data: BulkRoomCreate, db: Session) -> BulkRoomCreateOut:
+    if data.end_num < data.start_num:
+        raise HTTPException(status_code=400, detail="End number must be greater than or equal to start number")
+    if (data.end_num - data.start_num + 1) > 200:
+        raise HTTPException(status_code=400, detail="Cannot create more than 200 rooms in a single request")
+
+    existing_room_numbers = {
+        r.room_number for r in db.query(Room.room_number).all()
+    }
+
+    created_count = 0
+    skipped_count = 0
+
+    for num in range(data.start_num, data.end_num + 1):
+        if data.pad_digits > 0:
+            formatted_num = f"{num:0{data.pad_digits}d}"
+        else:
+            formatted_num = str(num)
+        room_num = f"{data.prefix}{formatted_num}"
+
+        if room_num in existing_room_numbers:
+            skipped_count += 1
+            continue
+
+        room = Room(
+            room_number=room_num,
+            room_type=data.room_type,
+            capacity=data.capacity,
+            department_id=data.department_id,
+        )
+        db.add(room)
+        existing_room_numbers.add(room_num)
+        created_count += 1
+
+    db.commit()
+    return BulkRoomCreateOut(
+        created_count=created_count,
+        skipped_count=skipped_count,
+        message=f"Created {created_count} room(s) successfully. Skipped {skipped_count} existing room(s)."
+    )
+
+
+
 def update_room(room_id: int, data: RoomUpdate, db: Session) -> Room:
     room = db.query(Room).filter(Room.id == room_id).first()
     if not room:
@@ -38,9 +81,9 @@ def delete_room(room_id: int, db: Session) -> None:
     room = db.query(Room).filter(Room.id == room_id).first()
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
-    in_use = db.query(TimetableSlot).filter(TimetableSlot.room_id == room_id).first()
-    if in_use:
-        raise HTTPException(status_code=400, detail="Cannot delete a room that has timetable slots assigned")
+    from app.models.timetable_submission import TimetableSubmission
+    db.query(TimetableSlot).filter(TimetableSlot.room_id == room_id).update({"room_id": None}, synchronize_session=False)
+    db.query(TimetableSubmission).filter(TimetableSubmission.room_id == room_id).update({"room_id": None}, synchronize_session=False)
     db.delete(room)
     db.commit()
 

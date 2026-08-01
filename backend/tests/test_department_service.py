@@ -71,16 +71,32 @@ class TestDepartmentService:
     def test_delete_with_subject(self, db_session):
         dept = factory_department(db_session, name="CS", code="CS")
         factory_subject(db_session, code="CS101", department_id=dept.id)
-        with pytest.raises(HTTPException) as exc:
-            delete_department(dept.id, db_session)
-        assert exc.value.status_code == 400
-        assert "Cannot delete a department with associated subjects" in exc.value.detail
+        delete_department(dept.id, db_session)
+        assert len(list_departments(db_session)) == 0
 
     def test_delete_with_class(self, db_session):
         dept = factory_department(db_session, name="CS", code="CS")
         factory_class(db_session, name="CS-A", department_id=dept.id)
-        with pytest.raises(HTTPException) as exc:
-            delete_department(dept.id, db_session)
-        assert exc.value.status_code == 400
-        assert "Cannot delete a department with associated classes" in exc.value.detail
+        delete_department(dept.id, db_session)
+        assert len(list_departments(db_session)) == 0
+
+    def test_delete_with_users(self, db_session):
+        from app.models.user import User, Role
+        from app.core.security import hash_password
+        dept = factory_department(db_session, name="AERO", code="AERO")
+        user = User(
+            name="Aero Teacher",
+            email="aero_teacher@example.com",
+            password_hash=hash_password("Pass123!"),
+            role=Role.teacher,
+            department_id=dept.id,
+        )
+        db_session.add(user)
+        db_session.commit()
+        
+        delete_department(dept.id, db_session)
+        assert len(list_departments(db_session)) == 0
+        assert db_session.query(User).filter(User.department_id == dept.id).count() == 0
+
+
 

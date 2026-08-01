@@ -1,10 +1,8 @@
 @echo off
-echo ========================================================================
-echo     Restarting FACREDIT Development Mode Services...
-echo ========================================================================
-echo.
+setlocal enabledelayedexpansion
+cls
 
-call StopDev.bat -nopause
-echo Waiting for ports to clear...
-timeout /t 2 /nobreak >nul
-call StartDev.bat %*
+:: Anchor working directory to project root relative to this script
+cd /d "%~dp0.."
+
+call "%~dp0..\RestartDev.bat" %*

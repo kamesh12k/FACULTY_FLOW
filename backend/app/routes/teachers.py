@@ -112,27 +112,26 @@ def delete_teacher(
     if not teacher:
         raise HTTPException(status_code=404, detail="Teacher not found")
 
-    # Check constraints:
-    # 1. Timetable slots
-    if db.query(TimetableSlot).filter(TimetableSlot.teacher_id == teacher_id).first():
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot delete a teacher with associated timetable slots"
-        )
+    from app.models.notification import PushSubscription, Notification
+    from app.models.credit import CreditTransaction, TeacherCredit
+    from app.models.substitution_preference import SubstitutionPreference
+    from app.models.timetable_submission import TimetableSubmission
 
-    # 2. Leave requests
-    if db.query(LeaveRequest).filter(LeaveRequest.teacher_id == teacher_id).first():
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot delete a teacher with associated leave requests"
-        )
+    # Automatically clean up all associated records for this teacher:
+    db.query(PushSubscription).filter(PushSubscription.user_id == teacher_id).delete(synchronize_session=False)
+    db.query(Notification).filter(Notification.user_id == teacher_id).delete(synchronize_session=False)
+    db.query(CreditTransaction).filter(CreditTransaction.teacher_id == teacher_id).delete(synchronize_session=False)
+    db.query(TeacherCredit).filter(TeacherCredit.teacher_id == teacher_id).delete(synchronize_session=False)
+    db.query(SubstitutionPreference).filter(SubstitutionPreference.teacher_id == teacher_id).delete(synchronize_session=False)
+    db.query(TimetableSlot).filter(TimetableSlot.teacher_id == teacher_id).delete(synchronize_session=False)
+    db.query(TimetableSubmission).filter(TimetableSubmission.teacher_id == teacher_id).delete(synchronize_session=False)
 
-    # 3. Substitute assignments
-    if db.query(AlterAssignment).filter(AlterAssignment.substitute_teacher_id == teacher_id).first():
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot delete a teacher with associated substitute assignments"
-        )
+    leave_ids = [l.id for l in db.query(LeaveRequest.id).filter(LeaveRequest.teacher_id == teacher_id).all()]
+    if leave_ids:
+        db.query(AlterAssignment).filter(AlterAssignment.leave_request_id.in_(leave_ids)).delete(synchronize_session=False)
+        db.query(LeaveRequest).filter(LeaveRequest.id.in_(leave_ids)).delete(synchronize_session=False)
+
+    db.query(AlterAssignment).filter(AlterAssignment.substitute_teacher_id == teacher_id).delete(synchronize_session=False)
 
     log_audit_event(
         db, admin.id, "teachers.delete", "user", teacher.id,

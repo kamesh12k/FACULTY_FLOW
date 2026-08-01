@@ -7,8 +7,9 @@ cd /d "%~dp0"
 set "ROOT_DIR=%~dp0"
 if "%ROOT_DIR:~-1%"=="\" set "ROOT_DIR=%ROOT_DIR:~0,-1%"
 
-:: ANSI escape color codes setup
+:: Safe ANSI escape color codes setup
 for /f "tokens=1,2 delims=#" %%a in ('"prompt #$H#$E# & echo on & for %%b in (1) do rem"') do set "ESC=%%b"
+
 set "GREEN=%ESC%[92m"
 set "RED=%ESC%[91m"
 set "YELLOW=%ESC%[93m"
@@ -17,9 +18,54 @@ set "CYAN=%ESC%[96m"
 set "RESET=%ESC%[0m"
 set "BG_BLUE=%ESC%[44m%ESC%[97m"
 
+:: Command line options defaults
+set NO_BROWSER=0
+set FORCE_RESET_DB=0
+set NO_PAUSE=0
+
+:: Parse CLI arguments
+:parse_args
+if "%~1"=="" goto args_done
+if /i "%~1"=="--no-browser" set NO_BROWSER=1
+if /i "%~1"=="-nobrowser" set NO_BROWSER=1
+if /i "%~1"=="--reset-db" set FORCE_RESET_DB=1
+if /i "%~1"=="-resetdb" set FORCE_RESET_DB=1
+if /i "%~1"=="-nopause" set NO_PAUSE=1
+if /i "%~1"=="--no-pause" set NO_PAUSE=1
+if /i "%~1"=="--help" goto show_help
+if /i "%~1"=="-help" goto show_help
+if /i "%~1"=="-h" goto show_help
+if /i "%~1"=="/?" goto show_help
+shift
+goto parse_args
+
+:show_help
 echo %BLUE%========================================================================%RESET%
-echo %BG_BLUE%                      FAFLOW - DEVELOPMENT LAUNCHER                     %RESET%
+echo %BG_BLUE%                 FAFLOW - DEVELOPMENT LAUNCHER HELP                     %RESET%
 echo %BLUE%========================================================================%RESET%
+echo.
+echo Usage: StartDev.bat [options]
+echo.
+echo Options:
+echo   --no-browser, -nobrowser    Do not automatically open browser on startup
+echo   --reset-db, -resetdb        Force database reset / re-initialization prompt
+echo   -nopause, --no-pause        Do not pause terminal at completion
+echo   -h, --help, /?              Display this help menu
+echo.
+pause
+exit /b 0
+
+:args_done
+
+echo %BLUE%========================================================================%RESET%
+echo %BG_BLUE%        FAFLOW - DEVELOPMENT LAUNCHER (AUTO-HEALING ACTIVE)            %RESET%
+echo %BLUE%========================================================================%RESET%
+echo.
+
+:: 0. Auto Error Correction: Port Cleanup
+echo %CYAN%[0/6] Running pre-launch port auto-cleanup...%RESET%
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Get-NetTCPConnection -LocalPort 8000, 5173 -State Listen -ErrorAction Stop | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } } catch {}; exit 0"
+echo %GREEN%Port status verified clean.%RESET%
 echo.
 
 :: 1. Check Prerequisites
@@ -40,15 +86,14 @@ if !errorlevel! equ 0 (
 )
 :git_found
 if not defined GIT_EXEC (
-    echo   - Git:      %RED%Not Found%RESET% [Required]
+    echo   - Git:        %RED%Not Found%RESET% [Required]
     set MISSING_PREREQ=1
 ) else (
-    echo   - Git:      %GREEN%Found%RESET% [!GIT_EXEC!]
+    echo   - Git:        %GREEN%Found%RESET% [!GIT_EXEC!]
 )
 
 :: Check Python
 set "PYTHON_EXEC="
-:: Test python in PATH
 where python >nul 2>&1
 if !errorlevel! equ 0 (
     for /f "delims=" %%i in ('where python') do (
@@ -59,7 +104,6 @@ if !errorlevel! equ 0 (
         )
     )
 )
-:: Test py launcher
 where py >nul 2>&1
 if !errorlevel! equ 0 (
     py -3 -c "import sys; sys.exit(0 if sys.version_info >= (3,11) else 1)" >nul 2>&1
@@ -70,10 +114,10 @@ if !errorlevel! equ 0 (
 )
 :python_found
 if not defined PYTHON_EXEC (
-    echo   - Python:   %RED%Not Found%RESET% [Required 3.11+]
+    echo   - Python:     %RED%Not Found%RESET% [Required 3.11+]
     set MISSING_PREREQ=1
 ) else (
-    echo   - Python:   %GREEN%Found%RESET% [!PYTHON_EXEC!]
+    echo   - Python:     %GREEN%Found%RESET% [!PYTHON_EXEC!]
 )
 
 :: Check Node
@@ -90,11 +134,14 @@ if !errorlevel! equ 0 (
 )
 :node_found
 if not defined NODE_EXEC (
-    echo   - Node.js:  %RED%Not Found%RESET% [Required 18+]
+    echo   - Node.js:    %RED%Not Found%RESET% [Required 18+]
     set MISSING_PREREQ=1
 ) else (
-    echo   - Node.js:  %GREEN%Found%RESET% [!NODE_EXEC!]
+    echo   - Node.js:    %GREEN%Found%RESET% [!NODE_EXEC!]
 )
+
+:: Auto Error Correction: PostgreSQL Service Check & Auto-Start
+powershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-NetTCPConnection -LocalPort 5432 -State Listen -ErrorAction SilentlyContinue)) { Write-Host '  - Starting PostgreSQL service...' -ForegroundColor Yellow; Get-Service -Name '*postgres*' -ErrorAction SilentlyContinue | Start-Service -ErrorAction SilentlyContinue } else { Write-Host '  - PostgreSQL: Found (Listening on port 5432)' -ForegroundColor Green }; exit 0"
 
 if !MISSING_PREREQ! equ 1 (
     echo.
@@ -105,36 +152,36 @@ if !MISSING_PREREQ! equ 1 (
 echo %GREEN%Prerequisites verified.%RESET%
 echo.
 
-:: 2. Setup venv
+:: 2. Setup venv & Auto-Healing
 echo %CYAN%[2/6] Preparing Python virtual environment...%RESET%
-set "VENV_DIR=!ROOT_DIR!\backend\venv"
-if exist "!VENV_DIR!" (
-    "!VENV_DIR!\Scripts\python.exe" -c "import sys" >nul 2>&1
+set "VENV_DIR=%ROOT_DIR%\backend\venv"
+
+if exist "%VENV_DIR%" (
+    "%VENV_DIR%\Scripts\python.exe" -c "import sys, fastapi, uvicorn, sqlalchemy" >nul 2>&1
     if !errorlevel! neq 0 (
-        echo   - Existing virtual environment at !VENV_DIR! is invalid. Recreating...
-        rmdir /s /q "!VENV_DIR!"
+        echo   - %YELLOW%Existing virtual environment is corrupted or missing packages. Recreating...%RESET%
+        rmdir /s /q "%VENV_DIR%" 2>nul
     )
 )
 
-if not exist "!VENV_DIR!" (
-    echo   - Creating virtual environment in !VENV_DIR!...
-    !PYTHON_EXEC! -m venv "!VENV_DIR!"
+if not exist "%VENV_DIR%" (
+    echo   - Creating virtual environment in %VENV_DIR%...
+    !PYTHON_EXEC! -m venv "%VENV_DIR%"
     if !errorlevel! neq 0 (
-        echo %RED%ERROR: Failed to create virtual environment in !VENV_DIR!.%RESET%
+        echo %RED%ERROR: Failed to create virtual environment in %VENV_DIR%.%RESET%
         pause
         exit /b 1
     )
 )
-echo   - Virtual environment: %GREEN%Ready%RESET% [!VENV_DIR!]
+echo   - Virtual environment: %GREEN%Ready%RESET% [%VENV_DIR%]
 echo.
 
-:: 3. Dependencies
+:: 3. Dependencies Verification & Auto-Repair
 echo %CYAN%[3/6] Verifying project dependencies...%RESET%
 
-:: Find requirements file
 set "REQUIREMENTS_FILE="
-if exist "!ROOT_DIR!\backend\requirements.txt" set "REQUIREMENTS_FILE=!ROOT_DIR!\backend\requirements.txt"
-if exist "!ROOT_DIR!\requirements.txt" if not defined REQUIREMENTS_FILE set "REQUIREMENTS_FILE=!ROOT_DIR!\requirements.txt"
+if exist "%ROOT_DIR%\backend\requirements.txt" set "REQUIREMENTS_FILE=%ROOT_DIR%\backend\requirements.txt"
+if exist "%ROOT_DIR%\requirements.txt" if not defined REQUIREMENTS_FILE set "REQUIREMENTS_FILE=%ROOT_DIR%\requirements.txt"
 
 if not defined REQUIREMENTS_FILE (
     echo %RED%ERROR: Requirements file not found in backend\ or root.%RESET%
@@ -142,19 +189,23 @@ if not defined REQUIREMENTS_FILE (
     exit /b 1
 )
 
-echo   - Checking backend dependencies using !REQUIREMENTS_FILE!...
-"!VENV_DIR!\Scripts\python.exe" -m pip install -q -r "!REQUIREMENTS_FILE!"
+echo   - Checking backend dependencies using %REQUIREMENTS_FILE%...
+"%VENV_DIR%\Scripts\python.exe" -m pip install -q -r "%REQUIREMENTS_FILE%"
 if !errorlevel! neq 0 (
-    echo %RED%ERROR: Failed to install backend dependencies.%RESET%
-    pause
-    exit /b 1
+    echo %YELLOW%Warning: pip install failed. Upgrading pip and retrying...%RESET%
+    "%VENV_DIR%\Scripts\python.exe" -m pip install --upgrade pip >nul 2>&1
+    "%VENV_DIR%\Scripts\python.exe" -m pip install -r "%REQUIREMENTS_FILE%"
+    if !errorlevel! neq 0 (
+        echo %RED%ERROR: Failed to install backend dependencies.%RESET%
+        pause
+        exit /b 1
+    )
 )
 echo     Backend dependencies: %GREEN%OK%RESET%
 
-:: Find frontend dir
 set "FRONTEND_DIR="
-if exist "!ROOT_DIR!\frontend\package.json" set "FRONTEND_DIR=!ROOT_DIR!\frontend"
-if exist "!ROOT_DIR!\package.json" if not defined FRONTEND_DIR set "FRONTEND_DIR=!ROOT_DIR!"
+if exist "%ROOT_DIR%\frontend\package.json" set "FRONTEND_DIR=%ROOT_DIR%\frontend"
+if exist "%ROOT_DIR%\package.json" if not defined FRONTEND_DIR set "FRONTEND_DIR=%ROOT_DIR%"
 
 if not defined FRONTEND_DIR (
     echo %RED%ERROR: Frontend directory not found [package.json not located].%RESET%
@@ -162,14 +213,14 @@ if not defined FRONTEND_DIR (
     exit /b 1
 )
 
-echo   - Checking frontend dependencies in !FRONTEND_DIR!...
-if not exist "!FRONTEND_DIR!\node_modules" (
+echo   - Checking frontend dependencies in %FRONTEND_DIR%...
+if not exist "%FRONTEND_DIR%\node_modules" (
     echo     node_modules not found. Running npm install...
-    pushd "!FRONTEND_DIR!"
+    pushd "%FRONTEND_DIR%"
     call npm install
     popd
     if !errorlevel! neq 0 (
-        echo %RED%ERROR: npm install failed in !FRONTEND_DIR!.%RESET%
+        echo %RED%ERROR: npm install failed in %FRONTEND_DIR%.%RESET%
         pause
         exit /b 1
     )
@@ -177,45 +228,60 @@ if not exist "!FRONTEND_DIR!\node_modules" (
 echo     Frontend dependencies: %GREEN%OK%RESET%
 echo.
 
-:: 4. Env file
+:: 4. Env file Auto-Healing
 echo %CYAN%[4/6] Checking environment configurations...%RESET%
-if exist "!ROOT_DIR!\backend\.env" (
-    echo   - Configuration file: %GREEN%Exists [.env]%RESET%
-    goto env_done
+if exist "%ROOT_DIR%\backend\.env" (
+    findstr /i "DATABASE_URL" "%ROOT_DIR%\backend\.env" >nul 2>&1
+    if !errorlevel! neq 0 (
+        echo   - %YELLOW%Auto-healing backend\.env ^(Adding missing DATABASE_URL^)...%RESET%
+        >> "%ROOT_DIR%\backend\.env" echo DATABASE_URL=postgresql://postgres@localhost:5432/credits_db
+    )
+    findstr /i "SECRET_KEY" "%ROOT_DIR%\backend\.env" >nul 2>&1
+    if !errorlevel! neq 0 (
+        echo   - %YELLOW%Auto-healing backend\.env ^(Adding missing SECRET_KEY^)...%RESET%
+        "%VENV_DIR%\Scripts\python.exe" -c "import secrets; print(secrets.token_hex(32))" > "%ROOT_DIR%\temp_secret.txt" 2>nul
+        set /p NEW_SK=<"%ROOT_DIR%\temp_secret.txt"
+        del "%ROOT_DIR%\temp_secret.txt" 2>nul
+        >> "%ROOT_DIR%\backend\.env" echo SECRET_KEY=!NEW_SK!
+    )
+    echo   - Configuration file: %GREEN%Verified [.env]%RESET%
+) else (
+    echo   - Generating backend\.env from template...
+    "%VENV_DIR%\Scripts\python.exe" -c "import secrets; print(secrets.token_hex(32))" > "%ROOT_DIR%\temp_secret.txt" 2>nul
+    set /p SECRET_KEY=<"%ROOT_DIR%\temp_secret.txt"
+    del "%ROOT_DIR%\temp_secret.txt" 2>nul
+
+    (
+        echo DATABASE_URL=postgresql://postgres@localhost:5432/credits_db
+        echo SECRET_KEY=!SECRET_KEY!
+        echo ALGORITHM=HS256
+        echo ACCESS_TOKEN_EXPIRE_MINUTES=60
+        echo VAPID_PUBLIC_KEY=
+        echo VAPID_PRIVATE_KEY=
+        echo VAPID_CONTACT_EMAIL=admin@faflow.com
+        echo PERIODS_PER_DAY=5
+        echo DAY_ORDER_MAX=6
+        echo APP_NAME=FAFLOW
+        echo PRIMARY_COLOR=#4f46e5
+        echo FRONTEND_ORIGIN=http://localhost:5173
+        echo MAX_SECONDARY_ADMINS=3
+    ) > "%ROOT_DIR%\backend\.env"
+    echo   - %GREEN%Generated backend\.env with unique SECRET_KEY.%RESET%
 )
-
-echo   - Generating backend\.env from template...
-"!VENV_DIR!\Scripts\python.exe" -c "import secrets; print(secrets.token_hex(32))" > "!ROOT_DIR!\temp_secret.txt" 2>nul
-set /p SECRET_KEY=<"!ROOT_DIR!\temp_secret.txt"
-del "!ROOT_DIR!\temp_secret.txt" 2>nul
-
-(
-    echo DATABASE_URL=postgresql://postgres@localhost:5432/credits_db
-    echo SECRET_KEY=!SECRET_KEY!
-    echo ALGORITHM=HS256
-    echo ACCESS_TOKEN_EXPIRE_MINUTES=60
-    echo VAPID_PUBLIC_KEY=
-    echo VAPID_PRIVATE_KEY=
-    echo VAPID_CONTACT_EMAIL=admin@faflow.com
-    echo PERIODS_PER_DAY=5
-    echo DAY_ORDER_MAX=6
-    echo APP_NAME=FAFLOW
-    echo PRIMARY_COLOR=#4f46e5
-    echo FRONTEND_ORIGIN=http://localhost:5173
-    echo MAX_SECONDARY_ADMINS=3
-) > "!ROOT_DIR!\backend\.env"
-echo   - %GREEN%Generated backend\.env with unique SECRET_KEY.%RESET%
-
-:env_done
 echo.
 
 :: 5. Pre-flight Checks and DB Init
 echo %CYAN%[5/6] Performing database pre-flight checks...%RESET%
-if not exist "!ROOT_DIR!\logs" mkdir "!ROOT_DIR!\logs"
-pushd "!ROOT_DIR!\backend"
-"!VENV_DIR!\Scripts\python.exe" preflight_check.py >nul 2>&1
+if not exist "%ROOT_DIR%\logs" mkdir "%ROOT_DIR%\logs"
+pushd "%ROOT_DIR%\backend"
+"%VENV_DIR%\Scripts\python.exe" preflight_check.py >nul 2>&1
 set PREFLIGHT_ERR=!errorlevel!
 popd
+
+if !FORCE_RESET_DB! equ 1 (
+    echo %YELLOW%Database reset requested via CLI flag --reset-db.%RESET%
+    goto db_init_prompt
+)
 
 if !PREFLIGHT_ERR! equ 0 (
     echo   - Database check: %GREEN%OK [Ready]%RESET%
@@ -223,6 +289,8 @@ if !PREFLIGHT_ERR! equ 0 (
 )
 
 echo %YELLOW%WARNING: Pre-flight checks failed. Database might not be initialized.%RESET%
+
+:db_init_prompt
 set /p INIT_DB="Would you like to initialize/reset the local database? (Y/N): "
 if /i "!INIT_DB!" neq "Y" (
     echo %YELLOW%Continuing without database setup. Services might fail.%RESET%
@@ -231,14 +299,17 @@ if /i "!INIT_DB!" neq "Y" (
 
 echo.
 echo %CYAN%Database Initialization%RESET%
+
+set "PGPASSWORD="
+setlocal disabledelayedexpansion
 set /p PGPASSWORD="Enter PostgreSQL 'postgres' user password: "
-set "PGPASSWORD=!PGPASSWORD!"
+endlocal & set "PGPASSWORD=%PGPASSWORD%"
 
 echo   - Creating database 'credits_db' if not exists...
 psql -h localhost -U postgres -c "CREATE DATABASE credits_db;" 2>nul
 
 echo   - Importing base schema...
-psql -h localhost -U postgres -d credits_db -f "!ROOT_DIR!\database\schema.sql"
+psql -h localhost -U postgres -d credits_db -f "%ROOT_DIR%\database\schema.sql"
 if !errorlevel! neq 0 (
     echo %RED%ERROR: Schema import failed. Verify PostgreSQL is running on port 5432.%RESET%
     pause
@@ -246,33 +317,41 @@ if !errorlevel! neq 0 (
 )
 
 echo   - Seeding development data...
-psql -h localhost -U postgres -d credits_db -f "!ROOT_DIR!\database\seed.sql" >nul 2>&1
+psql -h localhost -U postgres -d credits_db -f "%ROOT_DIR%\database\seed.sql" >nul 2>&1
 echo %GREEN%Database initialized successfully with seed data.%RESET%
 
 :db_done
 echo.
 
-:: 6. Launch
+:: 6. Launch with Intelligent Auto-Restart Watchdog
 echo %CYAN%[6/6] Launching FAFLOW Development Services...%RESET%
 echo   - Starting backend on http://localhost:8000...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-NoExit', '-Command', '$host.UI.RawUI.WindowTitle = ''FAFLOW_BACKEND_DEV''; cd ''!ROOT_DIR!\backend''; while ($true) { Write-Host ''=== Starting Backend (uvicorn) ==='' -ForegroundColor Cyan; & .\venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000 2>&1 | Tee-Object -FilePath ..\logs\backend_dev.log; Write-Host ''=== Backend crashed. Restarting in 3 seconds... ==='' -ForegroundColor Red; Start-Sleep -s 3 }'"
+start "FAFLOW_BACKEND_DEV" powershell -NoProfile -ExecutionPolicy Bypass -NoExit -Command "cd '%ROOT_DIR%\backend'; while ($true) { Write-Host '=== Starting Backend (uvicorn) ===' -ForegroundColor Cyan; & '%ROOT_DIR%\backend\venv\Scripts\python.exe' -m uvicorn app.main:app --reload --port 8000; Write-Host '=== Backend stopped. Clearing port and restarting in 3 seconds... ===' -ForegroundColor Red; try { Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction Stop | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } } catch {}; Start-Sleep -s 3 }"
 
 echo   - Starting frontend on http://localhost:5173...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell -ArgumentList '-NoExit', '-Command', '$host.UI.RawUI.WindowTitle = ''FAFLOW_FRONTEND_DEV''; cd ''!FRONTEND_DIR!''; while ($true) { Write-Host ''=== Starting Frontend (Vite) ==='' -ForegroundColor Cyan; cmd /c ''npm run dev 2>&1'' | Tee-Object -FilePath ..\logs\frontend_dev.log; Write-Host ''=== Frontend crashed. Restarting in 3 seconds... ==='' -ForegroundColor Red; Start-Sleep -s 3 }'"
+start "FAFLOW_FRONTEND_DEV" powershell -NoProfile -ExecutionPolicy Bypass -NoExit -Command "cd '%FRONTEND_DIR%'; while ($true) { Write-Host '=== Starting Frontend (Vite) ===' -ForegroundColor Cyan; cmd /c 'npm run dev 2>&1' | Tee-Object -FilePath '%ROOT_DIR%\logs\frontend_dev.log'; Write-Host '=== Frontend stopped. Clearing port and restarting in 3 seconds... ===' -ForegroundColor Red; try { Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction Stop | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } } catch {}; Start-Sleep -s 3 }"
 
 echo.
-echo %GREEN%Launching browser in 3 seconds...%RESET%
-timeout /t 3 /nobreak >nul
-start http://localhost:5173
+if !NO_BROWSER! equ 0 (
+    echo %GREEN%Launching browser in 3 seconds...%RESET%
+    timeout /t 3 /nobreak >nul
+    start http://localhost:5173
+) else (
+    echo %CYAN%Browser auto-launch skipped [--no-browser active].%RESET%
+)
 
 echo %BLUE%========================================================================%RESET%
 echo %GREEN%                FAFLOW Development Launcher Completed!%RESET%
 echo %BLUE%========================================================================%RESET%
 echo   Access the application:
-echo     - Local Address:   %CYAN%http://localhost:5173%RESET%
-for /f "usebackq tokens=*" %%i in (`powershell -NoProfile -Command "(Get-NetIPAddress -AddressFamily IPv4 -Type Unicast | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' }).IPAddress"`) do (
-    echo     - Network Address: %CYAN%http://%%i:5173%RESET%
-)
+echo     - Local Frontend:      %CYAN%http://localhost:5173%RESET%
+echo     - Local Backend API:   %CYAN%http://localhost:8000%RESET%
+echo     - Backend API Docs:    %CYAN%http://localhost:8000/docs%RESET%
+powershell -NoProfile -Command "try { Get-NetIPAddress -AddressFamily IPv4 -Type Unicast | Where-Object { $_.IPAddress -notlike '127*' -and $_.IPAddress -notlike '169*' } | ForEach-Object { Write-Host ('    - Network Address:     http://' + $_.IPAddress + ':5173'); Write-Host ('    - Network API Address: http://' + $_.IPAddress + ':8000') } } catch {}; exit 0"
+echo.
+echo   Live Website (Public):   Running locally on this PC.
+echo                            To access online / host live, see DEPLOYMENT.md
+echo                            Or run quick tunnel: npx cloudflared tunnel --url http://localhost:5173
 echo.
 echo   Backend logs:  logs\backend_dev.log
 echo   Frontend logs: logs\frontend_dev.log
@@ -281,6 +360,7 @@ echo   To stop all running services, run: %YELLOW%StopDev.bat%RESET%
 echo %BLUE%========================================================================%RESET%
 echo.
 
-if "%1"=="-nopause" goto end
+if !NO_PAUSE! equ 1 goto end
 pause
 :end
+

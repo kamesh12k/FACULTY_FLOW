@@ -215,6 +215,72 @@ export default function AdminDashboard() {
           <StatCard label="Auto Assignment Rate" value={systemAnalytics ? `${systemAnalytics.auto_assigned_percentage}%` : '0%'} sub="System auto-subbed percentage" accent="yellow" />
         </div>
 
+        {/* Quick Management Shortcuts */}
+        <div>
+          <h2 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-3">Resource & Setup Shortcuts</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="card p-4 flex flex-col justify-between space-y-3 bg-white border border-slate-200/80 hover:shadow-md transition-all">
+              <div className="flex items-center gap-3">
+                <span className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-lg">🏫</span>
+                <div>
+                  <h3 className="text-xs font-extrabold text-slate-800">Classes</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Single & Bulk Range</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <Link to="/admin/classes" className="btn-primary text-[11px] py-1.5 px-3 flex-1 text-center font-bold">
+                  + Create Classes
+                </Link>
+              </div>
+            </div>
+
+            <div className="card p-4 flex flex-col justify-between space-y-3 bg-white border border-slate-200/80 hover:shadow-md transition-all">
+              <div className="flex items-center gap-3">
+                <span className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold text-lg">🚪</span>
+                <div>
+                  <h3 className="text-xs font-extrabold text-slate-800">Rooms & Labs</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Single & Bulk Range</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <Link to="/admin/rooms" className="btn-primary text-[11px] py-1.5 px-3 flex-1 text-center font-bold">
+                  + Create Rooms
+                </Link>
+              </div>
+            </div>
+
+            <div className="card p-4 flex flex-col justify-between space-y-3 bg-white border border-slate-200/80 hover:shadow-md transition-all">
+              <div className="flex items-center gap-3">
+                <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-lg">📂</span>
+                <div>
+                  <h3 className="text-xs font-extrabold text-slate-800">Departments</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Depts & HOD Accounts</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <Link to="/admin/departments" className="btn-secondary text-[11px] py-1.5 px-3 flex-1 text-center font-bold">
+                  Manage Depts
+                </Link>
+              </div>
+            </div>
+
+            <div className="card p-4 flex flex-col justify-between space-y-3 bg-white border border-slate-200/80 hover:shadow-md transition-all">
+              <div className="flex items-center gap-3">
+                <span className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-lg">📚</span>
+                <div>
+                  <h3 className="text-xs font-extrabold text-slate-800">Subjects</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Course Catalog</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <Link to="/admin/subjects" className="btn-secondary text-[11px] py-1.5 px-3 flex-1 text-center font-bold">
+                  View Subjects
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Live Departments Overview Table */}
         <Card title="Live Departments Overview">
           {systemAnalytics?.department_summaries?.length === 0 ? (
@@ -301,12 +367,20 @@ export default function AdminDashboard() {
           {/* Quick Actions Controls */}
           <div className="space-y-6">
             <Card title="Global Controls">
-              <div className="space-y-3.5">
-                <Link to="/admin/departments" className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors font-bold text-xs text-slate-700">
+              <div className="space-y-2.5">
+                <Link to="/admin/classes" className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors font-bold text-xs text-slate-700">
+                  <span>🏫 Manage & Create Classes</span>
+                  <span className="text-indigo-600 font-extrabold">+</span>
+                </Link>
+                <Link to="/admin/rooms" className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors font-bold text-xs text-slate-700">
+                  <span>🚪 Manage & Create Rooms</span>
+                  <span className="text-indigo-600 font-extrabold">+</span>
+                </Link>
+                <Link to="/admin/departments" className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors font-bold text-xs text-slate-700">
                   <span>📂 Manage Departments</span>
                   <span>→</span>
                 </Link>
-                <Link to="/admin/settings" className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors font-bold text-xs text-slate-700">
+                <Link to="/admin/settings" className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors font-bold text-xs text-slate-700">
                   <span>⚙️ System Configuration</span>
                   <span>→</span>
                 </Link>

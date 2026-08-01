@@ -1,17 +1,38 @@
 import { useEffect, useState } from 'react'
 import { classesApi, departmentsApi } from '../../api/services'
 import { Spinner, ErrorAlert, Modal, EmptyState } from '../../components/ui'
+import { useAuth } from '../../context/AuthContext'
 
 export default function AdminClasses() {
+  const { user, isSystemAdmin } = useAuth()
+
   const [classes, setClasses] = useState([])
   const [departments, setDepartments] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // Add Class State
+  // Single Add Class State
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState({ name: '', section: '', department_id: '', semester: 1 })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Bulk Add Class (Range) State
+  const [bulkModalOpen, setBulkModalOpen] = useState(false)
+  const [bulkForm, setBulkForm] = useState({
+    mode: 'numeric_range', // 'numeric_range' or 'section_range'
+    name_prefix: 'Year ',
+    start_num: 1,
+    end_num: 4,
+    section: 'A',
+    start_section: 'A',
+    end_section: 'D',
+    department_id: '',
+    semester: 1,
+    auto_increment_semester: true,
+  })
+  const [bulkSaving, setBulkSaving] = useState(false)
+  const [bulkError, setBulkError] = useState('')
+  const [bulkSuccess, setBulkSuccess] = useState('')
 
   // Edit Class State
   const [editModalOpen, setEditModalOpen] = useState(false)
@@ -30,23 +51,123 @@ export default function AdminClasses() {
 
   useEffect(() => {
     load()
-    departmentsApi.list(true).then(r => setDepartments(r.data))
-  }, [])
+    // Load ALL departments (include_global=true) so deptName lookup works for every class in the table.
+    departmentsApi.list(true).then(r => {
+      const allDepts = r.data
+      setDepartments(allDepts)
 
+      // Default department choices for form modals
+      if (!isSystemAdmin && user?.department_id) {
+        const userDeptId = String(user.department_id)
+        setForm(f => ({ ...f, department_id: userDeptId }))
+        setBulkForm(bf => ({ ...bf, department_id: userDeptId }))
+      } else if (!isSystemAdmin && allDepts.length === 1) {
+        const deptId = String(allDepts[0].id)
+        setForm(f => ({ ...f, department_id: deptId }))
+        setBulkForm(bf => ({ ...bf, department_id: deptId }))
+      }
+    })
+  }, [isSystemAdmin, user])
+
+  // Departments available for creation based on role
+  const formDepts = (!isSystemAdmin && user?.department_id)
+    ? departments.filter(d => d.id === user.department_id)
+    : (!isSystemAdmin && departments.length === 1)
+    ? departments
+    : departments
 
   const handleCreate = async (e) => {
     e.preventDefault()
     setError('')
     setSaving(true)
     try {
-      await classesApi.create({ ...form, department_id: Number(form.department_id), semester: Number(form.semester) })
+      const targetDeptId = form.department_id || (formDepts.length === 1 ? formDepts[0].id : '')
+      await classesApi.create({ ...form, department_id: Number(targetDeptId), semester: Number(form.semester) })
       setModalOpen(false)
-      setForm({ name: '', section: '', department_id: '', semester: 1 })
+      setForm({ name: '', section: '', department_id: !isSystemAdmin && user?.department_id ? String(user.department_id) : '', semester: 1 })
       load()
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create class.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleBulkCreate = async (e) => {
+    e.preventDefault()
+    setBulkError('')
+    setBulkSuccess('')
+    setBulkSaving(true)
+    try {
+      const targetDeptId = bulkForm.department_id || (formDepts.length === 1 ? formDepts[0].id : '')
+      const res = await classesApi.bulkCreate({
+        mode: bulkForm.mode,
+        name_prefix: bulkForm.name_prefix,
+        start_num: Number(bulkForm.start_num),
+        end_num: Number(bulkForm.end_num),
+        section: bulkForm.section,
+        start_section: bulkForm.start_section,
+        end_section: bulkForm.end_section,
+        department_id: Number(targetDeptId),
+        semester: Number(bulkForm.semester),
+        auto_increment_semester: Boolean(bulkForm.auto_increment_semester),
+      })
+      setBulkSuccess(res.data.message)
+      setTimeout(() => {
+        setBulkModalOpen(false)
+        setBulkSuccess('')
+      }, 1500)
+      load()
+    } catch (err) {
+      setBulkError(err.response?.data?.detail || 'Failed to bulk create classes.')
+    } finally {
+      setBulkSaving(false)
+    }
+  }
+
+  const getClassRangePreview = () => {
+    const targetDeptId = bulkForm.department_id || (formDepts.length === 1 ? formDepts[0].id : '')
+    if (!targetDeptId) return 'Select a department first'
+
+    if (bulkForm.mode === 'section_range') {
+      const startCode = (bulkForm.start_section || 'A').toUpperCase().charCodeAt(0)
+      const endCode = (bulkForm.end_section || 'D').toUpperCase().charCodeAt(0)
+      if (endCode < startCode || (endCode - startCode + 1) > 26) return 'Invalid section range'
+      const count = endCode - startCode + 1
+      const sample = []
+      const limit = Math.min(count, 4)
+      for (let i = 0; i < limit; i++) {
+        const sec = String.fromCharCode(startCode + i)
+        sample.push(`${bulkForm.name_prefix.trim()} (${sec}, Sem ${bulkForm.semester})`)
+      }
+      if (count > 4) sample.push('...')
+      if (count > 4) {
+        const lastSec = String.fromCharCode(endCode)
+        sample.push(`${bulkForm.name_prefix.trim()} (${lastSec}, Sem ${bulkForm.semester})`)
+      }
+      return `${sample.join(' • ')} (${count} classes total)`
+    } else {
+      // numeric_range
+      const start = Number(bulkForm.start_num) || 0
+      const end = Number(bulkForm.end_num) || 0
+      if (end < start || (end - start + 1) > 100) return 'Invalid numeric range'
+      const count = end - start + 1
+      const baseSem = Number(bulkForm.semester) || 1
+      const sample = []
+      const limit = Math.min(count, 4)
+      for (let i = 0; i < limit; i++) {
+        const num = start + i
+        const name = `${bulkForm.name_prefix}${num}`.trim()
+        const sem = bulkForm.auto_increment_semester ? Math.min(8, Math.max(1, baseSem + (i * 2))) : baseSem
+        sample.push(`${name} (${bulkForm.section}, Sem ${sem})`)
+      }
+      if (count > 4) sample.push('...')
+      if (count > 4) {
+        const lastName = `${bulkForm.name_prefix}${end}`.trim()
+        const lastSem = bulkForm.auto_increment_semester ? Math.min(8, Math.max(1, baseSem + ((count - 1) * 2))) : baseSem
+        sample.push(`${lastName} (${bulkForm.section}, Sem ${lastSem})`)
+      }
+      return `${sample.join(' • ')} (${count} classes total)`
     }
   }
 
@@ -108,7 +229,12 @@ export default function AdminClasses() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">Classes</h1>
-        <button onClick={() => setModalOpen(true)} className="btn-primary text-sm">+ Add Class</button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setBulkModalOpen(true)} className="btn-secondary text-sm flex items-center gap-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+            <span>⚡</span> Bulk Add (Range)
+          </button>
+          <button onClick={() => setModalOpen(true)} className="btn-primary text-sm">+ Add Class</button>
+        </div>
       </div>
 
       <div className="card overflow-hidden">
@@ -145,13 +271,13 @@ export default function AdminClasses() {
         )}
       </div>
 
-      {/* Add Class Modal */}
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Class">
+      {/* Add Single Class Modal */}
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Single Class">
         <form onSubmit={handleCreate} className="space-y-4">
           <ErrorAlert message={error} />
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Class name</label>
-            <input type="text" required className="input" placeholder="I B.Sc CS" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+            <input type="text" required className="input" placeholder="Year 1" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Section</label>
@@ -159,10 +285,21 @@ export default function AdminClasses() {
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
-            <select required className="input" value={form.department_id} onChange={e => setForm({ ...form, department_id: e.target.value })}>
-              <option value="">Select…</option>
-              {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            <select
+              required
+              disabled={!isSystemAdmin && formDepts.length === 1}
+              className="input disabled:bg-gray-100 disabled:cursor-not-allowed"
+              value={form.department_id}
+              onChange={e => setForm({ ...form, department_id: e.target.value })}
+            >
+              {(isSystemAdmin || formDepts.length > 1) && <option value="">Select Department…</option>}
+              {formDepts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
+            {!isSystemAdmin && formDepts.length === 1 && (
+              <span className="text-[10px] text-indigo-600 font-semibold mt-1 flex items-center gap-1">
+                🔒 Scoped to your department ({formDepts[0]?.name})
+              </span>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Semester</label>
@@ -173,6 +310,148 @@ export default function AdminClasses() {
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary flex-1">Cancel</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1">{saving ? 'Saving…' : 'Create'}</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Bulk Add Classes Modal (Range Generator) */}
+      <Modal open={bulkModalOpen} onClose={() => setBulkModalOpen(false)} title="Bulk Add Classes (by Range)">
+        <form onSubmit={handleBulkCreate} className="space-y-4">
+          <ErrorAlert message={bulkError} />
+          {bulkSuccess && (
+            <div className="p-3 text-xs bg-green-50 text-green-700 rounded-md font-medium border border-green-200">
+              {bulkSuccess}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Range Mode</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                className={`px-3 py-2 text-xs font-medium rounded-lg border text-center transition-colors ${
+                  bulkForm.mode === 'numeric_range'
+                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700 font-semibold'
+                    : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                }`}
+                onClick={() => setBulkForm({ ...bulkForm, mode: 'numeric_range' })}
+              >
+                🔢 Years / Numbers (Year 1 .. 4)
+              </button>
+              <button
+                type="button"
+                className={`px-3 py-2 text-xs font-medium rounded-lg border text-center transition-colors ${
+                  bulkForm.mode === 'section_range'
+                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700 font-semibold'
+                    : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                }`}
+                onClick={() => setBulkForm({ ...bulkForm, mode: 'section_range' })}
+              >
+                🔤 Section Range (Sec A .. D)
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
+            <select
+              required
+              disabled={!isSystemAdmin && formDepts.length === 1}
+              className="input disabled:bg-gray-100 disabled:cursor-not-allowed"
+              value={bulkForm.department_id}
+              onChange={e => setBulkForm({ ...bulkForm, department_id: e.target.value })}
+            >
+              {(isSystemAdmin || formDepts.length > 1) && <option value="">Select Department…</option>}
+              {formDepts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+            {!isSystemAdmin && formDepts.length === 1 && (
+              <span className="text-[10px] text-indigo-600 font-semibold mt-1 flex items-center gap-1">
+                🔒 Scoped to your department ({formDepts[0]?.name})
+              </span>
+            )}
+          </div>
+
+          {bulkForm.mode === 'numeric_range' ? (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Name Prefix</label>
+                  <input type="text" className="input" placeholder="Year " value={bulkForm.name_prefix} onChange={e => setBulkForm({ ...bulkForm, name_prefix: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Section</label>
+                  <input type="text" required className="input" placeholder="A" value={bulkForm.section} onChange={e => setBulkForm({ ...bulkForm, section: e.target.value })} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Start Year / Number</label>
+                  <input type="number" required min={1} className="input" value={bulkForm.start_num} onChange={e => setBulkForm({ ...bulkForm, start_num: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">End Year / Number</label>
+                  <input type="number" required min={1} className="input" value={bulkForm.end_num} onChange={e => setBulkForm({ ...bulkForm, end_num: e.target.value })} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Base Semester (Start)</label>
+                  <select className="input" value={bulkForm.semester} onChange={e => setBulkForm({ ...bulkForm, semester: Number(e.target.value) })}>
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map(s => <option key={s} value={s}>Semester {s}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center pt-5">
+                  <label className="inline-flex items-center cursor-pointer gap-2 text-xs text-gray-700 font-medium">
+                    <input
+                      type="checkbox"
+                      className="rounded text-indigo-600 focus:ring-indigo-500"
+                      checked={bulkForm.auto_increment_semester}
+                      onChange={e => setBulkForm({ ...bulkForm, auto_increment_semester: e.target.checked })}
+                    />
+                    Auto +2 Semesters per Year
+                  </label>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Class Name</label>
+                <input type="text" required className="input" placeholder="CSE Year 1" value={bulkForm.name_prefix} onChange={e => setBulkForm({ ...bulkForm, name_prefix: e.target.value })} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Start Section</label>
+                  <input type="text" required maxLength={1} className="input uppercase" placeholder="A" value={bulkForm.start_section} onChange={e => setBulkForm({ ...bulkForm, start_section: e.target.value.toUpperCase() })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">End Section</label>
+                  <input type="text" required maxLength={1} className="input uppercase" placeholder="D" value={bulkForm.end_section} onChange={e => setBulkForm({ ...bulkForm, end_section: e.target.value.toUpperCase() })} />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Semester</label>
+                <select className="input" value={bulkForm.semester} onChange={e => setBulkForm({ ...bulkForm, semester: Number(e.target.value) })}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(s => <option key={s} value={s}>Semester {s}</option>)}
+                </select>
+              </div>
+            </>
+          )}
+
+          <div className="p-2.5 bg-indigo-50/70 border border-indigo-100 rounded-lg">
+            <span className="text-[11px] font-semibold text-indigo-900 block mb-0.5">Range Live Preview:</span>
+            <span className="text-xs font-mono text-indigo-700">{getClassRangePreview()}</span>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={() => setBulkModalOpen(false)} className="btn-secondary flex-1">Cancel</button>
+            <button type="submit" disabled={bulkSaving} className="btn-primary flex-1">
+              {bulkSaving ? 'Generating…' : '⚡ Generate & Create Classes'}
+            </button>
           </div>
         </form>
       </Modal>

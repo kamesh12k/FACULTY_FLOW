@@ -25,7 +25,7 @@ LOG_DIR = _BACKEND_ROOT / "logs"
 BACKUP_TABLES = [
     "users", "departments", "subjects", "classes", "rooms",
     "academic_years", "semesters", "calendar_days",
-    "timetable_slots", "leave_requests",
+    "timetable_slots", "timetable_submissions", "leave_requests",
     "alter_assignments", "substitution_preferences",
     "teacher_credits", "credit_transactions",
     "notifications", "push_subscriptions", "audit_logs", "system_settings",
@@ -36,7 +36,7 @@ BACKUP_TABLES = [
 _DELETE_ORDER = [
     "push_subscriptions", "notifications", "credit_transactions",
     "teacher_credits", "substitution_preferences", "alter_assignments", "leave_requests",
-    "timetable_slots", "calendar_days", "semesters", "academic_years",
+    "timetable_slots", "timetable_submissions", "calendar_days", "semesters", "academic_years",
     "classes", "rooms", "subjects", "audit_logs", "users", "departments",
 ]
 
@@ -164,14 +164,16 @@ def perform_department_reset(db: Session, actor: User, dept_id: int) -> dict:
         db.execute(text("DELETE FROM teacher_credits WHERE teacher_id IN :uids"), {"uids": tuple(user_ids)})
         db.execute(text("DELETE FROM substitution_preferences WHERE teacher_id IN :uids"), {"uids": tuple(user_ids)})
         db.execute(text("DELETE FROM timetable_slots WHERE teacher_id IN :uids"), {"uids": tuple(user_ids)})
+        db.execute(text("DELETE FROM timetable_submissions WHERE teacher_id IN :uids"), {"uids": tuple(user_ids)})
         
     if leave_ids:
         db.execute(text("DELETE FROM alter_assignments WHERE leave_request_id IN :lids"), {"lids": tuple(leave_ids)})
         db.execute(text("DELETE FROM leave_requests WHERE id IN :lids"), {"lids": tuple(leave_ids)})
 
-    # Delete timetable slots associated with classes of this department (e.g. for general duty or cross-teach)
+    # Delete timetable slots and submissions associated with classes of this department
     if class_ids:
         db.execute(text("DELETE FROM timetable_slots WHERE class_id IN :cids"), {"cids": tuple(class_ids)})
+        db.execute(text("DELETE FROM timetable_submissions WHERE class_id IN :cids"), {"cids": tuple(class_ids)})
         db.execute(text("DELETE FROM classes WHERE id IN :cids"), {"cids": tuple(class_ids)})
 
     # Delete subjects of this department

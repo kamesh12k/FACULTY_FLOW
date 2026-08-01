@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.core.dependencies import require_admin, get_current_user, get_tenant_department_id
 from app.models.user import User
-from app.schemas.class_ import ClassCreate, ClassUpdate, ClassOut
+from app.schemas.class_ import ClassCreate, ClassUpdate, ClassOut, BulkClassCreate, BulkClassCreateOut
 from app.services import class_service
 
 router = APIRouter(prefix="/classes", tags=["Classes"])
@@ -42,6 +42,17 @@ def create_class(
     tenant_department_id: int | None = Depends(get_tenant_department_id),
 ):
     return class_service.create_class(data, db, tenant_department_id)
+
+
+@router.post("/bulk", response_model=BulkClassCreateOut, status_code=201)
+def bulk_create_classes(
+    data: BulkClassCreate,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    tenant_department_id: int | None = Depends(get_tenant_department_id),
+):
+    return class_service.bulk_create_classes(data, db, tenant_department_id)
+
 
 
 @router.patch("/{class_id}", response_model=ClassOut)

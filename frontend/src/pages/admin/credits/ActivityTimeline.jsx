@@ -31,67 +31,83 @@ function parseReasonDetails(reasonText) {
   return result
 }
 
-function CreditChange({ value }) {
-  if (value > 0) return <span className="font-mono font-bold text-sm text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">+{value}</span>
-  return <span className="font-mono font-bold text-sm text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">{value}</span>
+function CreditChangePill({ value }) {
+  if (value > 0) return (
+    <span className="font-mono font-extrabold text-xs text-emerald-700 bg-emerald-100 border border-emerald-200/80 px-2.5 py-1 rounded-lg shadow-2xs">
+      +{value} Credit{value > 1 ? 's' : ''}
+    </span>
+  )
+  return (
+    <span className="font-mono font-extrabold text-xs text-rose-700 bg-rose-100 border border-rose-200/80 px-2.5 py-1 rounded-lg shadow-2xs">
+      {value} Credit{Math.abs(value) > 1 ? 's' : ''}
+    </span>
+  )
 }
 
-function TimelineItem({ tx, teacherName }) {
-  const cat = getCategoryConfig(tx.category || 'other')
+function AuditRecordCard({ tx, teacherName }) {
+  const cat = getCategoryConfig(tx)
   const details = parseReasonDetails(tx.reason)
 
   return (
-    <div className="flex gap-3 py-3">
-      {/* Icon column */}
-      <div className="flex flex-col items-center">
-        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${cat.bgClass} border ${cat.borderClass} shadow-sm`}>
-          <span className="text-sm leading-none">{cat.icon}</span>
-        </div>
-        <div className="w-px flex-1 bg-gray-100 mt-2" />
-      </div>
+    <div className="p-4 bg-white border border-slate-200/80 rounded-2xl hover:border-indigo-200 hover:shadow-sm transition-all duration-150 group">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        
+        {/* Left: Icon, Category Pill, Teacher & Details */}
+        <div className="flex items-start gap-3.5 min-w-0">
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${cat.bgClass} shadow-2xs text-lg`}>
+            {cat.icon}
+          </div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0 pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap mb-0.5">
-              <CreditChange value={tx.change} />
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${cat.bgClass} ${cat.textClass}`}>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${cat.pillClass}`}>
                 {cat.label}
               </span>
+              <CreditChangePill value={tx.change} />
+              {tx.related_leave_id && (
+                <span className="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80 px-2 py-0.5 rounded-md">
+                  Ref: Leave Request #{tx.related_leave_id}
+                </span>
+              )}
             </div>
-            <p className="text-sm font-semibold text-gray-800">
+
+            <p className="text-sm font-extrabold text-slate-900 leading-snug truncate">
               {teacherName}
             </p>
+
             {tx.reason && (
-              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{tx.reason}</p>
+              <p className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">
+                {tx.reason}
+              </p>
             )}
 
-            {/* Class, Day Order, Period pill tags */}
+            {/* Context Pills (Class, Day Order, Period) */}
             {(details.classText || details.dayOrder || details.period) && (
               <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                 {details.classText && (
-                  <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium border border-gray-200/50">
+                  <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold border border-slate-200/60">
                     Class: {details.classText}
                   </span>
                 )}
                 {details.dayOrder && (
-                  <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded font-medium border border-indigo-100/50">
+                  <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-bold border border-indigo-100">
                     {details.dayOrder}
                   </span>
                 )}
                 {details.period && (
-                  <span className="text-[10px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded font-medium border border-purple-100/50">
+                  <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded font-bold border border-purple-100">
                     {details.period}
                   </span>
                 )}
               </div>
             )}
           </div>
-          <div className="text-right shrink-0">
-            <div className="text-[11px] text-gray-400">{formatRelativeTime(tx.created_at)}</div>
-            <div className="text-[10px] text-gray-300 mt-0.5">ID #{tx.id}</div>
-          </div>
+        </div>
+
+        {/* Right: Timestamp & Ref ID */}
+        <div className="text-left sm:text-right shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+          <div className="text-xs font-semibold text-slate-500">{formatRelativeTime(tx.created_at)}</div>
+          <div className="text-[10px] font-mono text-slate-400 font-medium mt-0.5">Record ID #TX-{tx.id}</div>
         </div>
       </div>
     </div>
@@ -101,21 +117,20 @@ function TimelineItem({ tx, teacherName }) {
 function GroupSection({ title, items, teacherMap, showBadge }) {
   if (items.length === 0) return null
   return (
-    <div className="mb-4 last:mb-0">
-      <div className="flex items-center gap-2 mb-2 px-1">
-        <div className="h-px flex-1 bg-gray-100" />
-        <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest px-2 flex items-center gap-1">
+    <div className="mb-6 last:mb-0">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-xs font-extrabold text-slate-500 uppercase tracking-widest px-1 flex items-center gap-1.5">
           {showBadge && (
-            <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
           )}
           {title}
-          <span className="font-normal text-gray-400">({items.length})</span>
+          <span className="font-bold text-slate-400 font-mono text-[11px]">({items.length} records)</span>
         </span>
-        <div className="h-px flex-1 bg-gray-100" />
+        <div className="h-px flex-1 bg-slate-200/80" />
       </div>
-      <div className="divide-y divide-gray-50">
+      <div className="space-y-2.5">
         {items.map(tx => (
-          <TimelineItem key={tx.id} tx={tx} teacherName={teacherMap[tx.teacher_id] || `Teacher #${tx.teacher_id}`} />
+          <AuditRecordCard key={tx.id} tx={tx} teacherName={teacherMap[tx.teacher_id] || `Teacher #${tx.teacher_id}`} />
         ))}
       </div>
     </div>
@@ -123,13 +138,13 @@ function GroupSection({ title, items, teacherMap, showBadge }) {
 }
 
 const ALL_FILTER_TABS = [
-  { id: 'all', label: 'All' },
-  { id: 'substitute_class', label: 'Substitute' },
-  { id: 'manual_adjustment', label: 'Manual' },
-  { id: 'exam_duty', label: 'Exam Duty' },
-  { id: 'department_duty', label: 'Dept. Duty' },
-  { id: 'penalty', label: 'Penalty' },
-  { id: 'correction', label: 'Correction' },
+  { id: 'all', label: 'All Records', icon: '📋' },
+  { id: 'substitute_class', label: '🔄 Substitutions', icon: '🔄' },
+  { id: 'leave_deduction', label: '🏖️ Leaves Taken', icon: '🏖️' },
+  { id: 'exam_duty', label: '📝 Exam Duties', icon: '📝' },
+  { id: 'department_duty', label: '🏛️ Dept. Duties', icon: '🏛️' },
+  { id: 'manual_adjustment', label: '⚙️ Admin Adjustments', icon: '⚙️' },
+  { id: 'penalty', label: '📉 Penalties', icon: '📉' },
 ]
 
 export default function ActivityTimeline({ transactions, report }) {
@@ -142,42 +157,85 @@ export default function ActivityTimeline({ transactions, report }) {
     return m
   }, [report])
 
+  // Compute accounting metrics across all transactions
+  const ledgerMetrics = useMemo(() => {
+    let creditsEarned = 0
+    let creditsDeducted = 0
+    for (const tx of transactions) {
+      if (tx.change > 0) creditsEarned += tx.change
+      else creditsDeducted += Math.abs(tx.change)
+    }
+    const netBalance = creditsEarned - creditsDeducted
+    return { creditsEarned, creditsDeducted, netBalance }
+  }, [transactions])
+
   const filtered = useMemo(() => {
     if (activeFilter === 'all') return transactions
-    return transactions.filter(tx => (tx.category || 'other') === activeFilter)
+    return transactions.filter(tx => {
+      const cat = getCategoryConfig(tx)
+      if (activeFilter === 'substitute_class') return cat.label.includes('Substitution')
+      if (activeFilter === 'leave_deduction') return cat.label.includes('Leave')
+      if (activeFilter === 'exam_duty') return cat.label.includes('Exam')
+      if (activeFilter === 'department_duty') return cat.label.includes('Department')
+      if (activeFilter === 'manual_adjustment') return cat.label.includes('Admin')
+      if (activeFilter === 'penalty') return cat.label.includes('Penalty')
+      return tx.category === activeFilter
+    })
   }, [transactions, activeFilter])
 
   const visible = filtered.slice(0, showCount)
   const groups = groupTransactionsByDate(visible)
 
-  // Merge thisWeek and earlier into a single "Earlier" group
   const earlierItems = useMemo(() => {
     return [...(groups.thisWeek || []), ...(groups.earlier || [])]
   }, [groups])
 
   return (
-    <div className="card overflow-hidden">
-      {/* Header */}
-      <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50/50 to-white">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-gray-900">
-            Activity Timeline
-          </h2>
-          <span className="text-[11px] text-gray-500">
-            Showing {visible.length} of {filtered.length} events
-          </span>
+    <div className="space-y-6">
+
+      {/* ── Institutional Ledger Accounting Summary ── */}
+      <div className="card p-5 bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 text-white rounded-2xl shadow-md border border-slate-800">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-indigo-400 bg-indigo-950/80 px-2.5 py-1 rounded-md border border-indigo-800/50">
+              Institutional Accounting Ledger
+            </span>
+            <h2 className="text-lg font-extrabold tracking-tight mt-2 text-white flex items-center gap-2">
+              <span>🧾</span> Transaction Audit Stream
+            </h2>
+            <p className="text-xs text-slate-400 font-medium mt-0.5">
+              Audited transaction records for payroll accounting and leave reconciliation
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 shrink-0 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+            <div className="text-center px-2">
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Issued (+)</span>
+              <span className="block text-base font-extrabold font-mono text-emerald-400 mt-0.5">+{ledgerMetrics.creditsEarned}</span>
+            </div>
+            <div className="text-center px-2 border-x border-slate-800">
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Deducted (-)</span>
+              <span className="block text-base font-extrabold font-mono text-rose-400 mt-0.5">-{ledgerMetrics.creditsDeducted}</span>
+            </div>
+            <div className="text-center px-2">
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Net Circ.</span>
+              <span className={`block text-base font-extrabold font-mono mt-0.5 ${ledgerMetrics.netBalance >= 0 ? 'text-indigo-300' : 'text-rose-400'}`}>
+                {ledgerMetrics.netBalance >= 0 ? `+${ledgerMetrics.netBalance}` : ledgerMetrics.netBalance}
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* Filter tabs */}
-        <div className="flex gap-1 flex-wrap">
+        {/* Filter Pills */}
+        <div className="mt-5 pt-4 border-t border-slate-800 flex items-center gap-1.5 flex-wrap">
           {ALL_FILTER_TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => { setActiveFilter(tab.id); setShowCount(50) }}
-              className={`px-3 py-1.5 rounded text-[11px] font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 activeFilter === tab.id
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
               }`}
             >
               {tab.label}
@@ -186,26 +244,26 @@ export default function ActivityTimeline({ transactions, report }) {
         </div>
       </div>
 
-      {/* Timeline */}
-      <div className="px-5 py-4">
+      {/* ── Transaction Records List ── */}
+      <div className="space-y-4">
         {filtered.length === 0 ? (
-          <div className="py-12 text-center text-gray-400">
-            <p className="text-sm font-medium">No activity recorded</p>
-            <p className="text-xs text-gray-400 mt-0.5">There are no transactions matching this filter.</p>
+          <div className="card p-12 text-center text-slate-400 bg-white rounded-2xl border border-slate-200">
+            <p className="text-sm font-extrabold text-slate-700">No accounting records found</p>
+            <p className="text-xs text-slate-400 mt-1">There are no transaction entries matching the selected filter.</p>
           </div>
         ) : (
           <div>
-            <GroupSection title="Today" items={groups.today} teacherMap={teacherMap} showBadge />
-            <GroupSection title="Yesterday" items={groups.yesterday} teacherMap={teacherMap} />
-            <GroupSection title="Earlier" items={earlierItems} teacherMap={teacherMap} />
+            <GroupSection title="Today's Audit Trail" items={groups.today} teacherMap={teacherMap} showBadge />
+            <GroupSection title="Yesterday's Audit Trail" items={groups.yesterday} teacherMap={teacherMap} />
+            <GroupSection title="Historical Audit Records" items={earlierItems} teacherMap={teacherMap} />
 
             {filtered.length > showCount && (
               <div className="text-center pt-4">
                 <button
                   onClick={() => setShowCount(c => c + 50)}
-                  className="px-5 py-2 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded transition-colors"
+                  className="px-6 py-2.5 text-xs font-extrabold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-all shadow-xs"
                 >
-                  Load more ({filtered.length - showCount} remaining)
+                  Load more accounting records ({filtered.length - showCount} remaining)
                 </button>
               </div>
             )}

@@ -56,10 +56,40 @@ class TestRoomService:
         cls = create_class(db_session, department_id=dept.id)
         room = factory_room(db_session)
         teacher = _make_user(db_session, email="rm@test.com")
-        create_timetable_slot(db_session, teacher.id, subj.id, cls.id, room_id=room.id)
+        slot = create_timetable_slot(db_session, teacher.id, subj.id, cls.id, room_id=room.id)
+        delete_room(room.id, db_session)
+        assert list_rooms(db_session) == []
+        db_session.refresh(slot)
+        assert slot.room_id is None
+
+    def test_bulk_create_rooms_success(self, db_session):
+        from app.services.room_service import bulk_create_rooms
+        from app.schemas.room import BulkRoomCreate
+        data = BulkRoomCreate(prefix="Room ", start_num=101, end_num=105, capacity=50)
+        res = bulk_create_rooms(data, db_session)
+        assert res.created_count == 5
+        assert res.skipped_count == 0
+        rooms = list_rooms(db_session)
+        assert len(rooms) == 5
+        assert [r.room_number for r in rooms] == ["Room 101", "Room 102", "Room 103", "Room 104", "Room 105"]
+
+    def test_bulk_create_rooms_skips_existing(self, db_session):
+        from app.services.room_service import bulk_create_rooms
+        from app.schemas.room import BulkRoomCreate
+        factory_room(db_session, room_number="Lab 02")
+        data = BulkRoomCreate(prefix="Lab ", start_num=1, end_num=3, pad_digits=2, capacity=40)
+        res = bulk_create_rooms(data, db_session)
+        assert res.created_count == 2
+        assert res.skipped_count == 1
+
+    def test_bulk_create_rooms_invalid_range(self, db_session):
+        from app.services.room_service import bulk_create_rooms
+        from app.schemas.room import BulkRoomCreate
+        data = BulkRoomCreate(prefix="Room ", start_num=10, end_num=5)
         with pytest.raises(HTTPException) as exc:
-            delete_room(room.id, db_session)
+            bulk_create_rooms(data, db_session)
         assert exc.value.status_code == 400
+
 
 
 class TestRoomAvailability:

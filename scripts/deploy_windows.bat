@@ -1,174 +1,173 @@
 @echo off
 REM ==========================================================================
-REM Credits — Production Deployment (Windows)
-REM ==========================================================================
-REM
-REM Automates: Python venv creation, PostgreSQL dependency check, backend
-REM dependency install, .env generation, database schema init, frontend
-REM build, and health checks.
-REM
-REM Prerequisites (install before running this script):
-REM   - Python 3.11+ (from python.org)
-REM   - PostgreSQL 14+ (from postgresql.org)
-REM   - Node.js 18+ (from nodejs.org)
-REM   - Git (from git-scm.com)
-REM
-REM Usage:
-REM   1. Open Command Prompt as Administrator
-REM   2. cd C:\path\to\credits-system
-REM   3. .\scripts\deploy_windows.bat
-REM
+REM FAFLOW - Production Deployment Automation (Windows)
 REM ==========================================================================
 
 setlocal enabledelayedexpansion
 cls
 
-echo.
-echo ========================================================================
-echo     Credits - Production Deployment
-echo ========================================================================
+:: Anchor working directory to project root
+cd /d "%~dp0.."
+set "ROOT_DIR=%~dp0.."
+for %%i in ("%ROOT_DIR%") do set "ROOT_DIR=%%~fi"
+
+:: ANSI escape color codes setup
+for /f "tokens=1,2 delims=#" %%a in ('"prompt #$H#$E# & echo on & for %%b in (1) do rem"') do set "ESC=%%b"
+set "GREEN=%ESC%[92m"
+set "RED=%ESC%[91m"
+set "YELLOW=%ESC%[93m"
+set "BLUE=%ESC%[94m"
+set "CYAN=%ESC%[96m"
+set "RESET=%ESC%[0m"
+set "BG_BLUE=%ESC%[44m%ESC%[97m"
+
+echo %BLUE%========================================================================%RESET%
+echo %BG_BLUE%                 FAFLOW - WINDOWS PRODUCTION DEPLOYMENT                 %RESET%
+echo %BLUE%========================================================================%RESET%
 echo.
 
-color 0A
-
-echo [1/10] Checking Python installation...
-python --version >nul 2>&1
+echo %CYAN%[1/10] Checking Python installation...%RESET%
+python -c "import sys; sys.exit(0 if sys.version_info >= (3,11) else 1)" >nul 2>&1
 if errorlevel 1 (
-    echo ERROR: Python 3.11+ not found. Download from https://python.org
+    echo %RED%ERROR: Python 3.11+ not found. Download from https://python.org%RESET%
     pause
     exit /b 1
 )
-echo OK
+echo   Python: %GREEN%OK%RESET%
 
-echo [2/10] Checking Node.js installation...
+echo %CYAN%[2/10] Checking Node.js installation...%RESET%
 node --version >nul 2>&1
 if errorlevel 1 (
-    echo ERROR: Node.js 18+ not found. Download from https://nodejs.org
+    echo %RED%ERROR: Node.js 18+ not found. Download from https://nodejs.org%RESET%
     pause
     exit /b 1
 )
-echo OK
+echo   Node.js: %GREEN%OK%RESET%
 
-echo [3/10] Checking PostgreSQL installation...
+echo %CYAN%[3/10] Checking PostgreSQL installation...%RESET%
 psql --version >nul 2>&1
 if errorlevel 1 (
-    echo ERROR: PostgreSQL 14+ not found. Download from https://postgresql.org
-    pause
-    exit /b 1
+    echo %YELLOW%WARNING: PostgreSQL psql CLI not found in PATH. Install from https://postgresql.org%RESET%
+) else (
+    echo   PostgreSQL: %GREEN%OK%RESET%
 )
-echo OK
 
-echo [4/10] Setting up backend Python environment...
-if not exist backend\venv (
-    python -m venv backend\venv
+echo %CYAN%[4/10] Setting up backend Python virtual environment...%RESET%
+set "VENV_DIR=!ROOT_DIR!\backend\venv"
+if not exist "!VENV_DIR!" (
+    python -m venv "!VENV_DIR!"
     if errorlevel 1 (
-        echo ERROR: Failed to create venv
+        echo %RED%ERROR: Failed to create virtual environment in !VENV_DIR!%RESET%
         pause
         exit /b 1
     )
 )
-echo OK
+echo   Virtual environment: %GREEN%OK%RESET%
 
-echo [5/10] Installing backend dependencies...
-call backend\venv\Scripts\activate.bat
-pip install -q -r backend\requirements.txt
+echo %CYAN%[5/10] Installing backend dependencies...%RESET%
+"!VENV_DIR!\Scripts\python.exe" -m pip install -q -r "!ROOT_DIR!\backend\requirements.txt"
 if errorlevel 1 (
-    echo ERROR: Failed to install dependencies
+    echo %RED%ERROR: Failed to install backend dependencies.%RESET%
     pause
     exit /b 1
 )
-echo OK
+echo   Backend dependencies: %GREEN%OK%RESET%
 
-echo [6/10] Creating .env file...
-if not exist backend\.env (
-    for /f %%A in ('python -c "import secrets; print(secrets.token_hex(32))"') do set SECRET_KEY=%%A
+echo %CYAN%[6/10] Creating .env file configuration...%RESET%
+if not exist "!ROOT_DIR!\backend\.env" (
+    "!VENV_DIR!\Scripts\python.exe" -c "import secrets; print(secrets.token_hex(32))" > "!ROOT_DIR!\temp_secret.txt" 2>nul
+    set /p SECRET_KEY=<"!ROOT_DIR!\temp_secret.txt"
+    del "!ROOT_DIR!\temp_secret.txt" 2>nul
     (
-        echo DATABASE_URL=postgresql://postgres:password@localhost:5432/credits_db
+        echo DATABASE_URL=postgresql://postgres@localhost:5432/credits_db
         echo SECRET_KEY=!SECRET_KEY!
         echo ALGORITHM=HS256
         echo ACCESS_TOKEN_EXPIRE_MINUTES=60
         echo VAPID_PUBLIC_KEY=
         echo VAPID_PRIVATE_KEY=
-        echo VAPID_CONTACT_EMAIL=admin@example.com
-    ) > backend\.env
-    echo Created backend\.env with generated SECRET_KEY
+        echo VAPID_CONTACT_EMAIL=admin@faflow.com
+        echo PERIODS_PER_DAY=5
+        echo DAY_ORDER_MAX=6
+        echo APP_NAME=FAFLOW
+        echo PRIMARY_COLOR=#4f46e5
+        echo FRONTEND_ORIGIN=http://localhost:5173
+        echo MAX_SECONDARY_ADMINS=3
+    ) > "!ROOT_DIR!\backend\.env"
+    echo   Created backend\.env with generated SECRET_KEY: %GREEN%OK%RESET%
 ) else (
-    echo backend\.env already exists (skipped)
+    echo   backend\.env already exists: %GREEN%Skipped%RESET%
 )
-echo OK
 
-echo [7/10] Database initialization...
+echo %CYAN%[7/10] Database initialization...%RESET%
 echo.
-echo This script will attempt to create the database and run migrations.
+echo This script will attempt to create the database and run schema migrations.
 echo PostgreSQL must be running and accessible at localhost:5432
 echo.
+
+set "PGPASSWORD="
+setlocal disabledelayedexpansion
 set /p PGPASSWORD="Enter PostgreSQL 'postgres' user password: "
-setx PGPASSWORD %PGPASSWORD% >nul
+endlocal & set "PGPASSWORD=%PGPASSWORD%"
 
 psql -h localhost -U postgres -c "CREATE DATABASE credits_db;" 2>nul
-psql -h localhost -U postgres -d credits_db -f database\schema.sql >nul 2>&1
+psql -h localhost -U postgres -d credits_db -f "!ROOT_DIR!\database\schema.sql"
 if errorlevel 1 (
-    echo ERROR: Database setup failed. Ensure PostgreSQL is running.
+    echo %RED%ERROR: Database setup failed. Ensure PostgreSQL is running on port 5432.%RESET%
     pause
     exit /b 1
 )
-echo OK
+echo   Database initialization: %GREEN%OK%RESET%
 
-echo [8/10] Running pre-flight checks...
-pushd backend
-python preflight_check.py >nul 2>&1
-set PREFLIGHT_ERR=%errorlevel%
+echo %CYAN%[8/10] Running pre-flight checks...%RESET%
+pushd "!ROOT_DIR!\backend"
+"!VENV_DIR!\Scripts\python.exe" preflight_check.py >nul 2>&1
+set PREFLIGHT_ERR=!errorlevel!
 popd
-if %PREFLIGHT_ERR% neq 0 (
-    echo ERROR: Pre-flight checks failed
-    pushd backend
-    python preflight_check.py
+if !PREFLIGHT_ERR! neq 0 (
+    echo %RED%ERROR: Pre-flight checks failed.%RESET%
+    pushd "!ROOT_DIR!\backend"
+    "!VENV_DIR!\Scripts\python.exe" preflight_check.py
     popd
     pause
     exit /b 1
 )
-echo OK
+echo   Pre-flight check: %GREEN%OK%RESET%
 
-echo [9/10] Building frontend...
-cd frontend
-call npm install --silent
-call npm run build --silent
-if errorlevel 1 (
-    echo ERROR: Frontend build failed
+echo %CYAN%[9/10] Building frontend bundle...%RESET%
+pushd "!ROOT_DIR!\frontend"
+call npm install --no-audit --no-fund --silent
+call npm run build
+set BUILD_ERR=!errorlevel!
+popd
+if !BUILD_ERR! neq 0 (
+    echo %RED%ERROR: Frontend production build failed.%RESET%
     pause
     exit /b 1
 )
-cd ..
-echo OK
+echo   Frontend build: %GREEN%OK (dist/)%RESET%
 
-echo [10/10] Verifying deployment...
+echo %CYAN%[10/10] Verifying deployment...%RESET%
 echo.
-echo ========================================================================
-echo     Deployment Complete!
-echo ========================================================================
+echo %BLUE%========================================================================%RESET%
+echo %GREEN%                    Deployment Setup Complete!                          %RESET%
+echo %BLUE%========================================================================%RESET%
 echo.
-echo Next steps:
+echo Next steps to launch FAFLOW:
 echo.
-echo   1. Start PostgreSQL service (if not running)
-echo   2. Run the backend:
-echo        cd backend
-echo        venv\Scripts\activate.bat
-echo        uvicorn app.main:app --reload --port 8000
+echo   1. Run the interactive control panel:
+echo        %CYAN%FAFLOW.bat%RESET%
 echo.
-echo   3. In another terminal, serve the frontend:
-echo        cd frontend
-echo        npm run dev
+echo   2. Or start directly using:
+echo        %CYAN%StartDev.bat%RESET%   (for development mode)
+echo        %CYAN%StartProd.bat%RESET%  (for production deployment)
 echo.
-echo   4. Open http://localhost:5173 in your browser
+echo   3. Access the web interface in your browser:
+echo        %CYAN%http://localhost:5173%RESET%
 echo.
-echo   5. Log in with:
-echo        Username: admin
-echo        Password: admin
+echo   4. Default Administrator Credentials:
+echo        Username: %CYAN%admin%RESET%
+echo        Password: %CYAN%admin%RESET%
 echo.
-echo   6. Follow the forced credential change screen, then go to
-echo      "Calendar ^& Day Order" to set up your Academic Year and
-echo      Day Order calendar before using leave/timetable features
-echo.
-echo For production setup with Gunicorn + Nginx, see DEPLOYMENT.md
+echo %BLUE%========================================================================%RESET%
 echo.
 pause

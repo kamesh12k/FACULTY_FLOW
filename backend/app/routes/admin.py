@@ -218,6 +218,28 @@ def delete_global_user(
     if user.role == Role.admin and user.admin_level != AdminLevel.super_admin:
         raise HTTPException(status_code=400, detail="Cannot delete this user here")
         
+    from app.models.notification import PushSubscription, Notification
+    from app.models.credit import CreditTransaction, TeacherCredit
+    from app.models.substitution_preference import SubstitutionPreference
+    from app.models.timetable import TimetableSlot
+    from app.models.timetable_submission import TimetableSubmission
+    from app.models.leave import LeaveRequest, AlterAssignment
+
+    db.query(PushSubscription).filter(PushSubscription.user_id == user_id).delete(synchronize_session=False)
+    db.query(Notification).filter(Notification.user_id == user_id).delete(synchronize_session=False)
+    db.query(CreditTransaction).filter(CreditTransaction.teacher_id == user_id).delete(synchronize_session=False)
+    db.query(TeacherCredit).filter(TeacherCredit.teacher_id == user_id).delete(synchronize_session=False)
+    db.query(SubstitutionPreference).filter(SubstitutionPreference.teacher_id == user_id).delete(synchronize_session=False)
+    db.query(TimetableSlot).filter(TimetableSlot.teacher_id == user_id).delete(synchronize_session=False)
+    db.query(TimetableSubmission).filter(TimetableSubmission.teacher_id == user_id).delete(synchronize_session=False)
+
+    leave_ids = [l.id for l in db.query(LeaveRequest.id).filter(LeaveRequest.teacher_id == user_id).all()]
+    if leave_ids:
+        db.query(AlterAssignment).filter(AlterAssignment.leave_request_id.in_(leave_ids)).delete(synchronize_session=False)
+        db.query(LeaveRequest).filter(LeaveRequest.id.in_(leave_ids)).delete(synchronize_session=False)
+
+    db.query(AlterAssignment).filter(AlterAssignment.substitute_teacher_id == user_id).delete(synchronize_session=False)
+
     db.delete(user)
     db.commit()
 

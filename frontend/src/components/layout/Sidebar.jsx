@@ -95,6 +95,10 @@ const SYSTEM_ADMIN_NAV = [
     section: 'System Setup',
     items: [
       { to: '/admin/departments', label: 'Departments', icon: <UsersIcon />, end: true },
+      { to: '/admin/classes', label: 'Classes', icon: <UsersIcon /> },
+      { to: '/admin/rooms', label: 'Rooms & Labs', icon: <DoorIcon /> },
+      { to: '/admin/teachers', label: 'Teachers', icon: <UsersIcon /> },
+      { to: '/admin/subjects', label: 'Subjects', icon: <BookIcon /> },
     ],
   },
   {

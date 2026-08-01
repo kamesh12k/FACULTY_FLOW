@@ -40,3 +40,27 @@ class RoomAvailabilityOut(BaseModel):
     room_number: str
     room_type: RoomType
     is_available: bool
+
+
+class BulkRoomCreate(BaseModel):
+    prefix: str = "Room "
+    start_num: int
+    end_num: int
+    pad_digits: int = 0
+    room_type: RoomType = RoomType.classroom
+    capacity: int = 60
+    department_id: int | None = None
+
+    @field_validator("capacity")
+    @classmethod
+    def validate_capacity(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("capacity must be positive")
+        return v
+
+
+class BulkRoomCreateOut(BaseModel):
+    created_count: int
+    skipped_count: int
+    message: str
+

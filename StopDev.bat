@@ -15,16 +15,17 @@ set "CYAN=%ESC%[96m"
 set "RESET=%ESC%[0m"
 
 echo %BLUE%========================================================================%RESET%
-echo %YELLOW%                   STOPPING FAFLOW DEVELOPMENT SERVICES                  %RESET%
+echo %YELLOW%        STOPPING FAFLOW DEV SERVICES (WITH RETRY ^& AUTO-CLEAN)         %RESET%
 echo %BLUE%========================================================================%RESET%
 echo.
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Write-Host '1. Stopping backend and frontend console windows...' -ForegroundColor Cyan; Get-Process | Where-Object { $_.MainWindowTitle -like '*FAFLOW_BACKEND_DEV*' -or $_.MainWindowTitle -like '*FAFLOW_FRONTEND_DEV*' } | ForEach-Object { Write-Host 'Stopping console process:' $_.Name 'with PID:' $_.Id -ForegroundColor Yellow; Stop-Process -Id $_.Id -Force }; Write-Host '2. Cleaning up orphaned processes on port 8000 (Backend)...' -ForegroundColor Cyan; Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.OwningProcess -gt 4 } | ForEach-Object { Write-Host 'Killing backend process on port 8000, PID:' $_.OwningProcess -ForegroundColor Red; Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }; Write-Host '3. Cleaning up orphaned processes on port 5173 (Frontend)...' -ForegroundColor Cyan; Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.OwningProcess -gt 4 } | ForEach-Object { Write-Host 'Killing frontend process on port 5173, PID:' $_.OwningProcess -ForegroundColor Red; Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }; Write-Host 'Done!' -ForegroundColor Green"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Write-Host '1. Stopping console windows...' -ForegroundColor Cyan; Get-Process | Where-Object MainWindowTitle -like '*FAFLOW*' | Stop-Process -Force -ErrorAction SilentlyContinue; Get-Process | Where-Object MainWindowTitle -like '*FACREDIT*' | Stop-Process -Force -ErrorAction SilentlyContinue; Write-Host '2. Cleaning up ports 8000 and 5173...' -ForegroundColor Cyan; try { Get-NetTCPConnection -LocalPort 8000, 5173 -State Listen -ErrorAction Stop | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } } catch {}; Write-Host 'Done!' -ForegroundColor Green; exit 0"
 
 echo.
-echo %GREEN%All development services stopped successfully.%RESET%
+echo %GREEN%All development services stopped and ports verified clean.%RESET%
 echo.
 
 if "%1"=="-nopause" goto end
+if "%1"=="--no-pause" goto end
 pause
 :end
