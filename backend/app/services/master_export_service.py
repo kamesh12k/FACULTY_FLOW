@@ -26,7 +26,7 @@ def build_master_export(db: Session, generated_by: str) -> bytes:
     ws = _sheet(wb, "Class Faculty Master", ["Class", "Section", "Semester", "Owning Department ID", "Teacher", "Teacher Department", "Subject", "Day Order", "Period", "Room"])
     rows = db.query(TimetableSlot).join(Class).join(User).order_by(Class.name, Class.section, TimetableSlot.day_order, TimetableSlot.period_number).all()
     for slot in rows:
-        ws.append([slot.class_.name, slot.class_.section, slot.class_.semester, slot.class_.department_id, slot.teacher.name, slot.teacher.department, slot.subject.name if slot.subject else None, slot.day_order, slot.period_number, slot.room.name if slot.room else None])
+        ws.append([slot.class_.name, slot.class_.section, slot.class_.semester, slot.class_.department_id, slot.teacher.name, slot.teacher.department, slot.subject.name if slot.subject else None, slot.day_order, slot.period_number, slot.room.room_number if slot.room else None])
 
     ws = _sheet(wb, "Substitution Accountability", ["Leave ID", "Date", "Class", "Absent Teacher", "Absent Department", "Substitute", "Substitute Department", "Cross Department", "Day Order", "Period", "Assignment Type", "Assigned At"])
     assignments = db.query(AlterAssignment).join(LeaveRequest).order_by(LeaveRequest.date.desc()).all()

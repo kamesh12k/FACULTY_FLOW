@@ -27,6 +27,9 @@ TRUNCATE TABLE departments RESTART IDENTITY CASCADE;
 
 -- ---------- DEPARTMENTS ----------
 INSERT INTO departments (id, name, code, created_at) VALUES (8, 'Computer Science', 'CS', '2026-07-04 18:30:20.613070+05:30');
+INSERT INTO departments (id, name, code, created_at) VALUES (10, 'M.COM ', 'M.COM ', '2026-07-08 19:37:43.261715+05:30');
+INSERT INTO departments (id, name, code, created_at) VALUES (11, ' CD ', 'cd', '2026-07-08 21:52:11.465188+05:30');
+INSERT INTO departments (id, name, code, created_at) VALUES (12, 'MA', 'MA', '2026-07-09 12:32:58.284034+05:30');
 SELECT pg_catalog.setval('departments_id_seq', (SELECT max(id) FROM departments));
 
 -- ---------- USERS ----------
@@ -83,9 +86,9 @@ INSERT INTO classes (id, name, section, department_id, semester, created_at) VAL
 INSERT INTO classes (id, name, section, department_id, semester, created_at) VALUES (66, 'III IT B', 'B', 8, 1, '2026-07-04 18:43:57.016360+05:30');
 INSERT INTO classes (id, name, section, department_id, semester, created_at) VALUES (67, 'I MSc', 'A', 8, 1, '2026-07-04 18:44:24.518971+05:30');
 INSERT INTO classes (id, name, section, department_id, semester, created_at) VALUES (68, 'II MSc', 'A', 8, 1, '2026-07-04 18:44:36.610573+05:30');
-INSERT INTO classes (id, name, section, department_id, semester, created_at) VALUES (69, 'II M.COM ', 'A', 8, 1, '2026-07-08 19:38:12.541714+05:30');
-INSERT INTO classes (id, name, section, department_id, semester, created_at) VALUES (70, 'III CD D', 'D', 8, 1, '2026-07-08 21:52:31.272074+05:30');
-INSERT INTO classes (id, name, section, department_id, semester, created_at) VALUES (71, 'II MA', 'A', 8, 1, '2026-07-09 12:33:32.364693+05:30');
+INSERT INTO classes (id, name, section, department_id, semester, created_at) VALUES (69, 'II M.COM ', 'A', 10, 1, '2026-07-08 19:38:12.541714+05:30');
+INSERT INTO classes (id, name, section, department_id, semester, created_at) VALUES (70, 'III CD D', 'D', 11, 1, '2026-07-08 21:52:31.272074+05:30');
+INSERT INTO classes (id, name, section, department_id, semester, created_at) VALUES (71, 'II MA', 'A', 12, 1, '2026-07-09 12:33:32.364693+05:30');
 SELECT pg_catalog.setval('classes_id_seq', (SELECT max(id) FROM classes));
 
 -- ---------- ROOMS ----------
