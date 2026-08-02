@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
 import { BRAND_CONFIG } from '../../config/branding'
@@ -93,12 +93,7 @@ export default function Login() {
           </form>
         </div>
 
-        <p className="text-center text-xs font-bold text-slate-400 mt-5 uppercase tracking-wide">
-          No account?{' '}
-          <Link to="/register" className="text-primary-400 hover:text-primary-300 transition-colors">
-            Register as teacher
-          </Link>
-        </p>
+
       </div>
     </div>
   )
