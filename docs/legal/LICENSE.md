@@ -8,4 +8,5 @@ This software and all associated source code, documentation, database schemas, a
 This software is proprietary and confidential. Permission to use this software is granted only under a valid written commercial license agreement with the copyright owner.
 
 For commercial licensing and enterprise procurement inquiries:  
-**Contact**: `kamesh.business@muthayammal.in`
+**Contact**: `kameshgovindhan01@gmail.com`
+

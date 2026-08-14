@@ -98,4 +98,5 @@ Copyright © 2026 Kamesh G. All Rights Reserved.
 FAFLOW is proprietary commercial software. Use, distribution, or reproduction without an explicit commercial license agreement is strictly prohibited.
 
 For commercial licensing and procurement inquiries:  
-📧 `kamesh.business@muthayammal.in`
+📧 `kameshgovindhan01@gmail.com`
+
