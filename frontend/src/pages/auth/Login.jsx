@@ -128,7 +128,7 @@ export default function Login() {
                   autoComplete="username"
                   value={form.identifier}
                   onChange={(e) => setForm({ ...form, identifier: e.target.value })}
-                  placeholder="e.g. admin or faculty@muthayammal.in"
+                  placeholder="e.g. admin or faculty@institution.edu"
                   className="w-full rounded-xl border border-slate-750 bg-slate-950/70 px-4 py-3 text-sm font-medium text-white placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 hover:border-slate-700 min-h-[44px]"
                 />
               </div>

@@ -7,17 +7,18 @@ export const BRAND_CONFIG = {
   fallbackAppName: 'FAFLOW',
   logoEmoji: '⚡',
   tagline: 'Faculty & Academic Workflow Platform',
-  companyName: 'FAFLOW Systems',
+  companyName: 'GOVERNENCE',
 
-  footerText: 'Powered by FAFLOW • Enterprise Workspace Management',
-  supportEmail: 'support@faflow.com',
-  supportPhone: '+1 (800) 555-FLOW',
+  footerText: 'Powered by GOVERNENCE • Enterprise Workspace Management',
+  supportEmail: 'kameshgovindhan01@gmail.com',
+  supportPhone: '7904668578',
   supportWebsite: 'https://faflow.com',
-  supportAddress: '100 Innovation Way, Suite 400, Tech City, TC 94016',
-  copyright: '© 2026 FAFLOW. All rights reserved.',
+  supportAddress: 'Tamil Nadu, India',
+  copyright: '© 2026 GOVERNENCE. All rights reserved.',
   defaultTheme: 'enterprise',
-  clientName: 'Muthayammal Engineering College', // Client instance name
+  clientName: '', // Raw application template
   workspaceName: 'Academic Workspace',
   organizationLogo: '🏛️',
   faviconUrl: '/favicon.ico',
 }
+
