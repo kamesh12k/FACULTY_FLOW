@@ -264,7 +264,7 @@ export default function ClasswiseTimetable() {
           ) : (
             <>
               {/* Timetable Grid Table */}
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
                 <table className="w-full border-collapse text-xs min-w-[760px]">
                   <thead>
                     <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-700">
@@ -343,8 +343,8 @@ export default function ClasswiseTimetable() {
               {/* Subject & Faculty Summary Table */}
               <div className="p-5 bg-slate-50 border-t border-slate-200">
                 <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Subject & Handling Faculty Summary</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left">
+                <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                  <table className="w-full text-xs text-left" style={{ minWidth: '550px' }}>
                     <thead className="bg-white border border-slate-200 text-slate-500 font-bold uppercase">
                       <tr>
                         <th className="p-2.5">Subject Code</th>

@@ -81,10 +81,10 @@ export default function TopBar() {
                 <select
                   value={dept.activeDepartmentId ?? ''}
                   onChange={(e) => dept.setActiveDepartmentId(e.target.value || null)}
-                  className="text-xs font-bold border border-slate-200 rounded-xl pl-2.5 pr-7 py-2 bg-white text-slate-700 outline-none focus:border-primary-500 appearance-none max-w-[180px] truncate cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                  className="text-xs font-bold border border-slate-200 rounded-xl pl-2.5 pr-7 py-2 bg-white text-slate-700 outline-none focus:border-primary-500 appearance-none max-w-[110px] sm:max-w-[180px] truncate cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
                   title="Switch department workspace"
                 >
-                  <option value="">🏛️ All Departments</option>
+                  <option value="">🏛️ All Depts</option>
                   {dept.departments.map(d => (
                     <option key={d.id} value={d.id}>📂 {d.name}</option>
                   ))}
@@ -98,9 +98,10 @@ export default function TopBar() {
             {/* Command Palette Trigger */}
             <button
               onClick={() => setSearchOpen(true)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50/20 text-slate-400 hover:text-slate-600 hover:bg-slate-50 hover:border-slate-350 transition-all text-xs font-bold shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
+              className="flex items-center gap-2 p-2 sm:px-3.5 sm:py-2 rounded-xl border border-slate-200 bg-slate-50/20 text-slate-400 hover:text-slate-600 hover:bg-slate-50 hover:border-slate-350 transition-all text-xs font-bold shadow-[0_1px_2px_rgba(0,0,0,0.01)] min-h-[36px] min-w-[36px] justify-center"
+              aria-label="Search"
             >
-              <SearchIcon className="w-4 h-4 text-slate-400" />
+              <SearchIcon className="w-4 h-4 text-slate-400 shrink-0" />
               <span className="hidden sm:inline">Search</span>
               <kbd className="hidden md:inline-flex h-4.5 select-none items-center gap-0.5 rounded border border-slate-200 bg-white px-1.5 font-mono text-[9px] font-medium text-slate-400">
                 <span className="text-[10px]">Ctrl</span>K

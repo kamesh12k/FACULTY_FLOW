@@ -107,7 +107,7 @@ export default function ApplyLeave() {
 
         {/* Main Card */}
         <div className="bg-white rounded-2xl shadow-lg shadow-slate-100 border border-slate-100 overflow-hidden">
-          <form onSubmit={handleSubmit} className="p-8 space-y-8">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-6 sm:space-y-8">
             {/* Error Alert */}
             {error && <ErrorAlert message={error} />}
 
@@ -119,7 +119,7 @@ export default function ApplyLeave() {
               </div>
 
               {/* Quick shortcuts */}
-              <div className="pl-11 space-y-3">
+              <div className="pl-0 sm:pl-11 space-y-3">
                 <div className="flex gap-2 flex-wrap">
                   {dateShortcuts.map(s => (
                     <button
@@ -179,7 +179,7 @@ export default function ApplyLeave() {
                 <label className="block text-lg font-semibold text-gray-900">How long do you need?</label>
               </div>
 
-              <div className="pl-11">
+              <div className="pl-0 sm:pl-11">
                 <div className="grid grid-cols-3 gap-3">
                   {[
                     { value: 'whole_day', label: 'Whole day', icon: '📅' },
@@ -246,7 +246,7 @@ export default function ApplyLeave() {
                 <label className="block text-lg font-semibold text-gray-900">Tell us why</label>
               </div>
 
-              <div className="pl-11 space-y-3">
+              <div className="pl-0 sm:pl-11 space-y-3">
                 {/* Quick reason chips */}
                 <div className="flex gap-2 flex-wrap">
                   {REASON_CHIPS.map(chip => (

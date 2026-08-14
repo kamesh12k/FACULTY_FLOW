@@ -31,10 +31,16 @@ export function AuthProvider({ children }) {
       isAdmin: user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'principal',
       isSystemAdmin: user?.role === 'system_admin',
       isPrincipal: user?.role === 'principal',
+      isManager: user?.role === 'manager',
+      isLabStaff: user?.role === 'lab_staff',
+      isNonTeachingStaff: user?.role === 'non_teaching_staff',
+      isStaff: user?.role === 'lab_staff' || user?.role === 'non_teaching_staff',
       isSuperAdmin: user?.admin_level === 'super_admin' || user?.role === 'system_admin',
       isSecondaryAdmin: user?.admin_level === 'secondary_admin',
       mustChangeCredentials: !!user?.must_change_credentials,
     }}>
+
+
       {children}
     </AuthContext.Provider>
   )

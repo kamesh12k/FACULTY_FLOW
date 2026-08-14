@@ -182,7 +182,7 @@ export default function TeacherSubstitution() {
       <ErrorAlert message={error} />
 
       {/* Tabs */}
-      <div className="border-b border-gray-100 flex gap-4">
+      <div className="border-b border-gray-100 flex gap-4 overflow-x-auto" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
         <button
           onClick={() => setActiveTab('needs-cover')}
           className={`pb-2.5 text-sm font-semibold border-b-2 transition-colors ${
@@ -210,8 +210,8 @@ export default function TeacherSubstitution() {
           myLeaves.length === 0 ? (
             <EmptyState message="No approved leaves needing substitutes right now." />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <table className="w-full text-sm" style={{ minWidth: '550px' }}>
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   {['Date', 'Day Order', 'Period', 'Reason', ''].map(h => (
@@ -251,8 +251,8 @@ export default function TeacherSubstitution() {
           activeCoverLeaves.length === 0 ? (
             <EmptyState message="No substitute covers assigned yet." />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <table className="w-full text-sm" style={{ minWidth: '600px' }}>
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   {['Date', 'Day Order', 'Period', 'Assigned Substitute', 'Type', ''].map(h => (

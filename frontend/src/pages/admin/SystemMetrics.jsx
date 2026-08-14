@@ -126,7 +126,7 @@ export default function SystemMetrics() {
         </div>
 
         {/* Global Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
           <button
             onClick={() => setPollingActive(p => !p)}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
@@ -399,8 +399,8 @@ export default function SystemMetrics() {
         </div>
 
         {/* Table Grid */}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+        <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <table className="w-full border-collapse" style={{ minWidth: '600px' }}>
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
                 <th className="px-5 py-3 text-left text-[10px] font-bold text-slate-450 uppercase tracking-wider">Method</th>

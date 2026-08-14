@@ -27,7 +27,7 @@ BACKUP_TABLES = [
     "academic_years", "semesters", "calendar_days",
     "timetable_slots", "timetable_submissions", "leave_requests",
     "alter_assignments", "substitution_preferences",
-    "teacher_credits", "credit_transactions",
+    "teacher_credits", "credit_transactions", "operational_staff",
     "notifications", "push_subscriptions", "audit_logs", "system_settings",
 ]
 
@@ -37,8 +37,9 @@ _DELETE_ORDER = [
     "push_subscriptions", "notifications", "credit_transactions",
     "teacher_credits", "substitution_preferences", "alter_assignments", "leave_requests",
     "timetable_slots", "timetable_submissions", "calendar_days", "semesters", "academic_years",
-    "classes", "rooms", "subjects", "audit_logs", "users", "departments",
+    "operational_staff", "classes", "rooms", "subjects", "audit_logs", "users", "departments",
 ]
+
 
 
 def backup_database(db: Session) -> str:
@@ -179,8 +180,12 @@ def perform_department_reset(db: Session, actor: User, dept_id: int) -> dict:
     # Delete subjects of this department
     db.execute(text("DELETE FROM subjects WHERE department_id = :dept_id"), {"dept_id": dept_id})
 
+    # Delete operational staff of this department
+    db.execute(text("DELETE FROM operational_staff WHERE department_id = :dept_id"), {"dept_id": dept_id})
+
     # Delete settings of this department
     db.execute(text("DELETE FROM system_settings WHERE department_id = :dept_id"), {"dept_id": dept_id})
+
 
     # Delete audit logs of this department
     db.execute(text("DELETE FROM audit_logs WHERE department_id = :dept_id"), {"dept_id": dept_id})

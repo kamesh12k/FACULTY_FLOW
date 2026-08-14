@@ -170,17 +170,17 @@ export default function AdminDepartments() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-xl font-bold text-gray-900">Departments</h1>
-        <button onClick={() => setModalOpen(true)} className="btn-primary text-sm">+ Add Department</button>
+        <button onClick={() => setModalOpen(true)} className="btn-primary text-sm shrink-0 self-start sm:self-auto">+ Add Department</button>
       </div>
 
       <div className="card overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-12"><Spinner /></div>
         ) : departments.length === 0 ? <EmptyState message="No departments yet." /> : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full text-sm" style={{ minWidth: '450px' }}>
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 {['Name', 'Code', 'Created At', ''].map(h => (
@@ -212,20 +212,20 @@ export default function AdminDepartments() {
       <hr className="border-gray-200 my-8" />
 
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="min-w-0">
             <h2 className="text-xl font-bold text-gray-900">Administrative Accounts</h2>
             <p className="text-sm text-gray-500">Register HODs (Super Admins) for departments, or the college Principal.</p>
           </div>
-          <button onClick={() => setUserModalOpen(true)} className="btn-primary text-sm">+ Register Administrator</button>
+          <button onClick={() => setUserModalOpen(true)} className="btn-primary text-sm shrink-0 self-start sm:self-auto">+ Register Administrator</button>
         </div>
 
         <div className="card overflow-hidden">
           {usersLoading ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : globalUsers.length === 0 ? <EmptyState message="No administrators registered yet." /> : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <table className="w-full text-sm" style={{ minWidth: '550px' }}>
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
                     {['Name', 'Username', 'Role', 'Department', ''].map(h => (

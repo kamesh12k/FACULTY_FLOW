@@ -52,10 +52,10 @@ export default function Login() {
           <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-primary-600 to-indigo-500 rounded-2xl mb-4 shadow-md shadow-primary-500/10">
             <span className="text-2xl">{BRAND_CONFIG.logoEmoji}</span>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">
+          <h1 className={`text-3xl font-extrabold tracking-tight ${themePreset?.isDarkMode ? 'text-white' : 'text-slate-900'}`}>
             {app_name || BRAND_CONFIG.appName}
           </h1>
-          <p className="text-xs font-bold text-slate-300/80 mt-2 uppercase tracking-wider">{BRAND_CONFIG.tagline}</p>
+          <p className={`text-xs font-bold mt-2 uppercase tracking-wider ${themePreset?.isDarkMode ? 'text-slate-300/80' : 'text-slate-500'}`}>{BRAND_CONFIG.tagline}</p>
         </div>
 
         <div className={`rounded-2xl border p-8 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-xl ${themePreset?.isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>

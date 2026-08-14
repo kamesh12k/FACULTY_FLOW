@@ -151,9 +151,9 @@ export function StatCard({ label, value, sub, accent, className = '' }) {
   }
   const colorCls = colors[accent] || 'from-slate-500/10 via-slate-500/5 to-transparent border-slate-200/80 text-slate-800'
   return (
-    <div className={`relative overflow-hidden rounded-2xl border bg-white p-6 bg-gradient-to-br ${colorCls} shadow-[0_4px_12px_-2px_rgba(0,0,0,0.01)] transition-all hover:-translate-y-0.5 hover:shadow-md ${className}`}>
+    <div className={`relative overflow-hidden rounded-2xl border bg-white p-4 sm:p-6 bg-gradient-to-br ${colorCls} shadow-[0_4px_12px_-2px_rgba(0,0,0,0.01)] transition-all hover:-translate-y-0.5 hover:shadow-md ${className}`}>
       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
-      <p className="text-3xl font-extrabold tracking-tight">{value}</p>
+      <p className="text-2xl sm:text-3xl font-extrabold tracking-tight">{value}</p>
       {sub && <p className="text-xs text-slate-450 mt-1.5 font-medium">{sub}</p>}
     </div>
   )
@@ -193,12 +193,12 @@ export function Card({ children, className = '', title, headerAction }) {
   return (
     <div className={`rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden ${className}`}>
       {title && (
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-slate-50/20">
+        <div className="flex items-center justify-between px-4 py-4 sm:px-6 sm:py-5 border-b border-slate-100 bg-slate-50/20 gap-3">
           <h3 className="text-sm font-bold text-slate-800 tracking-tight">{title}</h3>
           {headerAction}
         </div>
       )}
-      <div className="p-6">{children}</div>
+      <div className="p-4 sm:p-6">{children}</div>
     </div>
   )
 }
@@ -359,16 +359,22 @@ export function Modal({ open, isOpen, onClose, title, children, size = 'md' }) {
 
   const maxWidth = size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-2xl' : 'max-w-md'
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity" onClick={onClose} />
-      <div className={`relative bg-white rounded-2xl shadow-xl w-full ${maxWidth} max-h-[85vh] flex flex-col p-6 z-10 transform scale-100 transition-all border border-slate-100`}>
-        <div className="flex items-center justify-between mb-5 flex-shrink-0">
-          <h3 className="text-base font-bold text-slate-800 tracking-tight">{title}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-50 rounded-lg transition-colors">
+      <div className={`relative bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full ${maxWidth} max-h-[90dvh] sm:max-h-[85vh] flex flex-col p-4 sm:p-6 z-10 transition-all border border-slate-100`}>
+        {/* Drag handle indicator on mobile */}
+        <div className="sm:hidden w-10 h-1 bg-slate-200 rounded-full mx-auto mb-3 shrink-0" />
+        <div className="flex items-center justify-between mb-4 sm:mb-5 flex-shrink-0">
+          <h3 className="text-base font-bold text-slate-800 tracking-tight pr-2">{title}</h3>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-50 rounded-lg transition-colors shrink-0 -mr-1"
+            aria-label="Close dialog"
+          >
             <CloseIcon className="w-5 h-5" />
           </button>
         </div>
-        <div className="overflow-y-auto pr-1 flex-1 min-h-0">
+        <div className="overflow-y-auto flex-1 min-h-0" style={{ WebkitOverflowScrolling: 'touch' }}>
           {children}
         </div>
       </div>
@@ -470,8 +476,8 @@ export function Table({
   return (
     <div className="space-y-4">
       {/* Table Action Bar */}
-      <div className="flex items-center justify-between gap-3 flex-wrap bg-slate-50/50 p-4.5 rounded-2xl border border-slate-100">
-        <div className="relative max-w-xs w-full">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-slate-50/50 p-3 sm:p-4 rounded-2xl border border-slate-100">
+        <div className="relative w-full sm:max-w-xs">
           <SearchIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
@@ -482,10 +488,10 @@ export function Table({
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {/* CSV Export */}
           <Button variant="outline" size="sm" onClick={exportToCSV} className="text-xs">
-            Export CSV
+            Export
           </Button>
 
           {/* Columns Visibility dropdown */}
@@ -600,9 +606,9 @@ export function Table({
 
       {/* Pagination Footer */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 bg-white border border-slate-100 rounded-2xl shadow-sm">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3 sm:px-4 py-3 bg-white border border-slate-100 rounded-2xl shadow-sm">
           <p className="text-xs text-slate-450 font-semibold">
-            Showing <span className="font-bold text-slate-700">{(page-1)*perPage+1}</span> to <span className="font-bold text-slate-700">{Math.min(page*perPage, filteredData.length)}</span> of <span className="font-bold text-slate-700">{filteredData.length}</span> entries
+            <span className="font-bold text-slate-700">{(page-1)*perPage+1}</span>–<span className="font-bold text-slate-700">{Math.min(page*perPage, filteredData.length)}</span> of <span className="font-bold text-slate-700">{filteredData.length}</span>
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -612,22 +618,39 @@ export function Table({
               onClick={() => setPage(p => p - 1)}
               className="py-1 px-3"
             >
-              Previous
+              ← Prev
             </Button>
-            <div className="flex items-center gap-1">
-              {[...Array(totalPages)].map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setPage(i + 1)}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
-                    page === i + 1 
-                      ? 'bg-primary-600 border-primary-600 text-white' 
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
+            {/* On mobile: show current/total. On desktop: show page buttons (up to 7) */}
+            <span className="sm:hidden text-xs font-bold text-slate-600 px-1">
+              {page} / {totalPages}
+            </span>
+            <div className="hidden sm:flex items-center gap-1">
+              {[...Array(Math.min(totalPages, 7))].map((_, i) => {
+                // Smart page number display
+                let pageNum
+                if (totalPages <= 7) {
+                  pageNum = i + 1
+                } else if (page <= 4) {
+                  pageNum = i + 1
+                } else if (page >= totalPages - 3) {
+                  pageNum = totalPages - 6 + i
+                } else {
+                  pageNum = page - 3 + i
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setPage(pageNum)}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
+                      page === pageNum 
+                        ? 'bg-primary-600 border-primary-600 text-white' 
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                )
+              })}
             </div>
             <Button
               variant="outline"
@@ -636,7 +659,7 @@ export function Table({
               onClick={() => setPage(p => p + 1)}
               className="py-1 px-3"
             >
-              Next
+              Next →
             </Button>
           </div>
         </div>
@@ -684,12 +707,15 @@ export function Breadcrumbs({ links = [] }) {
 // 20. Tabs Navigation
 export function Tabs({ tabs = [], activeTab, onChange }) {
   return (
-    <div className="border-b border-slate-100 flex gap-6 overflow-x-auto">
+    <div
+      className="border-b border-slate-100 flex gap-4 sm:gap-6"
+      style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+    >
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onChange(tab.id)}
-          className={`pb-3 text-xs font-bold transition-all relative border-b-2 -mb-px shrink-0 flex items-center gap-1.5 ${
+          className={`pb-3 text-xs font-bold transition-all relative border-b-2 -mb-px shrink-0 flex items-center gap-1.5 min-h-[44px] ${
             activeTab === tab.id
               ? 'border-primary-600 text-primary-600'
               : 'border-transparent text-slate-450 hover:text-slate-700'
@@ -762,12 +788,16 @@ export function ConfirmDialog({ open, title = 'Are you sure?', message, confirmT
 // 24. PageHeader
 export function PageHeader({ title, description, actions }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
-        <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">{title}</h1>
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+      <div className="min-w-0">
+        <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">{title}</h1>
         {description && <p className="text-sm text-slate-500 font-medium mt-1">{description}</p>}
       </div>
-      {actions && <div className="flex items-center gap-2.5 self-start sm:self-auto">{actions}</div>}
+      {actions && (
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto shrink-0">
+          {actions}
+        </div>
+      )}
     </div>
   )
 }

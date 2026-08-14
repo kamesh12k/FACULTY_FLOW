@@ -280,4 +280,76 @@ def create_principal_account(data: SecondaryAdminCreate, db: Session) -> User:
     return principal
 
 
+# ── Manager Account Management (System Admin Only) ───────────────────────────
+
+def list_managers(db: Session) -> list[User]:
+    return db.query(User).filter(User.role == Role.manager).order_by(User.name.asc()).all()
+
+
+def get_manager_by_id(manager_id: int, db: Session) -> User:
+    manager = db.query(User).filter(User.id == manager_id, User.role == Role.manager).first()
+    if not manager:
+        raise HTTPException(status_code=404, detail="Manager account not found")
+    return manager
+
+
+def create_manager_account(name: str, username: str, password: str, department_id: int | None, current_user_id: int, db: Session) -> User:
+    if db.query(User).filter(User.username == username).first():
+        raise HTTPException(status_code=400, detail=f"Username '{username}' is already taken")
+
+    manager = User(
+        name=name,
+        username=username,
+        email=None,
+        password_hash=hash_password(password),
+        role=Role.manager,
+        admin_level=None,
+        department_id=department_id,
+        must_change_credentials=True,
+        is_active=True,
+        created_by_admin_id=current_user_id,
+    )
+    db.add(manager)
+    db.flush()
+
+    log_audit_event(
+        db, current_user_id, "manager.create", "user", manager.id,
+        {"name": manager.name, "username": manager.username, "department_id": department_id},
+    )
+    db.commit()
+    db.refresh(manager)
+    return manager
+
+
+def update_manager_account(manager_id: int, name: str | None, department_id: int | None, is_active: bool | None, password: str | None, current_user_id: int, db: Session) -> User:
+    manager = get_manager_by_id(manager_id, db)
+    if name is not None:
+        manager.name = name
+    if department_id is not None:
+        manager.department_id = department_id if department_id != 0 else None
+    if is_active is not None:
+        manager.is_active = is_active
+    if password is not None and password.strip():
+        manager.password_hash = hash_password(password)
+
+    log_audit_event(
+        db, current_user_id, "manager.update", "user", manager.id,
+        {"name": manager.name, "is_active": manager.is_active, "department_id": manager.department_id},
+    )
+    db.commit()
+    db.refresh(manager)
+    return manager
+
+
+def delete_manager_account(manager_id: int, current_user_id: int, db: Session) -> None:
+    manager = get_manager_by_id(manager_id, db)
+    log_audit_event(
+        db, current_user_id, "manager.delete", "user", manager.id,
+        {"name": manager.name, "username": manager.username},
+    )
+    db.delete(manager)
+    db.commit()
+
+
+
 

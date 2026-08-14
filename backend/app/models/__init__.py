@@ -13,3 +13,7 @@ from app.models.audit_log import AuditLog
 from app.models.system_setting import SystemSetting
 from app.models.substitution_preference import SubstitutionPreference
 from app.models.timetable_submission import TimetableSubmission, TimetableSubmissionStatus
+from app.models.operational_staff import OperationalStaff, StaffCategory, EmploymentStatus, ShiftType
+from app.models.staff_leave import StaffLeaveRequest, StaffCredit, StaffCreditTransaction, StaffLeaveType, StaffLeaveStatus
+
+

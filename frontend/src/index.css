@@ -3,8 +3,26 @@
 @tailwind utilities;
 
 @layer base {
+  /* Prevent accidental page-level horizontal overflow on mobile */
+  html {
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-slate-50 text-slate-800 antialiased selection:bg-primary-100 selection:text-primary-900;
+    overflow-x: hidden;
+    min-width: 0;
+  }
+
+  /* Lock body scroll when a mobile overlay/drawer is open */
+  body.drawer-open {
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  /* Ensure all elements use border-box sizing */
+  *, *::before, *::after {
+    box-sizing: border-box;
   }
 }
 
@@ -48,4 +66,47 @@
   .badge-cancelled {
     @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200/50;
   }
+
+  /* Responsive table container — prevents page-level horizontal scroll */
+  .table-responsive {
+    @apply w-full overflow-x-auto -webkit-overflow-scrolling-touch;
+    min-width: 0;
+  }
+
+  /* Horizontally scrollable with hidden scrollbar (mobile-friendly) */
+  .scroll-x-hidden-bar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scroll-x-hidden-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Ultra-sleek sidebar scrollbar */
+  .sidebar-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
+  }
+  .sidebar-scrollbar::-webkit-scrollbar {
+    width: 5px;
+  }
+  .sidebar-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .sidebar-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.25);
+    border-radius: 9999px;
+  }
+  .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.45);
+  }
 }
+
+/* Responsive typography for very small screens */
+@media (max-width: 360px) {
+  .text-3xl { font-size: 1.5rem; }
+  .text-4xl { font-size: 1.75rem; }
+}
+

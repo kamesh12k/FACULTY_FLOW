@@ -444,9 +444,9 @@ export default function AdminLeaves() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-xl font-bold text-gray-900">Leave Requests</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {selected.size === 0 && (
             <button
               onClick={handleClearHistory}
@@ -473,8 +473,8 @@ export default function AdminLeaves() {
         {loading ? (
           <div className="flex justify-center py-12"><Spinner /></div>
         ) : leaves.length === 0 ? <EmptyState message="No leave requests yet." /> : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs sm:text-sm">
+          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full text-xs sm:text-sm" style={{ minWidth: '700px' }}>
             <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
                 <th className="px-2.5 py-3 w-8 text-center">

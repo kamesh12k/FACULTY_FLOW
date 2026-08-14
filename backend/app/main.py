@@ -16,7 +16,7 @@ import app.models  # ensure all models are registered with Base before create_al
 from app.routes import (
     auth, teachers, timetable, leaves, credits, notifications,
     departments, subjects, classes, rooms, day_order, admin, academic_calendar,
-    campus_operations, teacher_substitution, substitutions, principal,
+    campus_operations, teacher_substitution, substitutions, principal, manager, staff,
 )
 from app.services.admin_service import bootstrap_default_super_admin
 
@@ -118,6 +118,10 @@ app.include_router(campus_operations.router)
 app.include_router(teacher_substitution.router)
 app.include_router(substitutions.router)
 app.include_router(principal.router)
+app.include_router(manager.router)
+app.include_router(staff.router)
+
+
 
 
 

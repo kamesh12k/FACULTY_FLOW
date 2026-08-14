@@ -189,7 +189,7 @@ export default function CreditHistoryDrawer({ teacher, transactions, onClose, on
 
         {/* Filters */}
         <div className="px-5 py-2.5 border-b border-slate-100 bg-white shrink-0 space-y-2">
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
             {[['all', 'All Time'], ['today', 'Today'], ['week', 'This Week'], ['month', 'This Month']].map(([val, label]) => (
               <button
                 key={val}

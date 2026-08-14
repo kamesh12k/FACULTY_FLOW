@@ -1229,13 +1229,19 @@ const CSS = `
 /* ─── Toast ──────────────────────────────────────────────────────────────── */
 .le-toast-wrap {
   position: fixed;
-  bottom: 22px;
-  right: 22px;
+  bottom: 80px; /* above mobile bottom nav */
+  right: 16px;
   z-index: 9999;
   display: flex;
   flex-direction: column;
   gap: 7px;
   pointer-events: none;
+}
+@media (min-width: 1024px) {
+  .le-toast-wrap {
+    bottom: 22px;
+    right: 22px;
+  }
 }
 
 .le-toast {

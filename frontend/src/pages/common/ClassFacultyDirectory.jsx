@@ -103,8 +103,8 @@ export default function ClassFacultyDirectory() {
               {groupedFaculty.length === 0 ? (
                 <EmptyState message="No approved timetable entries for this class." />
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                  <table className="w-full text-sm" style={{ minWidth: '550px' }}>
                     <thead className="bg-gray-50 border-b border-gray-100">
                       <tr>
                         {['Staff Name', 'Department', 'Subject(s)', 'Periods / Week', 'Room(s)'].map(h => (

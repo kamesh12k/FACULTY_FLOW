@@ -208,7 +208,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Global System Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <StatCard label="Total Departments" value={departments.length} sub="Active departments" accent="indigo" />
           <StatCard label="Today's Coverage Rate" value={systemAnalytics ? `${systemAnalytics.overall_coverage_rate}%` : '0%'} sub={`${systemAnalytics?.covered_periods_today !== undefined ? systemAnalytics.covered_periods_today : (systemAnalytics?.covered_leaves_today || 0)}/${systemAnalytics?.leave_periods_today !== undefined ? systemAnalytics.leave_periods_today : (systemAnalytics?.active_leaves_today || 0)} periods covered`} accent="green" />
           <StatCard label="Recent Credits Activity" value={systemAnalytics?.recent_transactions_count || 0} sub="Transactions (last 30 days)" accent="blue" />
@@ -286,8 +286,8 @@ export default function AdminDashboard() {
           {systemAnalytics?.department_summaries?.length === 0 ? (
             <p className="text-xs text-slate-400 font-medium py-8 text-center">No department summaries available.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
+            <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <table className="w-full text-xs text-left" style={{ minWidth: '540px' }}>
                 <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase tracking-wider">
                   <tr>
                     <th className="px-5 py-3.5">Department</th>
@@ -483,52 +483,52 @@ export default function AdminDashboard() {
       )}
 
       {/* Quick controls grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <Link to="/admin/today-substitutions" className="rounded-2xl border border-slate-100 bg-white p-5 flex flex-col items-center gap-3.5 text-center hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
-          <span className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${
+      <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <Link to="/admin/today-substitutions" className="rounded-2xl border border-slate-100 bg-white p-3 sm:p-5 flex flex-col items-center gap-2.5 sm:gap-3.5 text-center hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+          <span className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center border ${
             needingSub.length > 0 ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'
           }`}>
-            <SwapIcon className="w-6 h-6" />
+            <SwapIcon className="w-5 h-5 sm:w-6 sm:h-6" />
           </span>
           <div>
-            <span className="block text-xl font-extrabold text-slate-800 leading-none">{needingSub.length > 0 ? needingSub.length : '✓'}</span>
-            <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5">{needingSub.length > 0 ? 'Needs Coverage' : 'All Covered'}</span>
+            <span className="block text-lg sm:text-xl font-extrabold text-slate-800 leading-none">{needingSub.length > 0 ? needingSub.length : '✓'}</span>
+            <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1 sm:mt-1.5">{needingSub.length > 0 ? 'Needs Sub' : 'Covered'}</span>
           </div>
         </Link>
-        <Link to="/admin/leaves" className="rounded-2xl border border-slate-100 bg-white p-5 flex flex-col items-center gap-3.5 text-center hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
-          <span className="w-12 h-12 rounded-2xl bg-yellow-50 text-yellow-700 flex items-center justify-center border border-yellow-100">
-            <DocIcon className="w-6 h-6" />
+        <Link to="/admin/leaves" className="rounded-2xl border border-slate-100 bg-white p-3 sm:p-5 flex flex-col items-center gap-2.5 sm:gap-3.5 text-center hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+          <span className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-yellow-50 text-yellow-700 flex items-center justify-center border border-yellow-100">
+            <DocIcon className="w-5 h-5 sm:w-6 sm:h-6" />
           </span>
           <div>
-            <span className="block text-xl font-extrabold text-slate-800 leading-none">{summary?.pending_leave_count || 0}</span>
-            <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5">Pending Leaves</span>
+            <span className="block text-lg sm:text-xl font-extrabold text-slate-800 leading-none">{summary?.pending_leave_count || 0}</span>
+            <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1 sm:mt-1.5">Pending</span>
           </div>
         </Link>
-        <Link to="/admin/teachers" className="rounded-2xl border border-slate-100 bg-white p-5 flex flex-col items-center gap-3.5 text-center hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
-          <span className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center border border-blue-100">
-            <UsersIcon className="w-6 h-6" />
+        <Link to="/admin/teachers" className="rounded-2xl border border-slate-100 bg-white p-3 sm:p-5 flex flex-col items-center gap-2.5 sm:gap-3.5 text-center hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+          <span className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center border border-blue-100">
+            <UsersIcon className="w-5 h-5 sm:w-6 sm:h-6" />
           </span>
           <div>
-            <span className="block text-xl font-extrabold text-slate-800 leading-none">{teacherCount || 0}</span>
-            <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5">Faculty Members</span>
+            <span className="block text-lg sm:text-xl font-extrabold text-slate-800 leading-none">{teacherCount || 0}</span>
+            <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1 sm:mt-1.5">Faculty</span>
           </div>
         </Link>
-        <Link to="/admin/academic-calendar" className="rounded-2xl border border-slate-100 bg-white p-5 flex flex-col items-center gap-3.5 text-center hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
-          <span className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-750 flex items-center justify-center border border-indigo-100">
-            <CalIcon className="w-6 h-6" />
+        <Link to="/admin/academic-calendar" className="rounded-2xl border border-slate-100 bg-white p-3 sm:p-5 flex flex-col items-center gap-2.5 sm:gap-3.5 text-center hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+          <span className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-indigo-50 text-indigo-750 flex items-center justify-center border border-indigo-100">
+            <CalIcon className="w-5 h-5 sm:w-6 sm:h-6" />
           </span>
           <div>
-            <span className="block text-[11px] font-bold text-slate-800 leading-none mt-1">Calendar</span>
-            <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5">Scheduling</span>
+            <span className="block text-[10px] sm:text-[11px] font-bold text-slate-800 leading-none mt-1">Calendar</span>
+            <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1 sm:mt-1.5">Schedule</span>
           </div>
         </Link>
-        <Link to="/admin/timetable" className="rounded-2xl border border-slate-100 bg-white p-5 flex flex-col items-center gap-3.5 text-center hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
-          <span className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center border border-purple-100">
-            <PlusIcon className="w-6 h-6" />
+        <Link to="/admin/timetable" className="rounded-2xl border border-slate-100 bg-white p-3 sm:p-5 flex flex-col items-center gap-2.5 sm:gap-3.5 text-center hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+          <span className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center border border-purple-100">
+            <PlusIcon className="w-5 h-5 sm:w-6 sm:h-6" />
           </span>
           <div>
-            <span className="block text-[11px] font-bold text-slate-800 leading-none mt-1">Timetable</span>
-            <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5">Add Slot</span>
+            <span className="block text-[10px] sm:text-[11px] font-bold text-slate-800 leading-none mt-1">Timetable</span>
+            <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1 sm:mt-1.5">Add Slot</span>
           </div>
         </Link>
       </div>

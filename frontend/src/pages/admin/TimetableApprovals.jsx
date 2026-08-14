@@ -203,15 +203,15 @@ export default function TimetableApprovals() {
       {/* Main Table Card */}
       <div className="card overflow-hidden border border-gray-200/80 rounded-2xl shadow-sm">
         {items.length > 0 && (
-          <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between gap-3">
+          <div className="p-3 sm:p-4 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <input
               type="text"
               placeholder="Search teacher, class, or subject…"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg max-w-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg w-full sm:max-w-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
-            <p className="text-xs text-gray-500 font-medium">
+            <p className="text-xs text-gray-500 font-medium shrink-0">
               Showing {filteredItems.length} of {items.length} pending requests
             </p>
           </div>
@@ -222,8 +222,8 @@ export default function TimetableApprovals() {
         ) : filteredItems.length === 0 ? (
           <p className="text-xs text-gray-400 text-center py-10">No pending submissions match "{searchQuery}".</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full text-sm" style={{ minWidth: '760px' }}>
               <thead className="bg-gray-50/80 border-b border-gray-200/60">
                 <tr>
                   <th className="p-3.5 w-10 text-center">

@@ -21,23 +21,42 @@ export function PrincipalRoute() {
   return <Outlet />
 }
 
+export function ManagerRoute() {
+  const { token, user, isManager } = useAuth()
+  if (!token || !user) return <Navigate to="/login" replace />
+  if (!isManager) return <Navigate to="/login" replace />
+  return <Outlet />
+}
+
+export function StaffRoute() {
+  const { token, user, isStaff, isManager, isAdmin } = useAuth()
+  if (!token || !user) return <Navigate to="/login" replace />
+  if (!isStaff && !isManager && !isAdmin) return <Navigate to="/login" replace />
+  return <Outlet />
+}
+
+
 export function TeacherRoute() {
-  const { token, user, isPrincipal } = useAuth()
+  const { token, user, isPrincipal, isManager, isStaff, isAdmin } = useAuth()
   if (!token || !user) return <Navigate to="/login" replace />
   if (isPrincipal) return <Navigate to="/principal/dashboard" replace />
+  if (isManager) return <Navigate to="/manager/dashboard" replace />
+  if (isStaff) return <Navigate to="/staff/dashboard" replace />
   return <Outlet />
 }
 
 
 export function GuestRoute() {
-  const { token, user, isAdmin, isPrincipal, mustChangeCredentials } = useAuth()
+  const { token, user, isAdmin, isPrincipal, isManager, isStaff, mustChangeCredentials } = useAuth()
   if (!token || !user) return <Outlet />
   if (mustChangeCredentials) return <Navigate to="/first-login-setup" replace />
   if (isPrincipal) return <Navigate to="/principal/dashboard" replace />
+  if (isManager) return <Navigate to="/manager/dashboard" replace />
+  if (isStaff) return <Navigate to="/staff/dashboard" replace />
   return <Navigate to={isAdmin ? '/admin/dashboard' : '/teacher/dashboard'} replace />
 }
 
-/** Sits between AdminRoute/TeacherRoute and AppShell. Bounces anyone still
+/** Sits between AdminRoute/TeacherRoute/ManagerRoute/StaffRoute and AppShell. Bounces anyone still
  * on default/reset credentials to the forced setup screen before they can
  * reach any dashboard route. */
 export function RequireCredentialsSet() {
@@ -50,11 +69,15 @@ export function RequireCredentialsSet() {
  * exempt from the credentials gate (and irrelevant once credentials are
  * already set, so it bounces forward instead of back). */
 export function FirstLoginSetupRoute() {
-  const { token, user, isAdmin, isPrincipal, mustChangeCredentials } = useAuth()
+  const { token, user, isAdmin, isPrincipal, isManager, isStaff, mustChangeCredentials } = useAuth()
   if (!token || !user) return <Navigate to="/login" replace />
   if (!mustChangeCredentials) {
     if (isPrincipal) return <Navigate to="/principal/dashboard" replace />
+    if (isManager) return <Navigate to="/manager/dashboard" replace />
+    if (isStaff) return <Navigate to="/staff/dashboard" replace />
     return <Navigate to={isAdmin ? '/admin/dashboard' : '/teacher/dashboard'} replace />
   }
   return <Outlet />
 }
+
+

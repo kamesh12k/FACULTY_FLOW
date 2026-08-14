@@ -828,8 +828,8 @@ export default function TodaySubstitutions() {
             <EmptyState message="No substitution records found for the selected date." />
           )
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full text-sm" style={{ minWidth: '700px' }}>
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   <SortableTh label="Period" sortKey="period" sortConfig={sortConfig} onSort={handleSort} />

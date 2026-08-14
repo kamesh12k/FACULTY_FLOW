@@ -76,8 +76,8 @@ function ReportTable({ headers, children, empty }) {
   return (
     <div style={{ background: 'var(--surface-1)', borderRadius: R.xl, overflow: 'hidden' }}>
       {empty ? <EmptyState message={empty} /> : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <table className="w-full text-sm" style={{ minWidth: '450px' }}>
             <thead>
               <tr>{headers.map(h => (
                 <th key={h} style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>

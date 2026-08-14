@@ -411,12 +411,12 @@ export default function Teachers() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-gray-900">Teachers</h1>
           <p className="text-sm text-gray-500">Manage teaching staff, departments, and account access.</p>
         </div>
-        <button onClick={() => setModalOpen(true)} className="btn-primary text-sm inline-flex items-center gap-1.5">
+        <button onClick={() => setModalOpen(true)} className="btn-primary text-sm inline-flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
           <IconPlus className="h-4 w-4" /> Add Teacher
         </button>
       </div>
@@ -485,8 +485,8 @@ export default function Teachers() {
           <div className="flex justify-center py-12"><Spinner /></div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <table className="w-full text-sm" style={{ minWidth: '640px' }}>
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
                     <th className="px-5 py-3 w-10">

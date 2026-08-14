@@ -78,7 +78,7 @@ export default function PrincipalDashboard() {
       {activeTab === 'principal' && (
         <div className="space-y-8">
           {/* Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4">
             <StatCard label="Departments" value={data.total_departments} accent="indigo" />
             <StatCard label="Teachers" value={data.total_teachers} accent="blue" />
             <StatCard label="Classes" value={data.total_classes} accent="green" />

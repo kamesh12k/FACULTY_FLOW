@@ -201,3 +201,46 @@ export const teachersModeApi = {
 export const substitutionsApi = {
   getToday: (dateStr) => api.get('/substitutions/today', { params: dateStr ? { date: dateStr } : {} }),
 }
+
+export const managersApi = {
+  list: () => api.get('/admin/managers'),
+  create: (data) => api.post('/admin/managers', data),
+  get: (id) => api.get(`/admin/managers/${id}`),
+  update: (id, data) => api.put(`/admin/managers/${id}`, data),
+  delete: (id) => api.delete(`/admin/managers/${id}`),
+}
+
+export const operationalStaffApi = {
+  getStats: () => api.get('/manager/dashboard'),
+  list: (params) => api.get('/manager/staff', { params }),
+  create: (data) => api.post('/manager/staff', data),
+  get: (id) => api.get(`/manager/staff/${id}`),
+  update: (id, data) => api.put(`/manager/staff/${id}`, data),
+  toggleStatus: (id, status) => api.patch(`/manager/staff/${id}/status`, null, { params: { employment_status: status } }),
+  delete: (id) => api.delete(`/manager/staff/${id}`),
+  getLabs: () => api.get('/manager/labs'),
+}
+
+export const staffPortalApi = {
+  getMyProfile: () => api.get('/staff/me'),
+  getDashboard: (params) => api.get('/staff/dashboard', { params }),
+  applyLeave: (data) => api.post('/staff/leaves', data),
+  getMyLeaves: (params) => api.get('/staff/leaves', { params }),
+  cancelLeave: (id) => api.delete(`/staff/leaves/${id}`),
+  getMyLedger: () => api.get('/staff/ledger'),
+}
+
+export const managerLeavesApi = {
+  list: (params) => api.get('/manager/leaves', { params }),
+  approve: (id, remarks) => api.post(`/manager/leaves/${id}/approve`, { approval_remarks: remarks }),
+  reject: (id, remarks) => api.post(`/manager/leaves/${id}/reject`, { approval_remarks: remarks }),
+  getCredits: (params) => api.get('/manager/credits', { params }),
+  getStaffLedger: (staffId) => api.get(`/manager/credits/${staffId}/ledger`),
+  adjustCredit: (data) => api.post('/manager/credits/adjust', data),
+  updateQuota: (data) => api.post('/manager/credits/quota', data),
+}
+
+
+
+
+

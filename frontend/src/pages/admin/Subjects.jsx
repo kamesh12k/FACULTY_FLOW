@@ -92,9 +92,9 @@ export default function AdminSubjects() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-xl font-bold text-gray-900">Subjects</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap self-start sm:self-auto">
           <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer font-medium">
             <input type="checkbox" className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
             Show archived
@@ -107,8 +107,8 @@ export default function AdminSubjects() {
         {loading ? (
           <div className="flex justify-center py-12"><Spinner /></div>
         ) : subjects.length === 0 ? <EmptyState message="No subjects yet." /> : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full text-sm" style={{ minWidth: '600px' }}>
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 {['Code', 'Name', 'Type', 'Credits', 'Department', 'Semester', 'Status', ''].map(h => (

@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { DepartmentProvider } from './context/DepartmentContext'
-import { ProtectedRoute, AdminRoute, PrincipalRoute, TeacherRoute, GuestRoute, FirstLoginSetupRoute, RequireCredentialsSet } from './routes/Guards'
+import { ProtectedRoute, AdminRoute, PrincipalRoute, ManagerRoute, StaffRoute, TeacherRoute, GuestRoute, FirstLoginSetupRoute, RequireCredentialsSet } from './routes/Guards'
 import AppShell from './components/layout/AppShell'
 
 // Auth pages
@@ -12,6 +12,7 @@ import FirstLoginSetup from './pages/auth/FirstLoginSetup'
 // Admin pages
 import AdminDashboard from './pages/admin/Dashboard'
 import Teachers from './pages/admin/Teachers'
+import AdminManagers from './pages/admin/Managers'
 import AdminTimetable from './pages/admin/Timetable'
 import TimetableApprovals from './pages/admin/TimetableApprovals'
 import AdminLeaves from './pages/admin/Leaves'
@@ -30,7 +31,20 @@ import SystemMetrics from './pages/admin/SystemMetrics'
 // Principal pages
 import PrincipalDashboard from './pages/admin/PrincipalDashboard'
 
+// Manager pages
+import ManagerDashboard from './pages/manager/Dashboard'
+import ManagerLabStaff from './pages/manager/LabStaff'
+import ManagerNonTeachingStaff from './pages/manager/NonTeachingStaff'
+import ManagerStaffDirectory from './pages/manager/StaffDirectory'
+import ManagerStaffLeaves from './pages/manager/StaffLeaves'
+
+// Staff pages
+import StaffDashboard from './pages/staff/Dashboard'
+import StaffMyLeaves from './pages/staff/Leaves'
+
+
 // Common pages
+
 import TodaySubstitutions from './pages/common/TodaySubstitutions'
 import ClassFacultyDirectory from './pages/common/ClassFacultyDirectory'
 import ClasswiseTimetable from './pages/common/ClasswiseTimetable'
@@ -73,6 +87,7 @@ export default function App() {
               <Route path="/admin/academic-calendar" element={<AcademicCalendar />} />
               <Route path="/admin/academic-calendar/reports" element={<AcademicCalendarReports />} />
               <Route path="/admin/teachers" element={<Teachers />} />
+              <Route path="/admin/managers" element={<AdminManagers />} />
               <Route path="/admin/timetable" element={<AdminTimetable />} />
               <Route path="/admin/timetable/approvals" element={<TimetableApprovals />} />
               <Route path="/admin/leaves" element={<AdminLeaves />} />
@@ -102,15 +117,40 @@ export default function App() {
           </Route>
         </Route>
 
+        {/* Manager routes — Operational, Lab and Non-teaching staff */}
+        <Route element={<ManagerRoute />}>
+          <Route element={<RequireCredentialsSet />}>
+            <Route element={<AppShell />}>
+              <Route path="/manager/dashboard" element={<ManagerDashboard />} />
+              <Route path="/manager/lab-staff" element={<ManagerLabStaff />} />
+              <Route path="/manager/non-teaching-staff" element={<ManagerNonTeachingStaff />} />
+              <Route path="/manager/leaves" element={<ManagerStaffLeaves />} />
+              <Route path="/manager/directory" element={<ManagerStaffDirectory />} />
+            </Route>
+          </Route>
+        </Route>
+
+        {/* Staff routes — Laboratory & Non-Teaching Staff Portal */}
+        <Route element={<StaffRoute />}>
+          <Route element={<RequireCredentialsSet />}>
+            <Route element={<AppShell />}>
+              <Route path="/staff/dashboard" element={<StaffDashboard />} />
+              <Route path="/staff/leaves" element={<StaffMyLeaves />} />
+            </Route>
+          </Route>
+        </Route>
+
+
         {/* Teacher routes */}
         <Route element={<TeacherRoute />}>
+
           <Route element={<RequireCredentialsSet />}>
             <Route element={<AppShell />}>
               <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
               <Route path="/teacher/timetable" element={<MyTimetable />} />
               <Route path="/teacher/class-timetable" element={<ClasswiseTimetable />} />
-              <Route path="/teacher/class-directory" element={<ClassFacultyDirectory />} />
               <Route path="/teacher/leave/apply" element={<ApplyLeave />} />
+
               <Route path="/teacher/leaves" element={<LeaveHistory />} />
               <Route path="/teacher/substitution" element={<TeacherSubstitution />} />
               <Route path="/teacher/today-coverage" element={<TodaySubstitutions />} />

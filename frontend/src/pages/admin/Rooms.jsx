@@ -171,9 +171,9 @@ export default function AdminRooms() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-xl font-bold text-gray-900">Rooms & Labs</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
           <button onClick={() => setBulkModalOpen(true)} className="btn-secondary text-sm flex items-center gap-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
             <span>⚡</span> Bulk Add (Range)
           </button>
@@ -185,8 +185,8 @@ export default function AdminRooms() {
         {loading ? (
           <div className="flex justify-center py-12"><Spinner /></div>
         ) : rooms.length === 0 ? <EmptyState message="No rooms yet." /> : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full text-sm" style={{ minWidth: '480px' }}>
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 {['Room', 'Type', 'Capacity', 'Department', ''].map(h => (

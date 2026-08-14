@@ -165,7 +165,7 @@ export default function BalanceTable({ report, transactions, onViewHistory, onAd
             </div>
 
             {/* Filter Tabs */}
-            <div className="flex rounded-xl border border-slate-200 overflow-hidden text-[11px] font-bold bg-slate-100/60 p-0.5">
+            <div className="flex flex-wrap rounded-xl border border-slate-200 overflow-hidden text-[11px] font-bold bg-slate-100/60 p-0.5 max-w-full">
               {[
                 ['all', 'All'],
                 ['positive', 'Positive (+)'],
@@ -196,8 +196,8 @@ export default function BalanceTable({ report, transactions, onViewHistory, onAd
           <p className="text-xs text-slate-400 mt-1">Try adjusting your search query or department filter.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
+        <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <table className="w-full text-sm text-left" style={{ minWidth: '700px' }}>
             <thead className="bg-slate-50 border-b border-slate-150 text-slate-500">
               <tr>
                 <TH label="#" />

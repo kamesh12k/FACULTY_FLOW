@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useReducer, useRef } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { timetableApi, subjectsApi, classesApi, roomsApi, departmentsApi } from '../../api/services'
 import { Spinner, Modal } from '../../components/ui'
+import { PlusIcon } from '../../components/icons'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DAY_ORDERS = [1, 2, 3, 4, 5, 6]
@@ -133,6 +134,15 @@ export default function MyTimetable() {
   const [selectedRoomId, setSelectedRoomId] = useState('')
   const [quickRoomId, setQuickRoomId] = useState('')
 
+  // ── Mobile-only state ─────────────────────────────────────────────────────
+  const [mobileSelectedDay, setMobileSelectedDay] = useState(1)
+  const [mobileAssignCell, setMobileAssignCell] = useState(null)
+  const [mobileClassId, setMobileClassId] = useState('')
+  const [mobileSubjectId, setMobileSubjectId] = useState('')
+  const [mobileRoomId, setMobileRoomId] = useState('')
+  const [mobileEditRoomSlot, setMobileEditRoomSlot] = useState(null)
+  const [mobileNewRoomId, setMobileNewRoomId] = useState('')
+
   useEffect(() => {
     setSelectedClassId('')
     setSelectedSubjectId('')
@@ -249,11 +259,7 @@ export default function MyTimetable() {
           period_number: period,
         })
       } catch (err1) {
-        // If the backend returned a structured conflict (409), re-throw it
-        // directly so the outer catch can display the full conflict dialog.
-        // Only fall back to submitMyEntry for permission errors (403).
         if (err1.response?.status === 409) throw err1
-        // Fallback to submission entry if approval mode active (403 means not admin)
         res = await timetableApi.submitMyEntry({
           class_id: cls.id,
           subject_id: null,
@@ -270,15 +276,14 @@ export default function MyTimetable() {
     } catch (err) {
       const detail = err.response?.data?.detail || 'Failed to assign slot'
       toast(typeof detail === 'string' ? detail : (detail.title || 'Timetable conflict'), 'error')
-      // Enrich conflict detail with names resolved from frontend maps
       if (detail && typeof detail === 'object') {
         if (detail.requested && !detail.requested.teacher_name) {
           detail.requested.teacher_name = user?.name || 'You'
         }
         if (detail.existing) {
           if (!detail.existing.teacher_name && detail.existing.teacher_id) {
-            const t = maps?.teachers?.[detail.existing.teacher_id]
-            if (t) detail.existing.teacher_name = t.name
+            const knownSlot = slots.find(s => s.teacher_id === detail.existing.teacher_id)
+            if (knownSlot?.teacher_name) detail.existing.teacher_name = knownSlot.teacher_name
           }
           if (!detail.existing.class_name && detail.existing.class_id) {
             const c = classes.find(cl => cl.id === detail.existing.class_id)
@@ -292,8 +297,7 @@ export default function MyTimetable() {
       }
       showConflict(detail, day, period)
     } finally { setSaving(false) }
-
-  }, [activeClass, selectedTeacherId, slots, subjects, classes, rooms, enrich, toast, quickRoomId, showConflict])
+  }, [activeClass, selectedTeacherId, slots, subjects, classes, rooms, enrich, toast, quickRoomId, showConflict, user])
 
   // ── Remove slot ───────────────────────────────────────────────────────────
   const removeSlot = useCallback(async slotObj => {
@@ -361,14 +365,10 @@ export default function MyTimetable() {
     } catch (err) {
       const detail = err.response?.data?.detail || 'Failed to assign slot'
       toast(typeof detail === 'string' ? detail : (detail.title || 'Timetable conflict'), 'error')
-      // Enrich conflict detail with names resolved from frontend maps
       if (detail && typeof detail === 'object') {
         if (detail.existing) {
           if (!detail.existing.teacher_name && detail.existing.teacher_id) {
-            const t = classes?.find ? null : null // teachers not a map here, look up by id
-            const tObj = detail.existing.teacher_id
-            // Try resolving from slots already loaded
-            const knownSlot = slots.find(s => s.teacher_id === tObj)
+            const knownSlot = slots.find(s => s.teacher_id === detail.existing.teacher_id)
             if (knownSlot?.teacher_name) detail.existing.teacher_name = knownSlot.teacher_name
           }
           if (!detail.existing.class_name && detail.existing.class_id) {
@@ -387,6 +387,54 @@ export default function MyTimetable() {
     }
   }
 
+  // ── Mobile Assign Handler ─────────────────────────────────────────────────
+  const handleMobileAssign = async () => {
+    if (!mobileAssignCell || !mobileClassId || !selectedTeacherId) return
+    setSaving(true)
+    try {
+      let res
+      try {
+        res = await timetableApi.createSlot({
+          teacher_id: Number(selectedTeacherId),
+          subject_id: mobileSubjectId ? Number(mobileSubjectId) : null,
+          class_id: Number(mobileClassId),
+          room_id: mobileRoomId ? Number(mobileRoomId) : null,
+          day_order: mobileAssignCell.day_order,
+          period_number: mobileAssignCell.period_number,
+        })
+      } catch (err1) {
+        if (err1.response?.status === 409) throw err1
+        res = await timetableApi.submitMyEntry({
+          class_id: Number(mobileClassId),
+          subject_id: mobileSubjectId ? Number(mobileSubjectId) : null,
+          room_id: mobileRoomId ? Number(mobileRoomId) : null,
+          day_order: mobileAssignCell.day_order,
+          period_number: mobileAssignCell.period_number,
+        })
+      }
+      const enrichedSlot = enrich(res.data, subjects, classes, rooms)
+      dispatch({ type: 'SET', payload: [...slots, enrichedSlot] })
+      toast(`Assigned ${enrichedSlot.class_name} to DO${mobileAssignCell.day_order} P${mobileAssignCell.period_number}`)
+      setMobileAssignCell(null)
+      setMobileClassId('')
+      setMobileSubjectId('')
+      setMobileRoomId('')
+    } catch (err) {
+      const detail = err.response?.data?.detail || 'Failed to assign slot'
+      toast(typeof detail === 'string' ? detail : (detail.title || 'Timetable conflict'), 'error')
+      showConflict(detail, mobileAssignCell.day_order, mobileAssignCell.period_number)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // ── Mobile Update Room Handler ────────────────────────────────────────────
+  const handleMobileUpdateRoom = async () => {
+    if (!mobileEditRoomSlot) return
+    await updateRoom(mobileEditRoomSlot, mobileNewRoomId)
+    setMobileEditRoomSlot(null)
+    setMobileNewRoomId('')
+  }
 
   // ── Cell click ────────────────────────────────────────────────────────────
   const handleCellClick = useCallback((day, period) => {
@@ -421,442 +469,791 @@ export default function MyTimetable() {
     .filter(c => c.count > 0)
 
   return (
-    <div className="tt-root">
+    <div className="space-y-4">
       <Toast toasts={toasts} />
 
-
-      {/* ── Header ── */}
-      <header className="tt-header">
-        <div className="tt-brand">
-          <svg className="tt-brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-            <rect x="8" y="14" width="3" height="3" rx=".5" />
-          </svg>
-          <div>
-            <h1 className="tt-title">My Timetable Editor</h1>
-            <p className="tt-subtitle">
-              Select a class → click or drag cells &nbsp;·&nbsp;
-              <kbd className="tt-kbd">P</kbd> paint &nbsp;·&nbsp;
-              <kbd className="tt-kbd">Esc</kbd> deselect
-            </p>
-          </div>
-        </div>
-
-        <div className="tt-controls">
-          <div className="tt-action-row">
-            <button
-              className={`tt-btn ${paintMode ? 'tt-btn--paint-on' : 'tt-btn--paint-off'}`}
-              onClick={() => setPaintMode(m => !m)}
-              title="Toggle paint mode (P)"
-            >
-              {paintMode && <span className="tt-paint-pulse" />}
-              <IconPaint />
-              Paint {paintMode ? 'on' : 'off'}
-            </button>
-
-            <div className="tt-btn-group">
+      {/* ═════════════════════════════════════════════════════════════════════ */}
+      {/* ── MOBILE-ONLY PRESENTATION (Visible < 1024px) ──────────────────── */}
+      {/* ═════════════════════════════════════════════════════════════════════ */}
+      <div className="block lg:hidden space-y-4 pb-24">
+        {/* Mobile Header Card */}
+        <div className="card p-4 border border-slate-200 bg-white rounded-2xl shadow-xs">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-md shadow-primary-500/20 shrink-0">
+                {initials(user?.name)}
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-base font-black text-slate-900 leading-tight truncate">My Timetable</h1>
+                <p className="text-xs font-semibold text-slate-500 truncate">{user?.name}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
-                className="tt-btn tt-btn--icon"
+                type="button"
                 onClick={() => { dispatch({ type: 'UNDO' }); toast('Undone', 'warn') }}
                 disabled={!history.past.length}
-                title="Undo (Ctrl+Z)"
-              ><IconUndo /></button>
+                className="w-9 h-9 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 flex items-center justify-center disabled:opacity-30 min-h-[36px]"
+                title="Undo"
+              >
+                <IconUndo />
+              </button>
               <button
-                className="tt-btn tt-btn--icon"
+                type="button"
                 onClick={() => { dispatch({ type: 'REDO' }); toast('Redone', 'warn') }}
                 disabled={!history.future.length}
-                title="Redo (Ctrl+Y)"
-              ><IconRedo /></button>
+                className="w-9 h-9 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 flex items-center justify-center disabled:opacity-30 min-h-[36px]"
+                title="Redo"
+              >
+                <IconRedo />
+              </button>
             </div>
+          </div>
 
+          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+            <span className="font-bold text-primary-700 bg-primary-50 px-2.5 py-1 rounded-lg">
+              {slots.length} total period{slots.length !== 1 ? 's' : ''} assigned
+            </span>
             {slots.length > 0 && (
               <button
-                className="tt-btn tt-btn--danger"
+                type="button"
                 onClick={() => setConfirmClearOpen(true)}
                 disabled={saving}
-                title="Clear all slots"
+                className="text-xs font-bold text-rose-600 hover:text-rose-700 px-2 py-1"
               >
-                <IconTrash /> Clear all
+                Clear all
               </button>
-            )}
-
-            {saving && (
-              <span className="tt-saving">
-                <span className="tt-saving-dot" /> Saving…
-              </span>
             )}
           </div>
         </div>
-      </header>
 
-      {/* ── Three-panel body ── */}
-      <div className="tt-body">
-
-        {/* ── LEFT: class panel ── */}
-        <aside className="tt-left">
-          <div className="tt-input-icon-wrap" style={{ width: '100%' }}>
-            <IconSearch />
-            <input
-              className="tt-input tt-input--icon tt-input--sm"
-              placeholder="Filter classes…"
-              value={classSearch}
-              onChange={e => setClassSearch(e.target.value)}
-              style={{ width: '100%', boxSizing: 'border-box' }}
-            />
+        {/* Day Order Selector (Segmented Grid) */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5 px-0.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Select Day Order</span>
+            <span className="text-xs font-extrabold text-primary-600">{DAY_FULL[mobileSelectedDay]}</span>
           </div>
-          <select
-            className="tt-select"
-            value={classDepartmentFilter}
-            onChange={e => setClassDepartmentFilter(e.target.value)}
-            style={{ width: '100%', marginTop: 8 }}
-          >
-            <option value="">All departments</option>
-            {departments.map(department => <option key={department.id} value={department.id}>{department.name}</option>)}
-          </select>
-
-          <div className="tt-panel-label">
-            Classes
-            <span className="tt-badge">{classes.length}</span>
+          <div className="grid grid-cols-6 gap-1.5">
+            {DAY_ORDERS.map(day => {
+              const daySlotCount = slots.filter(s => s.day_order === day).length
+              const isActive = mobileSelectedDay === day
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => setMobileSelectedDay(day)}
+                  className={`py-2.5 px-1 rounded-xl border text-center transition-all min-h-[48px] flex flex-col items-center justify-center ${
+                    isActive
+                      ? 'bg-primary-600 border-primary-600 text-white shadow-sm shadow-primary-500/25'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="text-xs font-black tracking-tight">{DAY_SHORT[day]}</span>
+                  <span className={`text-[10px] font-bold mt-0.5 ${isActive ? 'text-primary-100' : 'text-slate-400'}`}>
+                    {daySlotCount} cls
+                  </span>
+                </button>
+              )
+            })}
           </div>
+        </div>
 
-          {/* Class cards */}
-          <div className="tt-subject-list">
-            {filteredClasses.map(c => {
-              const color = getColor(c.id)
-              const isActive = activeClass?.cls?.id === c.id
-              const slotCount = slots.filter(sl => sl.class_id === c.id).length
-              const subjectCount = subjects.filter(s => s.class_id === c.id).length
+        {/* Selected Day Schedule Title */}
+        <div className="flex items-center justify-between px-1 pt-1">
+          <h2 className="text-sm font-black text-slate-800">{DAY_FULL[mobileSelectedDay]} Schedule</h2>
+          <span className="text-xs font-semibold text-slate-500">
+            {slots.filter(s => s.day_order === mobileSelectedDay).length} of 5 periods active
+          </span>
+        </div>
+
+        {/* Period Cards (1 to 5) Stack */}
+        <div className="space-y-3">
+          {loading ? (
+            <div className="flex justify-center py-12"><Spinner /></div>
+          ) : (
+            PERIODS.map(period => {
+              const slot = slotAt(mobileSelectedDay, period)
+              const color = slot ? getColor(slot.class_id) : null
 
               return (
                 <div
-                  key={c.id}
-                  draggable
-                  onDragStart={() => setDragClass({ cls: c, color })}
-                  onDragEnd={() => setDragClass(null)}
-                  onClick={() => setActiveClass(isActive ? null : { cls: c, color })}
-                  className={`tt-subject-card ${isActive ? 'tt-subject-card--active' : ''}`}
-                  style={{ '--sc': color.border, '--sc-bg': color.bg, '--sc-text': color.text }}
+                  key={period}
+                  className={`card p-4 rounded-2xl border transition-all ${
+                    slot
+                      ? 'bg-white border-slate-200 shadow-xs'
+                      : 'bg-slate-50/70 border-dashed border-slate-250'
+                  }`}
+                  style={slot && color ? { borderLeftColor: color.border, borderLeftWidth: '4px' } : {}}
                 >
-                  <div className="sc-stripe" />
-                  <div className="sc-body">
-                    <div className="sc-code">{c.name}-{c.section}</div>
-                    {subjectCount > 0 && (
-                      <div className="sc-name">{subjectCount} subject{subjectCount !== 1 ? 's' : ''}</div>
+                  {/* Period Header */}
+                  <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 text-xs font-extrabold">
+                        Period {period}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-500 font-mono">
+                        {PERIOD_TIMES[period]}
+                      </span>
+                    </div>
+
+                    {slot ? (
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide ${
+                        slot.hour_type === 'Lab' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {slot.hour_type || 'Theory'}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold text-slate-400 bg-slate-200/60 uppercase tracking-wide">
+                        Free Period
+                      </span>
                     )}
                   </div>
-                  {slotCount > 0 && (
-                    <div className="sc-count" style={{ color: isActive ? color.text : undefined }}>
-                      {slotCount}
+
+                  {/* Period Body */}
+                  {slot ? (
+                    <div className="pt-3 space-y-3">
+                      <div>
+                        <div className="text-sm font-extrabold text-slate-900">
+                          {slot.subject_code ? `${slot.subject_code} — ` : ''}{slot.subject_name}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-primary-50 text-primary-700 border border-primary-150">
+                            Class: {slot.class_name}
+                          </span>
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                            Room: {slot.room_name || 'No Room (Theory)'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Mobile Period Actions */}
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMobileEditRoomSlot(slot)
+                            setMobileNewRoomId(slot.room_id ? String(slot.room_id) : '')
+                          }}
+                          className="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors min-h-[40px]"
+                        >
+                          Change Room
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeSlot(slot)}
+                          disabled={saving}
+                          className="px-3 py-2 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors min-h-[40px]"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="pt-3 flex items-center justify-between gap-3">
+                      <span className="text-xs text-slate-400 font-medium italic">
+                        No class scheduled
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileAssignCell({ day_order: mobileSelectedDay, period_number: period })
+                          setMobileClassId('')
+                          setMobileSubjectId('')
+                          setMobileRoomId(quickRoomId || '')
+                        }}
+                        className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-primary-500/20 min-h-[44px]"
+                      >
+                        <PlusIcon className="w-4 h-4" />
+                        <span>Assign Class</span>
+                      </button>
                     </div>
                   )}
                 </div>
               )
-            })}
-
-            {filteredClasses.length === 0 && (
-              <div className="tt-empty-list">No classes found</div>
-            )}
-          </div>
-
-          <div className="tt-panel-label" style={{ marginTop: 4 }}>Assign as</div>
-          <div className="tt-quickroom-row">
-            <button
-              type="button"
-              className={`tt-quickroom-chip ${!quickRoomId ? 'tt-quickroom-chip--active' : ''}`}
-              onClick={() => setQuickRoomId('')}
-              title="Assign without a room (Theory hour)"
-            >
-              Theory
-            </button>
-            {rooms.filter(isLabRoom).map(r => (
-              <button
-                key={r.id}
-                type="button"
-                className={`tt-quickroom-chip tt-quickroom-chip--lab ${quickRoomId === String(r.id) ? 'tt-quickroom-chip--active' : ''}`}
-                onClick={() => setQuickRoomId(String(r.id))}
-                title={`Assign in ${r.room_number} (Lab hour)`}
-              >
-                {r.room_number}
-              </button>
-            ))}
-          </div>
-
-          {activeClass && (
-            <div className="tt-active-hint" style={{ '--hint-border': activeClass.color.border, '--hint-bg': activeClass.color.bg, '--hint-text': activeClass.color.text }}>
-              <IconCheck />
-              <span>
-                <strong>{activeClass.cls.name}-{activeClass.cls.section}</strong> selected — click empty cells to assign
-                {' '}as {quickRoomId ? <><strong>Lab</strong> ({rooms.find(r => r.id === Number(quickRoomId))?.room_number})</> : <strong>Theory</strong>}
-              </span>
-            </div>
+            })
           )}
-        </aside>
+        </div>
 
-        {/* ── CENTER: grid ── */}
-        <main
-          className={`tt-center ${paintMode && activeClass ? 'tt-center--paint' : ''}`}
-          onMouseDown={() => { if (paintMode) setIsPainting(true) }}
-          onMouseUp={() => setIsPainting(false)}
-          onMouseLeave={() => { setIsPainting(false); setPaintHover(null) }}
-        >
-          {loading ? (
-            <div className="tt-loading">
-              <Spinner />
-              <span>Loading schedule…</span>
+        {/* Mobile Assigned Summary */}
+        {creditsSummary.length > 0 && (
+          <div className="card p-4 border border-slate-200 bg-white rounded-2xl shadow-xs">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+              Weekly Class Distribution
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {creditsSummary.map(c => {
+                const color = getColor(c.id)
+                return (
+                  <span
+                    key={c.id}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border"
+                    style={{ backgroundColor: color.bg, borderColor: color.border, color: color.text }}
+                  >
+                    <strong>{c.name}-{c.section}</strong>
+                    <span className="opacity-80">· {c.count} period{c.count !== 1 ? 's' : ''}</span>
+                  </span>
+                )
+              })}
             </div>
-          ) : (
-            <div className="tt-grid-wrapper">
-              <div className="tt-grid-head">
-                <div className="tt-corner" />
-                {PERIODS.map(p => (
-                  <div key={p} className="tt-period-head">
-                    <span className="ph-num">Period {p}</span>
-                    <span className="ph-time">{PERIOD_TIMES[p]}</span>
-                  </div>
-                ))}
+          </div>
+        )}
+      </div>
+
+      {/* ═════════════════════════════════════════════════════════════════════ */}
+      {/* ── DESKTOP-ONLY PRESENTATION (Visible >= 1024px) ────────────────── */}
+      {/* ═════════════════════════════════════════════════════════════════════ */}
+      <div className="hidden lg:flex tt-root">
+        {/* ── Header ── */}
+        <header className="tt-header">
+          <div className="tt-brand">
+            <svg className="tt-brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+              <rect x="8" y="14" width="3" height="3" rx=".5" />
+            </svg>
+            <div>
+              <h1 className="tt-title">My Timetable Editor</h1>
+              <p className="tt-subtitle">
+                Select a class → click or drag cells &nbsp;·&nbsp;
+                <kbd className="tt-kbd">P</kbd> paint &nbsp;·&nbsp;
+                <kbd className="tt-kbd">Esc</kbd> deselect
+              </p>
+            </div>
+          </div>
+
+          <div className="tt-controls">
+            <div className="tt-action-row">
+              <button
+                className={`tt-btn ${paintMode ? 'tt-btn--paint-on' : 'tt-btn--paint-off'}`}
+                onClick={() => setPaintMode(m => !m)}
+                title="Toggle paint mode (P)"
+              >
+                {paintMode && <span className="tt-paint-pulse" />}
+                <IconPaint />
+                Paint {paintMode ? 'on' : 'off'}
+              </button>
+
+              <div className="tt-btn-group">
+                <button
+                  className="tt-btn tt-btn--icon"
+                  onClick={() => { dispatch({ type: 'UNDO' }); toast('Undone', 'warn') }}
+                  disabled={!history.past.length}
+                  title="Undo (Ctrl+Z)"
+                ><IconUndo /></button>
+                <button
+                  className="tt-btn tt-btn--icon"
+                  onClick={() => { dispatch({ type: 'REDO' }); toast('Redone', 'warn') }}
+                  disabled={!history.future.length}
+                  title="Redo (Ctrl+Y)"
+                ><IconRedo /></button>
               </div>
 
-              {DAY_ORDERS.map(day => (
-                <div key={day} className="tt-grid-row">
-                  <div className="tt-day-label">
-                    <span className="dl-short">{DAY_SHORT[day]}</span>
-                    <span className="dl-full">{DAY_FULL[day]}</span>
-                  </div>
+              {slots.length > 0 && (
+                <button
+                  className="tt-btn tt-btn--danger"
+                  onClick={() => setConfirmClearOpen(true)}
+                  disabled={saving}
+                  title="Clear all slots"
+                >
+                  <IconTrash /> Clear all
+                </button>
+              )}
 
-                  {PERIODS.map(period => {
-                    const slot = slotAt(day, period)
-                    const color = slot ? getColor(slot.class_id) : null
-                    const isSelected = selectedCell?.day_order === day && selectedCell?.period_number === period
-                    const isDragOver = dragOver?.day === day && dragOver?.period === period
-                    const isPaintHov = paintHover?.day === day && paintHover?.period === period
-                    const conflict = conflicts[`${day}-${period}`]
-                    const isPopped = poppedCells.has(`${day}-${period}`)
+              {saving && (
+                <span className="tt-saving">
+                  <span className="tt-saving-dot" /> Saving…
+                </span>
+              )}
+            </div>
+          </div>
+        </header>
 
-                    let cellBg = '#FAFAFA'
-                    if (slot) cellBg = isSelected ? (color?.border || '#E5E7EB') : (color?.bg || '#F9FAFB')
-                    else if (isDragOver) cellBg = '#EEF2FF'
-                    else if (isPaintHov && activeClass) cellBg = '#F5F3FF'
-                    else if (isSelected) cellBg = '#F0F9FF'
+        {/* ── Three-panel body ── */}
+        <div className="tt-body">
+          {/* ── LEFT: class panel ── */}
+          <aside className="tt-left">
+            <div className="tt-input-icon-wrap" style={{ width: '100%' }}>
+              <IconSearch />
+              <input
+                className="tt-input tt-input--icon tt-input--sm"
+                placeholder="Filter classes…"
+                value={classSearch}
+                onChange={e => setClassSearch(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box' }}
+              />
+            </div>
+            <select
+              className="tt-select"
+              value={classDepartmentFilter}
+              onChange={e => setClassDepartmentFilter(e.target.value)}
+              style={{ width: '100%', marginTop: 8 }}
+            >
+              <option value="">All departments</option>
+              {departments.map(department => <option key={department.id} value={department.id}>{department.name}</option>)}
+            </select>
 
-                    let borderColor = '#E4E7EC'
-                    if (conflict) borderColor = '#EF4444'
-                    else if (isSelected) borderColor = color?.border || '#6366F1'
-                    else if (isDragOver) borderColor = '#818CF8'
-                    else if (slot) borderColor = color?.border || '#E4E7EC'
+            <div className="tt-panel-label">
+              Classes
+              <span className="tt-badge">{classes.length}</span>
+            </div>
 
-                    return (
-                      <div
-                        key={period}
-                        className={[
-                          'tt-cell',
-                          slot ? 'tt-cell--filled' : 'tt-cell--empty',
-                          isSelected ? 'tt-cell--selected' : '',
-                          isDragOver ? 'tt-cell--drag-over' : '',
-                          conflict ? 'tt-cell--conflict' : '',
-                          isPopped ? 'tt-cell--pop' : '',
-                        ].join(' ')}
-                        style={{
-                          '--cb': cellBg,
-                          '--cbr': borderColor,
-                          '--ct': color?.text || '#374151',
-                          '--csel': color?.border || '#818CF8',
-                        }}
-                        onClick={() => handleCellClick(day, period)}
-                        onMouseEnter={() => {
-                          setPaintHover({ day, period })
-                          if (paintMode && isPainting && activeClass && !slot) assignSlot(day, period)
-                        }}
-                        onMouseLeave={() => setPaintHover(null)}
-                        onDragOver={e => { e.preventDefault(); setDragOver({ day, period }) }}
-                        onDragLeave={() => setDragOver(null)}
-                        onDrop={() => handleDrop(day, period)}
-                        title={conflict || (slot ? `${slot.subject_id ? slot.subject_name : 'Assigned'} · ${slot.class_name}` : `${DAY_SHORT[day]} · Period ${period}`)}
-                      >
-                        {slot && color && (
-                          <div className="cell-top-bar" style={{ background: color.border }} />
-                        )}
+            {/* Class cards */}
+            <div className="tt-subject-list">
+              {filteredClasses.map(c => {
+                const color = getColor(c.id)
+                const isActive = activeClass?.cls?.id === c.id
+                const slotCount = slots.filter(sl => sl.class_id === c.id).length
+                const subjectCount = subjects.filter(s => s.class_id === c.id).length
 
-                        {slot ? (
-                          <div className="cell-content">
-                            <span className="cell-code">{slot.subject_id ? (slot.subject_code || abbrev(slot.subject_name)) : "Assigned"}</span>
-                            <span className="cell-class">{slot.class_name}</span>
-                            {slot.room_name && <span className="cell-room">{slot.room_name}</span>}
-                            {slot.hour_type && (
-                              <span className={`cell-hour-badge cell-hour-badge--${slot.hour_type.toLowerCase()}`}>
-                                {slot.hour_type}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="cell-plus">
-                            {isDragOver ? '↓' : '+'}
-                          </span>
-                        )}
-
-                        {conflict && <span className="cell-conflict-dot" />}
+                return (
+                  <div
+                    key={c.id}
+                    draggable
+                    onDragStart={() => setDragClass({ cls: c, color })}
+                    onDragEnd={() => setDragClass(null)}
+                    onClick={() => setActiveClass(isActive ? null : { cls: c, color })}
+                    className={`tt-subject-card ${isActive ? 'tt-subject-card--active' : ''}`}
+                    style={{ '--sc': color.border, '--sc-bg': color.bg, '--sc-text': color.text }}
+                  >
+                    <div className="sc-stripe" />
+                    <div className="sc-body">
+                      <div className="sc-code">{c.name}-{c.section}</div>
+                      {subjectCount > 0 && (
+                        <div className="sc-name">{subjectCount} subject{subjectCount !== 1 ? 's' : ''}</div>
+                      )}
+                    </div>
+                    {slotCount > 0 && (
+                      <div className="sc-count" style={{ color: isActive ? color.text : undefined }}>
+                        {slotCount}
                       </div>
-                    )
-                  })}
-                </div>
-              ))}
+                    )}
+                  </div>
+                )
+              })}
 
-              {creditsSummary.length > 0 && (
-                <div className="tt-credits">
-                  <span className="credits-label">Slots assigned</span>
-                  <div className="credits-chips">
-                    {creditsSummary.map(c => {
-                      const color = getColor(c.id)
+              {filteredClasses.length === 0 && (
+                <div className="tt-empty-list">No classes found</div>
+              )}
+            </div>
+
+            <div className="tt-panel-label" style={{ marginTop: 4 }}>Assign as</div>
+            <div className="tt-quickroom-row">
+              <button
+                type="button"
+                className={`tt-quickroom-chip ${!quickRoomId ? 'tt-quickroom-chip--active' : ''}`}
+                onClick={() => setQuickRoomId('')}
+                title="Assign without a room (Theory hour)"
+              >
+                Theory
+              </button>
+              {rooms.filter(isLabRoom).map(r => (
+                <button
+                  key={r.id}
+                  type="button"
+                  className={`tt-quickroom-chip tt-quickroom-chip--lab ${quickRoomId === String(r.id) ? 'tt-quickroom-chip--active' : ''}`}
+                  onClick={() => setQuickRoomId(String(r.id))}
+                  title={`Assign in ${r.room_number} (Lab hour)`}
+                >
+                  {r.room_number}
+                </button>
+              ))}
+            </div>
+
+            {activeClass && (
+              <div className="tt-active-hint" style={{ '--hint-border': activeClass.color.border, '--hint-bg': activeClass.color.bg, '--hint-text': activeClass.color.text }}>
+                <IconCheck />
+                <span>
+                  <strong>{activeClass.cls.name}-{activeClass.cls.section}</strong> selected — click empty cells to assign
+                  {' '}as {quickRoomId ? <><strong>Lab</strong> ({rooms.find(r => r.id === Number(quickRoomId))?.room_number})</> : <strong>Theory</strong>}
+                </span>
+              </div>
+            )}
+          </aside>
+
+          {/* ── CENTER: grid ── */}
+          <main
+            className={`tt-center ${paintMode && activeClass ? 'tt-center--paint' : ''}`}
+            onMouseDown={() => { if (paintMode) setIsPainting(true) }}
+            onMouseUp={() => setIsPainting(false)}
+            onMouseLeave={() => { setIsPainting(false); setPaintHover(null) }}
+          >
+            {loading ? (
+              <div className="tt-loading">
+                <Spinner />
+                <span>Loading schedule…</span>
+              </div>
+            ) : (
+              <div className="tt-grid-wrapper">
+                <div className="tt-grid-head">
+                  <div className="tt-corner" />
+                  {PERIODS.map(p => (
+                    <div key={p} className="tt-period-head">
+                      <span className="ph-num">Period {p}</span>
+                      <span className="ph-time">{PERIOD_TIMES[p]}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {DAY_ORDERS.map(day => (
+                  <div key={day} className="tt-grid-row">
+                    <div className="tt-day-label">
+                      <span className="dl-short">{DAY_SHORT[day]}</span>
+                      <span className="dl-full">{DAY_FULL[day]}</span>
+                    </div>
+
+                    {PERIODS.map(period => {
+                      const slot = slotAt(day, period)
+                      const color = slot ? getColor(slot.class_id) : null
+                      const isSelected = selectedCell?.day_order === day && selectedCell?.period_number === period
+                      const isDragOver = dragOver?.day === day && dragOver?.period === period
+                      const isPaintHov = paintHover?.day === day && paintHover?.period === period
+                      const conflict = conflicts[`${day}-${period}`]
+                      const isPopped = poppedCells.has(`${day}-${period}`)
+
+                      let cellBg = '#FAFAFA'
+                      if (slot) cellBg = isSelected ? (color?.border || '#E5E7EB') : (color?.bg || '#F9FAFB')
+                      else if (isDragOver) cellBg = '#EEF2FF'
+                      else if (isPaintHov && activeClass) cellBg = '#F5F3FF'
+                      else if (isSelected) cellBg = '#F0F9FF'
+
+                      let borderColor = '#E4E7EC'
+                      if (conflict) borderColor = '#EF4444'
+                      else if (isSelected) borderColor = color?.border || '#6366F1'
+                      else if (isDragOver) borderColor = '#818CF8'
+                      else if (slot) borderColor = color?.border || '#E4E7EC'
+
                       return (
-                        <span key={c.id} className="credit-chip"
-                          style={{ '--chip-bg': color.bg, '--chip-border': color.border, '--chip-text': color.text }}>
-                          <strong>{c.name}-{c.section}</strong>&nbsp;·&nbsp;{c.count}
-                        </span>
+                        <div
+                          key={period}
+                          className={[
+                            'tt-cell',
+                            slot ? 'tt-cell--filled' : 'tt-cell--empty',
+                            isSelected ? 'tt-cell--selected' : '',
+                            isDragOver ? 'tt-cell--drag-over' : '',
+                            conflict ? 'tt-cell--conflict' : '',
+                            isPopped ? 'tt-cell--pop' : '',
+                          ].join(' ')}
+                          style={{
+                            '--cb': cellBg,
+                            '--cbr': borderColor,
+                            '--ct': color?.text || '#374151',
+                            '--csel': color?.border || '#818CF8',
+                          }}
+                          onClick={() => handleCellClick(day, period)}
+                          onMouseEnter={() => {
+                            setPaintHover({ day, period })
+                            if (paintMode && isPainting && activeClass && !slot) assignSlot(day, period)
+                          }}
+                          onMouseLeave={() => setPaintHover(null)}
+                          onDragOver={e => { e.preventDefault(); setDragOver({ day, period }) }}
+                          onDragLeave={() => setDragOver(null)}
+                          onDrop={() => handleDrop(day, period)}
+                          title={conflict || (slot ? `${slot.subject_id ? slot.subject_name : 'Assigned'} · ${slot.class_name}` : `${DAY_SHORT[day]} · Period ${period}`)}
+                        >
+                          {slot && color && (
+                            <div className="cell-top-bar" style={{ background: color.border }} />
+                          )}
+
+                          {slot ? (
+                            <div className="cell-content">
+                              <span className="cell-code">{slot.subject_id ? (slot.subject_code || abbrev(slot.subject_name)) : "Assigned"}</span>
+                              <span className="cell-class">{slot.class_name}</span>
+                              {slot.room_name && <span className="cell-room">{slot.room_name}</span>}
+                              {slot.hour_type && (
+                                <span className={`cell-hour-badge cell-hour-badge--${slot.hour_type.toLowerCase()}`}>
+                                  {slot.hour_type}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="cell-plus">
+                              {isDragOver ? '↓' : '+'}
+                            </span>
+                          )}
+
+                          {conflict && <span className="cell-conflict-dot" />}
+                        </div>
                       )
                     })}
                   </div>
-                </div>
-              )}
-            </div>
-          )}
-        </main>
+                ))}
 
-        {/* ── RIGHT: detail panel ── */}
-        <aside className="tt-right">
-          <div className="tt-teacher-card">
-            <div className="teacher-avatar">
-              {initials(user?.name)}
-            </div>
-            <div className="teacher-info">
-              <div className="teacher-name">{user?.name}</div>
-              <div className="teacher-slots">{slots.length} slot{slots.length !== 1 ? 's' : ''} assigned</div>
-            </div>
-          </div>
-
-          {selectedCell ? (
-            <div className="tt-cell-detail">
-              <div className="cd-chips">
-                <span className="cd-chip cd-chip--day">{DAY_SHORT[selectedCell.day_order]}</span>
-                <span className="cd-chip cd-chip--period">Period {selectedCell.period_number}</span>
-                <span className="cd-chip cd-chip--time">{PERIOD_TIMES[selectedCell.period_number]}</span>
+                {creditsSummary.length > 0 && (
+                  <div className="tt-credits">
+                    <span className="credits-label">Slots assigned</span>
+                    <div className="credits-chips">
+                      {creditsSummary.map(c => {
+                        const color = getColor(c.id)
+                        return (
+                          <span key={c.id} className="credit-chip"
+                            style={{ '--chip-bg': color.bg, '--chip-border': color.border, '--chip-text': color.text }}>
+                            <strong>{c.name}-{c.section}</strong>&nbsp;·&nbsp;{c.count}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
+            )}
+          </main>
 
-              {selectedCell.slot ? (
-                <>
-                  <div className="cd-subject">{selectedCell.slot.subject_name}</div>
-                  <div className="cd-class">{selectedCell.slot.class_name}</div>
+          {/* ── RIGHT: detail panel ── */}
+          <aside className="tt-right">
+            <div className="tt-teacher-card">
+              <div className="teacher-avatar">
+                {initials(user?.name)}
+              </div>
+              <div className="teacher-info">
+                <div className="teacher-name">{user?.name}</div>
+                <div className="teacher-slots">{slots.length} slot{slots.length !== 1 ? 's' : ''} assigned</div>
+              </div>
+            </div>
 
-                  <div className="cd-section">
-                    <label className="cd-label">
-                      Room
-                      {(() => {
-                        const ht = hourTypeForRoom(editRoom, rooms)
-                        return ht ? (
-                          <span className={`cd-hour-chip cd-hour-chip--${ht.toLowerCase()}`}>{ht} hour</span>
-                        ) : null
-                      })()}
-                    </label>
-                    <input
-                      className="tt-input tt-input--sm"
-                      placeholder="Filter rooms…"
-                      value={roomFilter}
-                      onChange={e => setRoomFilter(e.target.value)}
-                      style={{ width: '100%', boxSizing: 'border-box', marginBottom: 5 }}
-                    />
-                    <select
-                      className="tt-select tt-select--sm"
-                      value={editRoom}
-                      onChange={e => {
-                        setEditRoom(e.target.value)
-                        updateRoom(selectedCell.slot, e.target.value)
-                      }}
-                      disabled={saving}
-                      style={{ width: '100%' }}
-                    >
-                      <option value="">No room assigned (Theory)</option>
-                      {rooms
-                        .filter(r => !roomFilter || r.room_number.toLowerCase().includes(roomFilter.toLowerCase()))
-                        .map(r => (
-                          <option key={r.id} value={r.id}>
-                            {r.room_number} ({r.room_type === 'lab' ? 'Lab' : 'Classroom'})
-                          </option>
-                        ))}
-                    </select>
-                  </div>
+            {selectedCell ? (
+              <div className="tt-cell-detail">
+                <div className="cd-chips">
+                  <span className="cd-chip cd-chip--day">{DAY_SHORT[selectedCell.day_order]}</span>
+                  <span className="cd-chip cd-chip--period">Period {selectedCell.period_number}</span>
+                  <span className="cd-chip cd-chip--time">{PERIOD_TIMES[selectedCell.period_number]}</span>
+                </div>
 
-                  <div className="cd-actions">
-                    <button
-                      className="tt-btn tt-btn--danger tt-btn--full"
-                      onClick={() => removeSlot(selectedCell.slot)}
-                      disabled={saving}
-                    >
-                      <IconTrash /> Remove slot
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="cd-empty-assign">
-                  <p className="cd-assign-title">Assign slot to this cell</p>
-                  <p className="cd-assign-desc font-xs text-slate-500">Pick details below to assign to {DAY_SHORT[selectedCell.day_order]} P{selectedCell.period_number}:</p>
-                  <div className="space-y-3 mt-3">
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1">Select Class *</label>
+                {selectedCell.slot ? (
+                  <>
+                    <div className="cd-subject">{selectedCell.slot.subject_name}</div>
+                    <div className="cd-class">{selectedCell.slot.class_name}</div>
+
+                    <div className="cd-section">
+                      <label className="cd-label">
+                        Room
+                        {(() => {
+                          const ht = hourTypeForRoom(editRoom, rooms)
+                          return ht ? (
+                            <span className={`cd-hour-chip cd-hour-chip--${ht.toLowerCase()}`}>{ht} hour</span>
+                          ) : null
+                        })()}
+                      </label>
+                      <input
+                        className="tt-input tt-input--sm"
+                        placeholder="Filter rooms…"
+                        value={roomFilter}
+                        onChange={e => setRoomFilter(e.target.value)}
+                        style={{ width: '100%', boxSizing: 'border-box', marginBottom: 5 }}
+                      />
                       <select
-                        className="input text-xs"
-                        value={selectedClassId}
-                        onChange={e => setSelectedClassId(e.target.value)}
-                      >
-                        <option value="">Choose class…</option>
-                        {classes.map(c => <option key={c.id} value={c.id}>{c.name} - {c.section}</option>)}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1">Select Subject (Optional)</label>
-                      <select
-                        className="input text-xs"
-                        value={selectedSubjectId}
-                        onChange={e => setSelectedSubjectId(e.target.value)}
-                      >
-                        <option value="">Choose subject…</option>
-                        {subjects.map(s => <option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1">Select Room (Optional)</label>
-                      <select
-                        className="input text-xs"
-                        value={selectedRoomId}
-                        onChange={e => setSelectedRoomId(e.target.value)}
+                        className="tt-select tt-select--sm"
+                        value={editRoom}
+                        onChange={e => {
+                          setEditRoom(e.target.value)
+                          updateRoom(selectedCell.slot, e.target.value)
+                        }}
+                        disabled={saving}
+                        style={{ width: '100%' }}
                       >
                         <option value="">No room assigned (Theory)</option>
-                        {rooms.map(r => <option key={r.id} value={r.id}>{r.room_number} ({r.room_type === 'lab' ? 'Lab' : 'Classroom'})</option>)}
+                        {rooms
+                          .filter(r => !roomFilter || r.room_number.toLowerCase().includes(roomFilter.toLowerCase()))
+                          .map(r => (
+                            <option key={r.id} value={r.id}>
+                              {r.room_number} ({r.room_type === 'lab' ? 'Lab' : 'Classroom'})
+                            </option>
+                          ))}
                       </select>
                     </div>
 
-                    <button
-                      className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold w-full transition-colors cursor-pointer"
-                      disabled={!selectedClassId || saving}
-                      onClick={handleAssignFromPanel}
-                    >
-                      {saving ? 'Assigning…' : 'Assign Slot'}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="tt-no-cell">
-              <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" />
-              </svg>
-              <span>Click any cell to inspect or assign details</span>
-            </div>
-          )}
-        </aside>
+                    <div className="cd-actions">
+                      <button
+                        className="tt-btn tt-btn--danger tt-btn--full"
+                        onClick={() => removeSlot(selectedCell.slot)}
+                        disabled={saving}
+                      >
+                        <IconTrash /> Remove slot
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="cd-empty-assign">
+                    <p className="cd-assign-title">Assign slot to this cell</p>
+                    <p className="cd-assign-desc font-xs text-slate-500">Pick details below to assign to {DAY_SHORT[selectedCell.day_order]} P{selectedCell.period_number}:</p>
+                    <div className="space-y-3 mt-3">
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">Select Class *</label>
+                        <select
+                          className="input text-xs"
+                          value={selectedClassId}
+                          onChange={e => setSelectedClassId(e.target.value)}
+                        >
+                          <option value="">Choose class…</option>
+                          {classes.map(c => <option key={c.id} value={c.id}>{c.name} - {c.section}</option>)}
+                        </select>
+                      </div>
 
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">Select Subject (Optional)</label>
+                        <select
+                          className="input text-xs"
+                          value={selectedSubjectId}
+                          onChange={e => setSelectedSubjectId(e.target.value)}
+                        >
+                          <option value="">Choose subject…</option>
+                          {subjects.map(s => <option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">Select Room (Optional)</label>
+                        <select
+                          className="input text-xs"
+                          value={selectedRoomId}
+                          onChange={e => setSelectedRoomId(e.target.value)}
+                        >
+                          <option value="">No room assigned (Theory)</option>
+                          {rooms.map(r => <option key={r.id} value={r.id}>{r.room_number} ({r.room_type === 'lab' ? 'Lab' : 'Classroom'})</option>)}
+                        </select>
+                      </div>
+
+                      <button
+                        className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold w-full transition-colors cursor-pointer min-h-[40px]"
+                        disabled={!selectedClassId || saving}
+                        onClick={handleAssignFromPanel}
+                      >
+                        {saving ? 'Assigning…' : 'Assign Slot'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="tt-no-cell">
+                <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                  <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" />
+                </svg>
+                <span>Click any cell to inspect or assign details</span>
+              </div>
+            )}
+          </aside>
+        </div>
       </div>
+
+      {/* ── Mobile Assign Slot Modal ── */}
+      <Modal
+        open={!!mobileAssignCell}
+        onClose={() => setMobileAssignCell(null)}
+        title={mobileAssignCell ? `Assign Class — ${DAY_SHORT[mobileAssignCell.day_order]} P${mobileAssignCell.period_number}` : 'Assign Class'}
+      >
+        {mobileAssignCell && (
+          <div className="space-y-4">
+            <div className="p-3 bg-primary-50 rounded-xl border border-primary-150 text-xs text-primary-900 font-semibold flex items-center justify-between">
+              <span>{DAY_FULL[mobileAssignCell.day_order]}</span>
+              <span className="font-mono">Period {mobileAssignCell.period_number} ({PERIOD_TIMES[mobileAssignCell.period_number]})</span>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Select Class <span className="text-rose-500">*</span></label>
+              <select
+                className="input text-xs w-full min-h-[44px]"
+                value={mobileClassId}
+                onChange={e => setMobileClassId(e.target.value)}
+              >
+                <option value="">Choose class…</option>
+                {classes.map(c => <option key={c.id} value={c.id}>{c.name} - {c.section}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Select Subject (Optional)</label>
+              <select
+                className="input text-xs w-full min-h-[44px]"
+                value={mobileSubjectId}
+                onChange={e => setMobileSubjectId(e.target.value)}
+              >
+                <option value="">Choose subject…</option>
+                {subjects.map(s => <option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Select Room (Optional)</label>
+              <select
+                className="input text-xs w-full min-h-[44px]"
+                value={mobileRoomId}
+                onChange={e => setMobileRoomId(e.target.value)}
+              >
+                <option value="">No room assigned (Theory)</option>
+                {rooms.map(r => <option key={r.id} value={r.id}>{r.room_number} ({r.room_type === 'lab' ? 'Lab' : 'Classroom'})</option>)}
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setMobileAssignCell(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold min-h-[44px]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!mobileClassId || saving}
+                onClick={handleMobileAssign}
+                className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold min-h-[44px]"
+              >
+                {saving ? 'Assigning…' : 'Assign Slot'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Mobile Edit Room Modal ── */}
+      <Modal
+        open={!!mobileEditRoomSlot}
+        onClose={() => setMobileEditRoomSlot(null)}
+        title={mobileEditRoomSlot ? `Change Room — ${DAY_SHORT[mobileEditRoomSlot.day_order]} P${mobileEditRoomSlot.period_number}` : 'Change Room'}
+      >
+        {mobileEditRoomSlot && (
+          <div className="space-y-4">
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+              <p className="font-extrabold text-slate-900">{mobileEditRoomSlot.class_name}</p>
+              <p className="text-slate-500 mt-0.5">{mobileEditRoomSlot.subject_name}</p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Select Room / Lab</label>
+              <select
+                className="input text-xs w-full min-h-[44px]"
+                value={mobileNewRoomId}
+                onChange={e => setMobileNewRoomId(e.target.value)}
+              >
+                <option value="">No room assigned (Theory)</option>
+                {rooms.map(r => (
+                  <option key={r.id} value={r.id}>
+                    {r.room_number} ({r.room_type === 'lab' ? 'Lab' : 'Classroom'})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setMobileEditRoomSlot(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold min-h-[44px]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={handleMobileUpdateRoom}
+                className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold min-h-[44px]"
+              >
+                {saving ? 'Updating…' : 'Save Room'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Clear confirmation modal */}
       {confirmClearOpen && (
@@ -866,10 +1263,10 @@ export default function MyTimetable() {
               Are you sure you want to clear all slots for your timetable? This cannot be undone.
             </p>
             <div className="flex justify-end gap-2">
-              <button className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100" onClick={() => setConfirmClearOpen(false)}>
+              <button className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 min-h-[44px]" onClick={() => setConfirmClearOpen(false)}>
                 Cancel
               </button>
-              <button className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-700" onClick={clearAll}>
+              <button className="px-4 py-2.5 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-700 min-h-[44px]" onClick={clearAll}>
                 Yes, Clear All
               </button>
             </div>
@@ -905,7 +1302,7 @@ export default function MyTimetable() {
             </section>
           </div>
           <div className="conflict-resolution"><strong>How to fix it</strong><p>{conflictDetail?.resolution || 'Choose a different class, room, day order, or period.'}</p></div>
-          <button type="button" className="tt-btn tt-btn--primary" onClick={() => setConflictDetail(null)} style={{ width: '100%', justifyContent: 'center' }}>I understand — adjust timetable</button>
+          <button type="button" className="tt-btn tt-btn--primary min-h-[44px]" onClick={() => setConflictDetail(null)} style={{ width: '100%', justifyContent: 'center' }}>I understand — adjust timetable</button>
         </div>
       </Modal>
 
@@ -913,6 +1310,7 @@ export default function MyTimetable() {
     </div>
   )
 }
+
 
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -1660,13 +2058,19 @@ const CSS = `
 
 .tt-toast-wrap {
   position: fixed;
-  bottom: 22px;
-  right: 22px;
+  bottom: 80px; /* above mobile bottom nav */
+  right: 16px;
   z-index: 9999;
   display: flex;
   flex-direction: column;
   gap: 7px;
   pointer-events: none;
+}
+@media (min-width: 1024px) {
+  .tt-toast-wrap {
+    bottom: 22px;
+    right: 22px;
+  }
 }
 
 .tt-toast {

@@ -80,7 +80,7 @@ export default function TeacherDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 pb-10">
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-6 sm:space-y-8">
 
         {/* Header with greeting */}
         <div className="space-y-1.5">
@@ -96,7 +96,7 @@ export default function TeacherDashboard() {
         {summary && (
           <div className="relative overflow-hidden rounded-2xl border border-slate-100 shadow-md">
             {summary.blocks_operations ? (
-              <div className="bg-gradient-to-br from-amber-50/80 via-amber-50/20 to-white px-8 py-8">
+              <div className="bg-gradient-to-br from-amber-50/80 via-amber-50/20 to-white px-4 py-5 sm:px-8 sm:py-8">
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0">
                     <DayTypeBadge dayType={summary.day_type} />
@@ -108,7 +108,7 @@ export default function TeacherDashboard() {
                 </div>
               </div>
             ) : summary.is_on_leave_today ? (
-              <div className="bg-gradient-to-br from-emerald-50/80 via-emerald-50/20 to-white px-8 py-8">
+              <div className="bg-gradient-to-br from-emerald-50/80 via-emerald-50/20 to-white px-4 py-5 sm:px-8 sm:py-8">
                 <div className="flex items-start gap-4">
                   <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-extrabold text-lg shadow-md shrink-0">
                     DO {summary.day_order}
@@ -120,8 +120,8 @@ export default function TeacherDashboard() {
                 </div>
               </div>
             ) : (
-              <div className="bg-gradient-to-br from-blue-50/80 via-indigo-50/10 to-white px-8 py-8">
-                <div className="flex items-start justify-between gap-6 flex-wrap md:flex-nowrap">
+              <div className="bg-gradient-to-br from-blue-50/80 via-indigo-50/10 to-white px-4 py-5 sm:px-8 sm:py-8">
+                <div className="flex items-start justify-between gap-4 sm:gap-6 flex-wrap md:flex-nowrap">
                   <div className="flex items-start gap-4">
                     <div className="w-14 h-14 rounded-2xl bg-primary-600 text-white flex items-center justify-center font-extrabold text-lg shadow-md shrink-0">
                       DO {summary.day_order}

@@ -19,10 +19,11 @@ router = APIRouter(prefix="/teachers", tags=["Teachers"])
 @router.get("/", response_model=list[UserOut])
 def list_teachers(
     include_cross_department: bool = False,
-    _admin: User = Depends(require_admin),
+    _user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     tenant_department_id: int | None = Depends(get_tenant_department_id),
 ):
+
     query = db.query(User).filter(User.role == Role.teacher)
     if tenant_department_id is not None and not include_cross_department:
         query = query.filter(User.department_id == tenant_department_id)

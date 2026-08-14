@@ -59,10 +59,10 @@ export default function Register() {
           <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-primary-600 to-indigo-500 rounded-2xl mb-4 shadow-md shadow-primary-500/10">
             <span className="text-2xl">{BRAND_CONFIG.logoEmoji}</span>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">
+          <h1 className={`text-3xl font-extrabold tracking-tight ${themePreset?.isDarkMode ? 'text-white' : 'text-slate-900'}`}>
             Create Account
           </h1>
-          <p className="text-xs font-bold text-slate-300/80 mt-2 uppercase tracking-wider">
+          <p className={`text-xs font-bold mt-2 uppercase tracking-wider ${themePreset?.isDarkMode ? 'text-slate-300/80' : 'text-slate-500'}`}>
             Register as a teacher on {BRAND_CONFIG.appName}
           </p>
         </div>

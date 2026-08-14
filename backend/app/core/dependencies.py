@@ -85,14 +85,32 @@ def require_teacher(current_user: User = Depends(require_credentials_set)) -> Us
     return current_user
 
 
+def require_manager(current_user: User = Depends(require_credentials_set)) -> User:
+    if current_user.role not in (Role.manager, Role.system_admin):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager access required")
+    return current_user
+
+
+def require_manager_or_admin(
+    current_user: User = Depends(require_credentials_set),
+    request: Request = None,
+) -> User:
+    if current_user.role == Role.principal:
+        if request is not None and request.method != "GET":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Principal accounts are read-only")
+        return current_user
+    if current_user.role not in (Role.manager, Role.admin, Role.system_admin):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager or Admin access required")
+    return current_user
+
 
 def get_tenant_department_id(
     current_user: User = Depends(require_credentials_set),
     x_department_id: str | None = Header(None, alias="X-Department-ID")
 ) -> int | None:
     """Returns the department_id that queries must be filtered by.
-    None for system_admin / principal, allowing them to scope via header or view all."""
-    if current_user.role in (Role.system_admin, Role.principal):
+    None for system_admin / principal / institution-wide manager, allowing them to scope via header or view all."""
+    if current_user.role in (Role.system_admin, Role.principal) or (current_user.role == Role.manager and current_user.department_id is None):
         if x_department_id:
             try:
                 return int(x_department_id)
@@ -100,4 +118,5 @@ def get_tenant_department_id(
                 pass
         return None
     return current_user.department_id
+
 

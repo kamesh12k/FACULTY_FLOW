@@ -5,9 +5,9 @@ import { useTheme } from '../../context/ThemeContext'
 import { useDepartment } from '../../context/DepartmentContext'
 import { BRAND_CONFIG } from '../../config/branding'
 import {
-  GridIcon, UsersIcon, CalIcon, BookIcon, DoorIcon, DocIcon, ChartIcon,
-  PlusIcon, SettingsIcon, LogoutIcon, SwapIcon, ChevronDownIcon,
+  SettingsIcon, LogoutIcon, ChevronDownIcon,
 } from '../icons'
+import { ADMIN_NAV, TEACHER_NAV, SYSTEM_ADMIN_NAV, PRINCIPAL_NAV, MANAGER_NAV, STAFF_NAV } from './navConfig'
 
 function NavItem({ to, icon, label, end, collapsed }) {
   return (
@@ -35,92 +35,8 @@ function NavItem({ to, icon, label, end, collapsed }) {
   )
 }
 
-const ADMIN_NAV = [
-  {
-    section: null,
-    items: [
-      { to: '/admin/dashboard', label: 'Home', icon: <GridIcon />, end: true },
-    ],
-  },
-  {
-    section: 'Calendar & Timetable',
-    items: [
-      { to: '/admin/academic-calendar', label: 'Calendar & Day Order', icon: <CalIcon /> },
-      { to: '/admin/timetable', label: 'Timetable', icon: <CalIcon /> },
-      { to: '/admin/class-timetable', label: 'Classwise Timetable', icon: <CalIcon /> },
-      { to: '/admin/timetable/approvals', label: 'Timetable Approvals', icon: <DocIcon /> },
-      { to: '/admin/class-directory', label: 'Class Faculty Directory', icon: <UsersIcon /> },
-      { to: '/admin/resource-availability', label: 'Room Availability', icon: <ChartIcon /> },
-    ],
-  },
-  {
-    section: 'Leave & Credits',
-    items: [
-      { to: '/admin/leaves', label: 'Leave Requests', icon: <DocIcon /> },
-      { to: '/admin/leave-entry', label: 'Admin Leave Entry', icon: <PlusIcon /> },
-      { to: '/admin/today-substitutions', label: "Today's Substitutions", icon: <DocIcon /> },
-      { to: '/admin/credits', label: 'Credits', icon: <ChartIcon /> },
-    ],
-  },
-  {
-    section: 'Setup',
-    items: [
-      { to: '/admin/teachers', label: 'Teachers', icon: <UsersIcon /> },
-      { to: '/admin/subjects', label: 'Subjects', icon: <BookIcon /> },
-      { to: '/admin/classes', label: 'Classes', icon: <UsersIcon /> },
-      { to: '/admin/rooms', label: 'Rooms & Labs', icon: <DoorIcon /> },
-    ],
-  },
-]
-
-const TEACHER_NAV = [
-  {
-    section: null,
-    items: [
-      { to: '/teacher/dashboard', label: 'Home', icon: <GridIcon />, end: true },
-      { to: '/teacher/timetable', label: 'My Timetable', icon: <CalIcon /> },
-      { to: '/teacher/class-timetable', label: 'Classwise Timetable', icon: <CalIcon /> },
-      { to: '/teacher/class-directory', label: 'Class Faculty Directory', icon: <UsersIcon /> },
-      { to: '/teacher/leave/apply', label: 'Apply for Leave', icon: <PlusIcon /> },
-      { to: '/teacher/leaves', label: 'Leave History', icon: <DocIcon /> },
-      { to: '/teacher/substitution', label: 'Manage Substitutes', icon: <SwapIcon /> },
-      { to: '/teacher/today-coverage', label: "Today's Coverage", icon: <DocIcon /> },
-      { to: '/teacher/credits', label: 'My Credits', icon: <ChartIcon /> },
-    ],
-  },
-]
-
-const SYSTEM_ADMIN_NAV = [
-  {
-    section: 'System Setup',
-    items: [
-      { to: '/admin/departments', label: 'Departments', icon: <UsersIcon />, end: true },
-      { to: '/admin/classes', label: 'Classes', icon: <UsersIcon /> },
-      { to: '/admin/rooms', label: 'Rooms & Labs', icon: <DoorIcon /> },
-      { to: '/admin/teachers', label: 'Teachers', icon: <UsersIcon /> },
-      { to: '/admin/subjects', label: 'Subjects', icon: <BookIcon /> },
-    ],
-  },
-  {
-    section: 'Performance',
-    items: [
-      { to: '/admin/system-metrics', label: 'Real-time Traffic', icon: <ChartIcon /> },
-    ],
-  },
-]
-
-const PRINCIPAL_NAV = [
-  {
-    section: null,
-    items: [
-      { to: '/principal/dashboard', label: 'Home', icon: <GridIcon />, end: true },
-      { to: '/principal/class-timetable', label: 'Classwise Timetable', icon: <CalIcon /> },
-    ],
-  },
-]
-
 export default function Sidebar() {
-  const { user, isAdmin, isSystemAdmin, isPrincipal, logout } = useAuth()
+  const { user, isAdmin, isSystemAdmin, isPrincipal, isManager, isStaff, logout } = useAuth()
   const { app_name, themePreset } = useTheme() || {}
   const { departments, activeDepartmentId, setActiveDepartmentId, activeDepartmentName } = useDepartment()
   const navigate = useNavigate()
@@ -141,9 +57,15 @@ export default function Sidebar() {
     nav = SYSTEM_ADMIN_NAV
   } else if (isPrincipal) {
     nav = PRINCIPAL_NAV
+  } else if (isManager) {
+    nav = MANAGER_NAV
+  } else if (isStaff) {
+    nav = STAFF_NAV
   } else if (isAdmin) {
     nav = ADMIN_NAV
   }
+
+
 
   const handleLogout = () => { logout(); navigate('/login') }
 
@@ -152,9 +74,9 @@ export default function Sidebar() {
     : 'bg-white border-slate-150 text-slate-800'
 
   return (
-    <aside className={`hidden lg:flex shrink-0 border-r sticky top-0 h-screen flex-col transition-all duration-300 ${collapsed ? 'w-[76px]' : 'w-64'} ${sidebarCls}`}>
+    <aside className={`hidden lg:flex shrink-0 border-r sticky top-0 h-screen max-h-screen overflow-hidden flex-col transition-all duration-300 ${collapsed ? 'w-[76px]' : 'w-64'} ${sidebarCls}`}>
       {/* Sidebar Header with Toggle & Logo */}
-      <div className={`px-5.5 py-4 border-b flex items-center justify-between gap-3 ${themePreset?.sidebarStyle === 'dark' ? 'border-slate-850' : 'border-slate-100'}`}>
+      <div className={`shrink-0 px-5.5 py-4 border-b flex items-center justify-between gap-3 ${themePreset?.sidebarStyle === 'dark' ? 'border-slate-850' : 'border-slate-100'}`}>
         {!collapsed && (
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="text-xl leading-none shrink-0">{BRAND_CONFIG.logoEmoji}</span>
@@ -178,7 +100,7 @@ export default function Sidebar() {
 
       {/* Workspace / Department Switcher */}
       {!collapsed && isSystemAdmin && departments.length > 0 && (
-        <div className="px-4 py-3 relative border-b border-slate-100/10">
+        <div className="shrink-0 px-4 py-3 relative border-b border-slate-100/10">
           <button
             onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
             className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
@@ -226,8 +148,8 @@ export default function Sidebar() {
         </div>
       )}
 
-      {/* Navigation Groups */}
-      <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto">
+      {/* Navigation Groups (Smooth Independent Vertical Scroll) */}
+      <nav className="flex-1 min-h-0 px-3 py-4 space-y-6 overflow-y-auto overflow-x-hidden sidebar-scrollbar overscroll-contain">
         {nav.map((group, i) => (
           <div key={i} className="space-y-1.5">
             {!collapsed && group.section && (
@@ -244,8 +166,9 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Sidebar Footer */}
-      <div className={`px-3 pb-5 border-t pt-3 space-y-1.5 ${themePreset?.sidebarStyle === 'dark' ? 'border-slate-850' : 'border-slate-100'}`}>
+      {/* Pinned Sidebar Footer (Always visible at screen bottom) */}
+      <div className={`shrink-0 px-3 pb-5 border-t pt-3 space-y-1.5 mt-auto z-10 ${themePreset?.sidebarStyle === 'dark' ? 'border-slate-850 bg-slate-950' : 'border-slate-100 bg-white'}`}>
+
         {/* Toggle Collapse Button for Collapsed Sidebar */}
         {collapsed && (
           <button 
@@ -281,7 +204,7 @@ export default function Sidebar() {
             )}
           </NavLink>
         )}
-        {!isAdmin && (
+        {!isAdmin && !isManager && !isStaff && (
           <NavLink
             to="/teacher/preferences"
             className={({ isActive }) =>
@@ -301,6 +224,7 @@ export default function Sidebar() {
             )}
           </NavLink>
         )}
+
 
         {/* User Card */}
         {!collapsed ? (
@@ -335,4 +259,3 @@ export default function Sidebar() {
   )
 }
 
-export { ADMIN_NAV, TEACHER_NAV, SYSTEM_ADMIN_NAV, PRINCIPAL_NAV }

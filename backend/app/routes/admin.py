@@ -266,3 +266,121 @@ def clear_traffic_logs(
     traffic_manager.clear()
     return {"ok": True}
 
+
+# ── Manager Account Management (System Admin Only) ───────────────────────────
+
+from app.schemas.operational_staff import ManagerCreate, ManagerUpdate, ManagerOut
+
+
+@router.get("/managers", response_model=list[ManagerOut])
+def list_managers(
+    _admin: User = Depends(require_system_admin),
+    db: Session = Depends(get_db),
+):
+    managers = admin_service.list_managers(db)
+    return [
+        ManagerOut(
+            id=m.id,
+            name=m.name,
+            username=m.username,
+            email=m.email,
+            role=m.role.value,
+            department_id=m.department_id,
+            department_name=m.department_rel.name if m.department_rel else "Institution-wide",
+            is_active=m.is_active,
+            must_change_credentials=m.must_change_credentials,
+            created_at=m.created_at,
+        )
+        for m in managers
+    ]
+
+
+@router.post("/managers", response_model=ManagerOut, status_code=201)
+def create_manager(
+    data: ManagerCreate,
+    admin: User = Depends(require_system_admin),
+    db: Session = Depends(get_db),
+):
+    m = admin_service.create_manager_account(
+        name=data.name,
+        username=data.username,
+        password=data.password,
+        department_id=data.department_id,
+        current_user_id=admin.id,
+        db=db,
+    )
+    return ManagerOut(
+        id=m.id,
+        name=m.name,
+        username=m.username,
+        email=m.email,
+        role=m.role.value,
+        department_id=m.department_id,
+        department_name=m.department_rel.name if m.department_rel else "Institution-wide",
+        is_active=m.is_active,
+        must_change_credentials=m.must_change_credentials,
+        created_at=m.created_at,
+    )
+
+
+@router.get("/managers/{manager_id}", response_model=ManagerOut)
+def get_manager(
+    manager_id: int,
+    _admin: User = Depends(require_system_admin),
+    db: Session = Depends(get_db),
+):
+    m = admin_service.get_manager_by_id(manager_id, db)
+    return ManagerOut(
+        id=m.id,
+        name=m.name,
+        username=m.username,
+        email=m.email,
+        role=m.role.value,
+        department_id=m.department_id,
+        department_name=m.department_rel.name if m.department_rel else "Institution-wide",
+        is_active=m.is_active,
+        must_change_credentials=m.must_change_credentials,
+        created_at=m.created_at,
+    )
+
+
+@router.put("/managers/{manager_id}", response_model=ManagerOut)
+def update_manager(
+    manager_id: int,
+    data: ManagerUpdate,
+    admin: User = Depends(require_system_admin),
+    db: Session = Depends(get_db),
+):
+    m = admin_service.update_manager_account(
+        manager_id=manager_id,
+        name=data.name,
+        department_id=data.department_id,
+        is_active=data.is_active,
+        password=data.password,
+        current_user_id=admin.id,
+        db=db,
+    )
+    return ManagerOut(
+        id=m.id,
+        name=m.name,
+        username=m.username,
+        email=m.email,
+        role=m.role.value,
+        department_id=m.department_id,
+        department_name=m.department_rel.name if m.department_rel else "Institution-wide",
+        is_active=m.is_active,
+        must_change_credentials=m.must_change_credentials,
+        created_at=m.created_at,
+    )
+
+
+@router.delete("/managers/{manager_id}", status_code=204)
+def delete_manager(
+    manager_id: int,
+    admin: User = Depends(require_system_admin),
+    db: Session = Depends(get_db),
+):
+    admin_service.delete_manager_account(manager_id, current_user_id=admin.id, db=db)
+    return None
+
+

@@ -122,6 +122,11 @@ def _make_user(
             db.flush()
         dept_id = dept.id
 
+    if role != Role.teacher and not username:
+        username = (email.split('@')[0] if email else name.lower().replace(' ', '_')) + f"_{role.value}"
+    if role == Role.admin and not admin_level:
+        admin_level = AdminLevel.super_admin
+
     user = User(
         name=name,
         email=email,
@@ -133,6 +138,7 @@ def _make_user(
         must_change_credentials=must_change_credentials,
         is_active=is_active,
     )
+
     db.add(user)
     db.commit()
     db.refresh(user)
