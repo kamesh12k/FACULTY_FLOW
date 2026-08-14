@@ -6,8 +6,9 @@ export const BRAND_CONFIG = {
   appName: 'FAFLOW',
   fallbackAppName: 'FAFLOW',
   logoEmoji: '⚡',
-  tagline: 'Autonomous Leave & Substitution System',
+  tagline: 'Faculty & Academic Workflow Platform',
   companyName: 'FAFLOW Systems',
+
   footerText: 'Powered by FAFLOW • Enterprise Workspace Management',
   supportEmail: 'support@faflow.com',
   supportPhone: '+1 (800) 555-FLOW',
