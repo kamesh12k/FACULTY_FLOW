@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
-import { teacherSubstitutionApi, leavesApi } from '../../api/services'
+import { useEffect, useState, useMemo } from 'react'
+import { teacherSubstitutionApi, leavesApi, departmentsApi } from '../../api/services'
 import { Spinner, Modal, EmptyState, AssignmentTypeBadge, ErrorAlert } from '../../components/ui'
-import { AlertTriangleIcon, SwapIcon, UndoIcon, SettingsIcon } from '../../components/icons'
+import { AlertTriangleIcon, SwapIcon, UndoIcon, SettingsIcon, SparklesIcon, FilterIcon, SearchIcon, XMarkIcon } from '../../components/icons'
 
 function ScoreBar({ score }) {
   const color = score >= 75 ? 'bg-green-500' : score >= 45 ? 'bg-yellow-500' : 'bg-gray-400'
@@ -18,6 +18,11 @@ function RecommendationRow({ rec, onAssign, disabled, isOverride }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <p className="text-sm font-medium text-gray-800 truncate">{rec.teacher.name}</p>
+          {rec.teacher.department && (
+            <span className="text-[10px] px-1.5 py-0.5 bg-gray-200 text-gray-700 rounded font-semibold shrink-0">
+              {rec.teacher.department}
+            </span>
+          )}
           <span className="text-xs font-semibold text-gray-500 shrink-0">{rec.score}% match</span>
         </div>
         <div className="flex items-center gap-2 mt-1">
@@ -41,18 +46,30 @@ export default function TeacherSubstitution() {
   const [loading, setLoading] = useState(true)
   const [myLeaves, setMyLeaves] = useState([])
   const [activeCoverLeaves, setActiveCoverLeaves] = useState([])
+  const [allDepartments, setAllDepartments] = useState([])
   const [activeTab, setActiveTab] = useState('needs-cover')
-  const [assignModal, setAssignModal] = useState(null)
+  const [assignModal, setAssignModal] = useState(null) // { leave, recommendations, others, isOverride }
   const [confirmClearOpen, setConfirmClearOpen] = useState(false)
   const [confirmResetOpen, setConfirmResetOpen] = useState(false)
   const [actionLoading, setActionLoading] = useState(null)
   const [error, setError] = useState('')
+  const [filterError, setFilterError] = useState('')
+  const [candidateFilters, setCandidateFilters] = useState({
+    crossDepartment: false,
+    handlesClass: false,
+    department: '',
+    search: '',
+  })
 
   const loadData = async () => {
     setError('')
     try {
-      const enabledRes = await teacherSubstitutionApi.enabled()
+      const [enabledRes, deptsRes] = await Promise.all([
+        teacherSubstitutionApi.enabled(),
+        departmentsApi.list(true).catch(() => ({ data: [] })),
+      ])
       setEnabled(enabledRes.data.teachers_mode_enabled)
+      setAllDepartments(deptsRes.data || [])
       
       if (enabledRes.data.teachers_mode_enabled) {
         const [{ data: needsCover }, { data: allMyLeaves }] = await Promise.all([
@@ -73,11 +90,29 @@ export default function TeacherSubstitution() {
     loadData()
   }, [])
 
+  const loadCandidates = async (leave, filters = candidateFilters) => {
+    const params = {
+      include_cross_department: filters.crossDepartment,
+      only_handles_class: filters.handlesClass,
+    }
+    const [{ data: recommendations }, { data: freeTeachers }] = await Promise.all([
+      teacherSubstitutionApi.candidates(leave.id, params),
+      teacherSubstitutionApi.freeTeachers(leave.id, params),
+    ])
+    const recommendedIds = new Set(recommendations.map(r => r.teacher.id))
+    const others = freeTeachers.filter(t => !recommendedIds.has(t.id))
+    return { recommendations, others }
+  }
+
   const handleOpenAssignModal = async (leave, isOverride = false) => {
     setActionLoading(leave.id + '_load_candidates')
+    setError('')
+    setFilterError('')
+    const initialFilters = { crossDepartment: false, handlesClass: false, department: '', search: '' }
+    setCandidateFilters(initialFilters)
     try {
-      const { data: recommendations } = await teacherSubstitutionApi.candidates(leave.id)
-      setAssignModal({ leave, recommendations, isOverride })
+      const { recommendations, others } = await loadCandidates(leave, initialFilters)
+      setAssignModal({ leave, recommendations, others, isOverride })
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to load candidates.')
     } finally {
@@ -85,14 +120,72 @@ export default function TeacherSubstitution() {
     }
   }
 
+  const applyCandidateFilters = async (nextFilters) => {
+    setCandidateFilters(nextFilters)
+    if (!assignModal) return
+    setActionLoading('filter_candidates')
+    setFilterError('')
+    try {
+      const { recommendations, others } = await loadCandidates(assignModal.leave, nextFilters)
+      setAssignModal(prev => ({ ...prev, recommendations, others }))
+    } catch (err) {
+      setFilterError(err.response?.data?.detail || 'Could not apply candidate filters.')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleDepartmentChange = (selectedDept) => {
+    applyCandidateFilters({
+      ...candidateFilters,
+      department: selectedDept,
+    })
+  }
+
+  const handleCrossDeptToggle = (checked) => {
+    applyCandidateFilters({
+      ...candidateFilters,
+      crossDepartment: checked,
+      department: '',
+    })
+  }
+
+  const candidateMatchesLocalFilters = (candidate) => {
+    const teacher = candidate.teacher || candidate
+    const department = teacher.department || ''
+    const name = teacher.name || ''
+    return (
+      (!candidateFilters.department || department.toLowerCase() === candidateFilters.department.toLowerCase()) &&
+      (!candidateFilters.search || `${name} ${department}`.toLowerCase().includes(candidateFilters.search.toLowerCase()))
+    )
+  }
+
+  const candidateDepartments = useMemo(() => {
+    if (!candidateFilters.crossDepartment) {
+      if (!assignModal) return []
+      const names = []
+      assignModal.recommendations.forEach(r => { if (r.teacher?.department) names.push(r.teacher.department) })
+      assignModal.others.forEach(t => { if (t?.department) names.push(t.department) })
+      if (assignModal.leave?.teacher?.department) names.push(assignModal.leave.teacher.department)
+      return [...new Set(names.filter(Boolean))].sort()
+    }
+    const names = allDepartments.map(d => d.name)
+    if (assignModal) {
+      assignModal.recommendations.forEach(r => { if (r.teacher?.department) names.push(r.teacher.department) })
+      assignModal.others.forEach(t => { if (t?.department) names.push(t.department) })
+    }
+    return [...new Set(names.filter(Boolean))].sort()
+  }, [allDepartments, assignModal, candidateFilters.crossDepartment])
+
   const handleAssignSubstitute = async (substituteId) => {
     const leaveId = assignModal.leave.id
     setActionLoading('assign')
     try {
+      const params = { include_cross_department: candidateFilters.crossDepartment }
       if (assignModal.isOverride) {
-        await teacherSubstitutionApi.override(leaveId, substituteId)
+        await teacherSubstitutionApi.override(leaveId, substituteId, params)
       } else {
-        await teacherSubstitutionApi.assign(leaveId, substituteId)
+        await teacherSubstitutionApi.assign(leaveId, substituteId, params)
       }
       setAssignModal(null)
       await loadData()
@@ -294,44 +387,245 @@ export default function TeacherSubstitution() {
         onClose={() => setAssignModal(null)}
         title={assignModal?.isOverride ? "Change Substitute Assignment" : "Assign Substitute Candidate"}
       >
-        {assignModal && (
-          <div className="space-y-4">
-            <div className="p-3 bg-gray-50 rounded-lg text-xs space-y-1 text-gray-600">
-              <p><span className="font-semibold text-gray-700">Date:</span> {assignModal.leave.date} (Day Order {assignModal.leave.day_order})</p>
-              <p><span className="font-semibold text-gray-700">Period:</span> Period {assignModal.leave.period_number}</p>
-              <p><span className="font-semibold text-gray-700">Reason:</span> {assignModal.leave.reason}</p>
-            </div>
+        {assignModal && (() => {
+          const matchingRecs = assignModal.recommendations.filter(candidateMatchesLocalFilters)
+          const matchingOthers = assignModal.others.filter(candidateMatchesLocalFilters)
+          const totalAvailable = matchingRecs.length + matchingOthers.length
 
-            <div className="space-y-2">
-              <h4 className="text-xs font-semibold text-gray-700">Compatible Candidates</h4>
-              {assignModal.recommendations.length === 0 ? (
-                <p className="text-xs text-gray-400 py-4 text-center">No compatible candidates found for this slot.</p>
-              ) : (
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                  {assignModal.recommendations.map(rec => (
-                    <RecommendationRow
-                      key={rec.teacher.id}
-                      rec={rec}
-                      onAssign={handleAssignSubstitute}
-                      disabled={actionLoading === 'assign'}
-                      isOverride={assignModal.isOverride}
+          return (
+            <div className="space-y-4">
+              {/* Slot Details Header */}
+              <div className="p-3.5 bg-gradient-to-r from-slate-50 via-gray-50 to-indigo-50/40 border border-slate-200/80 rounded-2xl flex flex-wrap items-center justify-between gap-2.5">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-200/80 rounded-lg font-semibold text-slate-800 shadow-sm">
+                    📅 {assignModal.leave.date}
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-200/80 rounded-lg font-semibold text-slate-700 shadow-sm">
+                    DO {assignModal.leave.day_order} · Period {assignModal.leave.period_number}
+                  </span>
+                </div>
+                {assignModal.leave.reason && (
+                  <p className="text-xs text-slate-600 truncate max-w-full font-medium italic">
+                    "{assignModal.leave.reason}"
+                  </p>
+                )}
+              </div>
+
+              <ErrorAlert message={filterError} />
+
+              {/* Candidate Filters Redesign */}
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-4 space-y-3.5 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
+                      <FilterIcon className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Candidate Filters</h4>
+                      <p className="text-[11px] text-slate-500">
+                        {totalAvailable} {totalAvailable === 1 ? 'candidate' : 'candidates'} available
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {actionLoading === 'filter_candidates' && (
+                      <span className="inline-flex items-center gap-1 text-xs text-primary-600 font-medium">
+                        <Spinner size="sm" /> Refreshing…
+                      </span>
+                    )}
+                    {(candidateFilters.crossDepartment || candidateFilters.handlesClass || candidateFilters.department || candidateFilters.search) && (
+                      <button
+                        type="button"
+                        onClick={() => applyCandidateFilters({ crossDepartment: false, handlesClass: false, department: '', search: '' })}
+                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition"
+                      >
+                        Clear All
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Search and Department row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="relative">
+                    <SearchIcon className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                    <input
+                      type="text"
+                      className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50/80 hover:bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition"
+                      placeholder="Search candidate name…"
+                      value={candidateFilters.search}
+                      onChange={e => setCandidateFilters({ ...candidateFilters, search: e.target.value })}
                     />
-                  ))}
+                    {candidateFilters.search && (
+                      <button
+                        type="button"
+                        onClick={() => setCandidateFilters({ ...candidateFilters, search: '' })}
+                        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 p-0.5 rounded-md"
+                      >
+                        <XMarkIcon className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    <select
+                      className="w-full px-3 py-2 text-xs bg-slate-50/80 hover:bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition font-medium text-slate-700 cursor-pointer"
+                      value={candidateFilters.department}
+                      onChange={e => handleDepartmentChange(e.target.value)}
+                    >
+                      <option value="">All Departments</option>
+                      {candidateDepartments.map(d => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Interactive Toggle Switch Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleCrossDeptToggle(!candidateFilters.crossDepartment)}
+                    disabled={actionLoading === 'filter_candidates'}
+                    className={`flex items-center justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      candidateFilters.crossDepartment
+                        ? 'bg-indigo-50/80 border-indigo-200 text-indigo-950 shadow-sm ring-1 ring-indigo-500/10'
+                        : 'bg-slate-50/60 hover:bg-slate-50 border-slate-200/90 text-slate-700'
+                    }`}
+                  >
+                    <div className="min-w-0 pr-2">
+                      <p className="text-xs font-semibold truncate">Other Departments</p>
+                      <p className="text-[11px] text-slate-500 truncate">Search across campus</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                        candidateFilters.crossDepartment ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'
+                      }`}>
+                        {candidateFilters.crossDepartment ? 'ON' : 'OFF'}
+                      </span>
+                      <span className={`w-8 h-4 flex items-center rounded-full p-0.5 transition-colors ${
+                        candidateFilters.crossDepartment ? 'bg-indigo-600' : 'bg-slate-300'
+                      }`}>
+                        <span className={`bg-white w-3 h-3 rounded-full shadow transform transition-transform ${
+                          candidateFilters.crossDepartment ? 'translate-x-4' : 'translate-x-0'
+                        }`} />
+                      </span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => applyCandidateFilters({ ...candidateFilters, handlesClass: !candidateFilters.handlesClass })}
+                    disabled={actionLoading === 'filter_candidates'}
+                    className={`flex items-center justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      candidateFilters.handlesClass
+                        ? 'bg-amber-50/80 border-amber-200 text-amber-950 shadow-sm ring-1 ring-amber-500/10'
+                        : 'bg-slate-50/60 hover:bg-slate-50 border-slate-200/90 text-slate-700'
+                    }`}
+                  >
+                    <div className="min-w-0 pr-2">
+                      <p className="text-xs font-semibold truncate">Class Faculty Only</p>
+                      <p className="text-[11px] text-slate-500 truncate">Teachers of this class</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                        candidateFilters.handlesClass ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'
+                      }`}>
+                        {candidateFilters.handlesClass ? 'ON' : 'OFF'}
+                      </span>
+                      <span className={`w-8 h-4 flex items-center rounded-full p-0.5 transition-colors ${
+                        candidateFilters.handlesClass ? 'bg-amber-600' : 'bg-slate-300'
+                      }`}>
+                        <span className={`bg-white w-3 h-3 rounded-full shadow transform transition-transform ${
+                          candidateFilters.handlesClass ? 'translate-x-4' : 'translate-x-0'
+                        }`} />
+                      </span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Recommended candidates */}
+              {matchingRecs.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-4 flex items-center gap-1.5">
+                    <SparklesIcon className="w-3.5 h-3.5 text-primary-500" /> Recommended Candidates ({matchingRecs.length})
+                  </p>
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {matchingRecs.map(rec => (
+                      <RecommendationRow
+                        key={rec.teacher.id}
+                        rec={rec}
+                        onAssign={handleAssignSubstitute}
+                        disabled={actionLoading === 'assign'}
+                        isOverride={assignModal.isOverride}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
-            </div>
 
-            <div className="flex justify-end pt-2 border-t border-gray-100">
-              <button
-                type="button"
-                onClick={() => setAssignModal(null)}
-                className="btn-secondary text-xs"
-              >
-                Close
-              </button>
+              {/* Other available teachers */}
+              {matchingOthers.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-4">
+                    Other available teachers ({matchingOthers.length})
+                  </p>
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {matchingOthers.map(t => (
+                      <div key={t.id} className="flex items-center justify-between p-3 bg-slate-50/80 hover:bg-slate-50 border border-slate-100 rounded-xl gap-3 transition">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-slate-800">{t.name}</p>
+                            {t.department && (
+                              <span className="text-[10px] px-1.5 py-0.5 bg-slate-200/80 text-slate-700 rounded-md font-semibold shrink-0">
+                                {t.department}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <p className="text-xs text-slate-500">
+                              {t.today_workload ?? 0} {t.today_workload === 1 ? 'period' : 'periods'} today
+                              {t.today_periods && t.today_periods.length > 0 && (
+                                <span className="text-slate-400"> (P{t.today_periods.sort((a, b) => a - b).join(', P')})</span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleAssignSubstitute(t.id)}
+                          disabled={actionLoading === 'assign'}
+                          className="text-xs px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 shrink-0 font-medium shadow-sm"
+                        >
+                          {actionLoading === 'assign' ? '…' : assignModal.isOverride ? 'Reassign' : 'Assign'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {matchingRecs.length === 0 && matchingOthers.length === 0 && (
+                <div className="py-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                  <p className="text-xs text-slate-400 font-medium">No available candidates found matching the selected filters.</p>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setAssignModal(null)}
+                  className="btn-secondary text-xs px-4 py-2"
+                >
+                  Close
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
       </Modal>
 
       {/* Confirm Clear All Modal */}

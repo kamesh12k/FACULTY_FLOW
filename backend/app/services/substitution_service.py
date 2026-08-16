@@ -491,9 +491,10 @@ def create_assignment(
         reason=f"Leave on {leave.date} (Day Order {leave.day_order}) period {leave.period_number}",
         leave_id=leave.id, db=db, category="penalty",
     )
+    teacher_name = leave.teacher.name if (leave.teacher and leave.teacher.name) else f"teacher {leave.teacher_id}"
     apply_credit_change(
         teacher_id=substitute.id, change=+1,
-        reason=f"Substitute for teacher {leave.teacher_id} on {leave.date} (Day Order {leave.day_order}) period {leave.period_number}",
+        reason=f"Substitute for {teacher_name} on {leave.date} (Day Order {leave.day_order}) period {leave.period_number}",
         leave_id=leave.id, db=db, category="substitute_class",
     )
 

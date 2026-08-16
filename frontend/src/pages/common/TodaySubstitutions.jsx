@@ -186,6 +186,9 @@ export default function TodaySubstitutions() {
 
   const handleToggleCrossDept = async (newVal) => {
     setIncludeCrossDept(newVal)
+    if (!newVal) {
+      setModalDeptFilter('')
+    }
     const activeLeaveId = assignModal?.leaveId || overrideModal?.leaveId
     if (!activeLeaveId) return
     const { recommendations, others } = await fetchCandidates(activeLeaveId, newVal, onlyHandlesClass)
@@ -196,6 +199,34 @@ export default function TodaySubstitutions() {
       setOverrideModal(prev => prev ? { ...prev, recommendations, others } : null)
     }
   }
+
+  const activeModalObj = assignModal || overrideModal
+  const modalCandidateDepartments = useMemo(() => {
+    if (!includeCrossDept) {
+      if (!activeModalObj) return []
+      const names = []
+      if (activeModalObj.recommendations) {
+        activeModalObj.recommendations.forEach(r => { if (r.teacher?.department) names.push(r.teacher.department) })
+      }
+      if (activeModalObj.others) {
+        activeModalObj.others.forEach(t => { if (t?.department) names.push(t.department) })
+      }
+      if (activeModalObj.leave?.teacher?.department) {
+        names.push(activeModalObj.leave.teacher.department)
+      }
+      return [...new Set(names.filter(Boolean))].sort()
+    }
+    const names = departments.map(d => d.name)
+    if (activeModalObj) {
+      if (activeModalObj.recommendations) {
+        activeModalObj.recommendations.forEach(r => { if (r.teacher?.department) names.push(r.teacher.department) })
+      }
+      if (activeModalObj.others) {
+        activeModalObj.others.forEach(t => { if (t?.department) names.push(t.department) })
+      }
+    }
+    return [...new Set(names.filter(Boolean))].sort()
+  }, [departments, activeModalObj, includeCrossDept])
 
   const handleToggleOnlyHandlesClass = async (newVal) => {
     setOnlyHandlesClass(newVal)
@@ -998,7 +1029,7 @@ export default function TodaySubstitutions() {
                     onChange={e => setModalDeptFilter(e.target.value)}
                   >
                     <option value="">All Candidate Depts</option>
-                    {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                    {modalCandidateDepartments.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
 
@@ -1177,7 +1208,7 @@ export default function TodaySubstitutions() {
                     onChange={e => setModalDeptFilter(e.target.value)}
                   >
                     <option value="">All Candidate Depts</option>
-                    {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                    {modalCandidateDepartments.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
 

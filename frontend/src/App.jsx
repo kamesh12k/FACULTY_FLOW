@@ -27,6 +27,7 @@ import AdminSettings from './pages/admin/Settings'
 import AcademicCalendar from './pages/admin/AcademicCalendar'
 import AcademicCalendarReports from './pages/admin/AcademicCalendarReports'
 import SystemMetrics from './pages/admin/SystemMetrics'
+import BackupRestore from './pages/admin/Backup'
 
 // Principal pages
 import PrincipalDashboard from './pages/admin/PrincipalDashboard'
@@ -103,6 +104,7 @@ export default function App() {
               <Route path="/admin/today-substitutions" element={<TodaySubstitutions />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
               <Route path="/admin/system-metrics" element={<SystemMetrics />} />
+              <Route path="/admin/backup" element={<BackupRestore />} />
             </Route>
           </Route>
         </Route>

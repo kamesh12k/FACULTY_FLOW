@@ -3,6 +3,16 @@ import {
   PlusIcon, SwapIcon,
 } from '../icons'
 
+function DatabaseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" style={{width:'100%',height:'100%'}}>
+      <ellipse cx="12" cy="5" rx="9" ry="3" />
+      <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+    </svg>
+  )
+}
+
 export const ADMIN_NAV = [
   {
     section: null,
@@ -37,6 +47,7 @@ export const ADMIN_NAV = [
       { to: '/admin/subjects', label: 'Subjects', icon: <BookIcon /> },
       { to: '/admin/classes', label: 'Classes', icon: <UsersIcon /> },
       { to: '/admin/rooms', label: 'Rooms & Labs', icon: <DoorIcon /> },
+      { to: '/admin/settings', label: 'Settings & History', icon: <DocIcon /> },
     ],
   },
 ]
@@ -66,6 +77,15 @@ export const TEACHER_NAV = [
 
 export const SYSTEM_ADMIN_NAV = [
   {
+    section: 'Calendar & Timetable',
+    items: [
+      { to: '/admin/academic-calendar', label: 'Calendar & Day Order', icon: <CalIcon /> },
+      { to: '/admin/timetable', label: 'Timetable & Reset', icon: <CalIcon /> },
+      { to: '/admin/class-timetable', label: 'Classwise Timetable', icon: <CalIcon /> },
+      { to: '/admin/timetable/approvals', label: 'Timetable Approvals', icon: <DocIcon /> },
+    ],
+  },
+  {
     section: 'System Setup',
     items: [
       { to: '/admin/departments', label: 'Departments', icon: <UsersIcon />, end: true },
@@ -77,9 +97,16 @@ export const SYSTEM_ADMIN_NAV = [
     ],
   },
   {
-    section: 'Performance',
+    section: 'Performance & Audit',
     items: [
       { to: '/admin/system-metrics', label: 'Real-time Traffic', icon: <ChartIcon /> },
+      { to: '/admin/settings', label: 'Settings & History', icon: <DocIcon /> },
+    ],
+  },
+  {
+    section: 'Data Safety',
+    items: [
+      { to: '/admin/backup', label: 'Backup & Restore', icon: <DatabaseIcon /> },
     ],
   },
 ]

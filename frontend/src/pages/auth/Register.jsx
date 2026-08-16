@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
 import { BRAND_CONFIG } from '../../config/branding'
+import FacultyFlowLogo from '../../components/brand/FacultyFlowLogo'
 import { authApi, departmentsApi } from '../../api/services'
 import { ErrorAlert, Input, Select, Button } from '../../components/ui'
 
@@ -56,8 +57,16 @@ export default function Register() {
     <div className={`min-h-screen flex items-center justify-center px-4 transition-all duration-300 ${bgCls}`}>
       <div className="w-full max-w-md">
         <div className="mb-10 text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-primary-600 to-indigo-500 rounded-2xl mb-4 shadow-md shadow-primary-500/10">
-            <span className="text-2xl">{BRAND_CONFIG.logoEmoji}</span>
+          {/* Logo mark — transparent SVG, no white box */}
+          <div className="relative inline-block mb-4 group">
+            <div
+              className="absolute inset-0 rounded-2xl blur-2xl opacity-15 scale-150 group-hover:opacity-25 transition-opacity duration-300"
+              style={{ background: '#4f46e5' }}
+              aria-hidden="true"
+            />
+            <div className="relative hover:scale-[1.04] transition-transform duration-200">
+              <FacultyFlowLogo variant="mark" size={56} />
+            </div>
           </div>
           <h1 className={`text-3xl font-extrabold tracking-tight ${themePreset?.isDarkMode ? 'text-white' : 'text-slate-900'}`}>
             Create Account

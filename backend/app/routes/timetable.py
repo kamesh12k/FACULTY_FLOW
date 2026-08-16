@@ -5,7 +5,17 @@ from app.database import get_db
 from app.core.dependencies import require_admin, require_teacher, get_current_user, get_tenant_department_id, require_credentials_set
 
 from app.models.user import User
-from app.schemas.timetable import TimetableSlotCreate, TimetableSlotOut, BulkTimetableCreate, TimetableSubmissionCreate, TimetableSubmissionReview, BulkTimetableSubmissionReview, TimetableSubmissionOut
+from app.schemas.timetable import (
+    TimetableSlotCreate,
+    TimetableSlotOut,
+    BulkTimetableCreate,
+    TimetableSubmissionCreate,
+    TimetableSubmissionReview,
+    BulkTimetableSubmissionReview,
+    TimetableSubmissionOut,
+    TimetableResetRequest,
+    TimetableResetResponse,
+)
 from app.services import timetable_service
 
 router = APIRouter(prefix="/timetable", tags=["Timetable"])
@@ -107,3 +117,24 @@ def delete_teacher_timetable(
     tenant_department_id: int | None = Depends(get_tenant_department_id),
 ):
     timetable_service.delete_by_teacher(teacher_id, db, tenant_department_id)
+
+
+@router.post("/reset", response_model=TimetableResetResponse)
+def reset_timetable(
+    data: TimetableResetRequest,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    tenant_department_id: int | None = Depends(get_tenant_department_id),
+):
+    """
+    Granular timetable reset:
+      - scope='all' -> all teachers across the institution (System Admin only)
+      - scope='department' -> all teachers in a specific department
+      - scope='teachers' -> specific list of teacher IDs
+    """
+    return timetable_service.reset_timetable(
+        data=data,
+        db=db,
+        actor_user=admin,
+        tenant_department_id=tenant_department_id,
+    )

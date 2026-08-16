@@ -28,6 +28,25 @@ export const adminApi = {
   masterExport: () => api.get('/admin/master-export', { responseType: 'blob' }),
 }
 
+export const backupApi = {
+  create: () => api.post('/admin/backups'),
+  importBackup: (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/admin/backups/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+  list: () => api.get('/admin/backups'),
+  summary: () => api.get('/admin/backups/summary'),
+  get: (id) => api.get(`/admin/backups/${id}`),
+  download: (id) => api.get(`/admin/backups/${id}/download`, { responseType: 'blob' }),
+  validate: (id) => api.post(`/admin/backups/${id}/validate`),
+  restore: (id, confirmationText) =>
+    api.post(`/admin/backups/${id}/restore`, { confirmation_text: confirmationText }),
+  delete: (id) => api.delete(`/admin/backups/${id}`),
+}
+
 export const teachersApi = {
   list: (includeCrossDepartment = false) => api.get('/teachers/', { params: { include_cross_department: includeCrossDepartment } }),
   create: (data) => api.post('/teachers/', data),
@@ -50,6 +69,7 @@ export const timetableApi = {
   reviewSubmission: (id, data) => api.post(`/timetable/submissions/${id}/review`, data),
   bulkReviewSubmissions: (submissionIds, approved) => api.post('/timetable/submissions/bulk-review', { submission_ids: submissionIds, approved }),
   cancelSubmission: (id) => api.delete(`/timetable/submissions/${id}`),
+  reset: (data) => api.post('/timetable/reset', data),
 }
 
 export const departmentsApi = {
@@ -186,9 +206,12 @@ export const creditsApi = {
 export const teacherSubstitutionApi = {
   enabled: () => api.get('/teacher/substitution/enabled'),
   myLeaves: () => api.get('/teacher/substitution/my-leaves'),
-  candidates: (leaveId) => api.get(`/teacher/substitution/leave/${leaveId}/candidates`),
-  assign: (leaveId, substituteId) => api.post(`/teacher/substitution/leave/${leaveId}/assign/${substituteId}`),
-  override: (leaveId, substituteId) => api.put(`/teacher/substitution/leave/${leaveId}/override/${substituteId}`),
+  candidates: (leaveId, params = {}) => api.get(`/teacher/substitution/leave/${leaveId}/candidates`, { params }),
+  freeTeachers: (leaveId, params = {}) => api.get(`/teacher/substitution/leave/${leaveId}/free-teachers`, { params }),
+  assign: (leaveId, substituteId, params = {}) => api.post(`/teacher/substitution/leave/${leaveId}/assign/${substituteId}`, null, { params }),
+  override: (leaveId, substituteId, params = {}) => api.put(`/teacher/substitution/leave/${leaveId}/override/${substituteId}`, null, { params }),
+  undoAssignment: (leaveId) => api.post(`/teacher/substitution/leave/${leaveId}/undo-assignment`),
+  lock: (leaveId, locked) => api.post(`/teacher/substitution/leave/${leaveId}/lock`, { locked }),
   clearAllAssignments: () => api.delete('/teacher/substitution/clear-all-assignments'),
   resetPreferences: () => api.delete('/teacher/substitution/reset-preferences'),
 }

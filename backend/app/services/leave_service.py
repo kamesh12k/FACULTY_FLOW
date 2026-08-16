@@ -414,14 +414,15 @@ def override_substitute(
     # Reverse the old credit changes, then apply new ones — net effect on
     # the original leave-taker is zero, but the displaced substitute's
     # credit is correctly returned.
+    teacher_name = leave.teacher.name if (leave.teacher and leave.teacher.name) else f"teacher {leave.teacher_id}"
     apply_credit_change(
         teacher_id=old_substitute_id, change=-1,
-        reason=f"Override: removed as substitute for {leave.date} period {leave.period_number}",
+        reason=f"Override: removed as substitute for {teacher_name} on {leave.date} period {leave.period_number}",
         leave_id=leave.id, db=db, category="correction",
     )
     apply_credit_change(
         teacher_id=new_substitute.id, change=+1,
-        reason=f"Override: assigned as substitute for {leave.date} period {leave.period_number}",
+        reason=f"Override: assigned as substitute for {teacher_name} on {leave.date} period {leave.period_number}",
         leave_id=leave.id, db=db, category="substitute_class",
     )
 

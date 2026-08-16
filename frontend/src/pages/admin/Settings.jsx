@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useDepartment } from '../../context/DepartmentContext'
-import { adminApi, campusOperationsApi, teachersModeApi } from '../../api/services'
+import { adminApi, campusOperationsApi, teachersModeApi, timetableApi, teachersApi, departmentsApi } from '../../api/services'
 import { Spinner, ErrorAlert, EmptyState, Modal } from '../../components/ui'
 import { SparklesIcon } from '../../components/icons'
 
@@ -1074,6 +1074,275 @@ function FactoryResetPanel() {
   )
 }
 
+/* ── Reset Timetable Panel ────────────────────────────────────────────── */
+function TimetableResetPanel() {
+  const { user, isSystemAdmin } = useAuth()
+  const [scope, setScope] = useState('department')
+  const [departmentId, setDepartmentId] = useState('')
+  const [departments, setDepartments] = useState([])
+  const [teachers, setTeachers] = useState([])
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState([])
+  const [teacherSearch, setTeacherSearch] = useState('')
+  const [clearSubmissions, setClearSubmissions] = useState(false)
+  const [confirmAllText, setConfirmAllText] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
+
+  useEffect(() => {
+    departmentsApi.list(isSystemAdmin).then(r => {
+      setDepartments(r.data || [])
+      if (!isSystemAdmin && user?.department_id) {
+        setDepartmentId(String(user.department_id))
+      } else if (r.data?.length > 0) {
+        setDepartmentId(String(r.data[0].id))
+      }
+    }).catch(() => {})
+
+    teachersApi.list(isSystemAdmin).then(r => {
+      setTeachers(r.data || [])
+    }).catch(() => {})
+  }, [isSystemAdmin, user])
+
+  const filteredTeachers = teachers.filter(t => {
+    if (!isSystemAdmin && user?.department_id && t.department_id !== user.department_id) return false
+    if (scope === 'department' && departmentId && t.department_id !== Number(departmentId)) return false
+    if (!teacherSearch) return true
+    const q = teacherSearch.toLowerCase()
+    return (t.name || '').toLowerCase().includes(q) || (t.department || '').toLowerCase().includes(q)
+  })
+
+  const handleReset = async () => {
+    setError('')
+    setSuccessMessage('')
+
+    if (scope === 'teachers' && selectedTeacherIds.length === 0) {
+      setError('Please select at least one teacher to reset.')
+      return
+    }
+    if (scope === 'department' && !departmentId) {
+      setError('Please select a department to reset.')
+      return
+    }
+    if (scope === 'all' && confirmAllText !== 'RESET ALL TIMETABLES') {
+      setError('Please type "RESET ALL TIMETABLES" to confirm institution-wide reset.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const payload = {
+        scope,
+        department_id: scope === 'department' ? Number(departmentId) : null,
+        teacher_ids: scope === 'teachers' ? selectedTeacherIds : null,
+        clear_submissions: clearSubmissions,
+      }
+      const res = await timetableApi.reset(payload)
+      setSuccessMessage(res.data?.message || 'Timetable reset successfully.')
+      setSelectedTeacherIds([])
+      setConfirmAllText('')
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to reset timetable.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <SettingsSection
+      icon={AlertTriangleIcon}
+      tint="bg-rose-50 text-rose-600"
+      title="Reset Timetable"
+      description="Selectively clear timetable slots for all teachers, a particular department, or specific teachers."
+    >
+      <div className="px-6 pb-6 border-t border-gray-100 pt-5 space-y-4">
+        {error && <ErrorAlert message={error} />}
+        {successMessage && (
+          <div className="p-3 bg-emerald-50 text-emerald-700 text-sm rounded-xl border border-emerald-100 font-medium">
+            {successMessage}
+          </div>
+        )}
+
+        {/* Scope selector */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-1 bg-gray-100/80 rounded-xl">
+          {isSystemAdmin && (
+            <button
+              type="button"
+              onClick={() => { setScope('all'); setError(''); setSuccessMessage('') }}
+              className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all text-center ${
+                scope === 'all' ? 'bg-white text-rose-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              🌐 All Teachers
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => { setScope('department'); setError(''); setSuccessMessage('') }}
+            className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all text-center ${
+              scope === 'department' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+            } ${!isSystemAdmin ? 'col-span-1' : ''}`}
+          >
+            🏢 By Department
+          </button>
+          <button
+            type="button"
+            onClick={() => { setScope('teachers'); setError(''); setSuccessMessage('') }}
+            className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all text-center ${
+              scope === 'teachers' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+            } ${!isSystemAdmin ? 'col-span-1' : ''}`}
+          >
+            👨‍🏫 Specific Teacher(s)
+          </button>
+        </div>
+
+        {/* Scope All Warning */}
+        {scope === 'all' && (
+          <div className="rounded-xl bg-red-50 border border-red-200 p-4 space-y-3">
+            <p className="text-xs text-red-800 leading-relaxed">
+              <strong>Institution-Wide Action:</strong> This will delete <strong>ALL scheduled timetable slots across every department and faculty member</strong>. Classes, subjects, and teachers will remain intact.
+            </p>
+            <div>
+              <label className="block text-[11px] font-semibold text-red-900 mb-1">
+                Type <span className="font-mono bg-red-100 px-1 py-0.5 rounded">RESET ALL TIMETABLES</span> to confirm:
+              </label>
+              <input
+                type="text"
+                value={confirmAllText}
+                onChange={e => setConfirmAllText(e.target.value)}
+                placeholder="RESET ALL TIMETABLES"
+                className="w-full text-xs px-3 py-2 rounded-lg border border-red-300 focus:outline-none focus:ring-2 focus:ring-red-400 bg-white"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Scope Department */}
+        {scope === 'department' && (
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold text-gray-700">Select Department</label>
+            <select
+              value={departmentId}
+              onChange={e => setDepartmentId(e.target.value)}
+              disabled={!isSystemAdmin && Boolean(user?.department_id)}
+              className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+            >
+              <option value="">Choose department…</option>
+              {departments.map(d => (
+                <option key={d.id} value={d.id}>{d.name} ({d.code || 'Dept'})</option>
+              ))}
+            </select>
+            {departmentId && (
+              <p className="text-[11px] text-gray-500">
+                Target: <strong>{teachers.filter(t => t.department_id === Number(departmentId)).length}</strong> teacher(s) in selected department.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Scope Teachers */}
+        {scope === 'teachers' && (
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs font-semibold text-gray-700">
+                Select Teacher(s) ({selectedTeacherIds.length} selected)
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTeacherIds(filteredTeachers.map(t => t.id))}
+                  className="text-[11px] text-indigo-600 hover:underline font-semibold"
+                >
+                  Select All Filtered
+                </button>
+                <span className="text-gray-300">·</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTeacherIds([])}
+                  className="text-[11px] text-gray-500 hover:underline"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            <input
+              type="text"
+              placeholder="Search teacher by name or department…"
+              value={teacherSearch}
+              onChange={e => setTeacherSearch(e.target.value)}
+              className="w-full text-xs px-3 py-1.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            />
+
+            <div className="max-h-44 overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100 p-1 bg-gray-50/50">
+              {filteredTeachers.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-4">No teachers found.</p>
+              ) : (
+                filteredTeachers.map(t => {
+                  const isChecked = selectedTeacherIds.includes(t.id)
+                  return (
+                    <label
+                      key={t.id}
+                      className={`flex items-center justify-between p-2 rounded-lg cursor-pointer text-xs transition-colors ${
+                        isChecked ? 'bg-indigo-50/70 text-indigo-900 font-semibold' : 'hover:bg-gray-100/70 text-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            setSelectedTeacherIds(prev =>
+                              isChecked ? prev.filter(id => id !== t.id) : [...prev, t.id]
+                            )
+                          }}
+                          className="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
+                        />
+                        <span className="truncate">{t.name}</span>
+                      </div>
+                      {t.department && (
+                        <span className="text-[10px] text-gray-400 bg-white border border-gray-200 px-1.5 py-0.5 rounded ml-2 shrink-0">
+                          {t.department}
+                        </span>
+                      )}
+                    </label>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Clear Submissions Option */}
+        <label className="flex items-start gap-2 cursor-pointer text-xs text-gray-600 pt-1">
+          <input
+            type="checkbox"
+            checked={clearSubmissions}
+            onChange={e => setClearSubmissions(e.target.checked)}
+            className="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 mt-0.5"
+          />
+          <span>Also clear pending and submitted timetable proposals for the target(s).</span>
+        </label>
+
+        {/* Submit */}
+        <button
+          type="button"
+          onClick={handleReset}
+          disabled={
+            loading ||
+            (scope === 'all' && confirmAllText !== 'RESET ALL TIMETABLES') ||
+            (scope === 'department' && !departmentId) ||
+            (scope === 'teachers' && selectedTeacherIds.length === 0)
+          }
+          className={`${btnDanger} w-full`}
+        >
+          {loading ? 'Resetting Timetable…' : 'Execute Timetable Reset'}
+        </button>
+      </div>
+    </SettingsSection>
+  )
+}
+
 /* ── Clear History ────────────────────────────────────────────────────── */
 function ClearHistoryPanel() {
   const [loading, setLoading] = useState(null)
@@ -1248,8 +1517,10 @@ export default function AdminSettings() {
       )}
       {isSuperAdmin && <AdminsPanel isSuperAdmin={isSuperAdmin} />}
       <AuditLogPanel />
-      {isSuperAdmin && <ClearHistoryPanel />}
+      <TimetableResetPanel />
+      <ClearHistoryPanel />
       {isSuperAdmin && <FactoryResetPanel />}
     </div>
   )
 }
+

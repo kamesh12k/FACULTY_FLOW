@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.core.dependencies import require_teacher, require_admin, require_super_admin
 from app.models.user import User
-from app.schemas.leave import LeaveOut, AlterAssignmentOut
+from app.schemas.leave import LeaveOut, AlterAssignmentOut, FreeTeacherOut, LockAssignmentRequest
 from app.schemas.substitution import RecommendationOut
 from app.services import teacher_substitution_service as service
 from app.services.system_setting_service import get_setting, set_setting
@@ -37,28 +37,73 @@ def get_my_leaves(
 @router.get("/leave/{leave_id}/candidates", response_model=list[RecommendationOut])
 def get_candidates(
     leave_id: int,
+    include_cross_department: bool = False,
+    only_handles_class: bool = False,
     current_user: User = Depends(require_teacher),
     db: Session = Depends(get_db)
 ):
-    return service.teacher_get_candidates(db, leave_id, current_user.id)
+    return service.teacher_get_candidates(
+        db, leave_id, current_user.id,
+        include_cross_department=include_cross_department,
+        only_handles_class=only_handles_class,
+    )
+
+@router.get("/leave/{leave_id}/free-teachers", response_model=list[FreeTeacherOut])
+def get_free_teachers(
+    leave_id: int,
+    include_cross_department: bool = False,
+    only_handles_class: bool = False,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db)
+):
+    return service.teacher_get_free_teachers(
+        db, leave_id, current_user.id,
+        include_cross_department=include_cross_department,
+        only_handles_class=only_handles_class,
+    )
 
 @router.post("/leave/{leave_id}/assign/{substitute_id}", response_model=AlterAssignmentOut)
 def assign_substitute(
     leave_id: int,
     substitute_id: int,
+    include_cross_department: bool = False,
     current_user: User = Depends(require_teacher),
     db: Session = Depends(get_db)
 ):
-    return service.teacher_assign_substitute(db, leave_id, substitute_id, current_user.id)
+    return service.teacher_assign_substitute(
+        db, leave_id, substitute_id, current_user.id,
+        include_cross_department=include_cross_department,
+    )
 
 @router.put("/leave/{leave_id}/override/{substitute_id}", response_model=AlterAssignmentOut)
 def override_substitute(
     leave_id: int,
     substitute_id: int,
+    include_cross_department: bool = False,
     current_user: User = Depends(require_teacher),
     db: Session = Depends(get_db)
 ):
-    return service.teacher_override_substitute(db, leave_id, substitute_id, current_user.id)
+    return service.teacher_override_substitute(
+        db, leave_id, substitute_id, current_user.id,
+        include_cross_department=include_cross_department,
+    )
+
+@router.post("/leave/{leave_id}/undo-assignment", response_model=LeaveOut)
+def undo_assignment(
+    leave_id: int,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db)
+):
+    return service.teacher_undo_assignment(db, leave_id, current_user.id)
+
+@router.post("/leave/{leave_id}/lock", response_model=AlterAssignmentOut)
+def set_assignment_lock(
+    leave_id: int,
+    data: LockAssignmentRequest,
+    current_user: User = Depends(require_teacher),
+    db: Session = Depends(get_db)
+):
+    return service.teacher_set_lock(db, leave_id, data.locked, current_user.id)
 
 @router.delete("/clear-all-assignments")
 def clear_all_assignments(

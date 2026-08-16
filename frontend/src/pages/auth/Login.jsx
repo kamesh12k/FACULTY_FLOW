@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
 import { BRAND_CONFIG } from '../../config/branding'
+import FacultyFlowLogo from '../../components/brand/FacultyFlowLogo'
 import { authApi } from '../../api/services'
 import { EyeIcon, EyeOffIcon, Spinner, ShieldCheckIcon, AlertTriangleIcon } from '../../components/icons'
 
@@ -54,7 +55,7 @@ export default function Login() {
       <div className="w-full max-w-md mx-auto flex items-center justify-center">
         {BRAND_CONFIG.clientName && (
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-800/80 shadow-xs backdrop-blur-md">
-            <span className="text-xs">{BRAND_CONFIG.organizationLogo || '🏛️'}</span>
+            <FacultyFlowLogo variant="mark" size={18} dark />
             <span className="text-[11px] font-bold text-slate-300 tracking-wide truncate max-w-[280px]">
               {BRAND_CONFIG.clientName}
             </span>
@@ -66,8 +67,16 @@ export default function Login() {
       <div className="w-full max-w-md mx-auto my-auto py-4">
         {/* Brand Header */}
         <div className="mb-6 sm:mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-500 border border-indigo-400/30 shadow-lg shadow-indigo-500/20 mb-4 transition-transform hover:scale-105 duration-200">
-            <span className="text-2xl sm:text-3xl leading-none">{BRAND_CONFIG.logoEmoji}</span>
+          {/* Logo mark — transparent SVG, no white box, premium glow on dark bg */}
+          <div className="relative inline-block mb-4 group">
+            <div
+              className="absolute inset-0 rounded-2xl blur-2xl opacity-20 scale-150 group-hover:opacity-35 transition-opacity duration-300"
+              style={{ background: '#4f46e5' }}
+              aria-hidden="true"
+            />
+            <div className="relative hover:scale-[1.05] transition-transform duration-200">
+              <FacultyFlowLogo variant="mark" size={60} dark />
+            </div>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             {app_name || BRAND_CONFIG.appName}

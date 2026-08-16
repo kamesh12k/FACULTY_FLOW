@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
+import FacultyFlowLogo from '../brand/FacultyFlowLogo'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
 import { useDepartment } from '../../context/DepartmentContext'
@@ -79,12 +80,17 @@ export default function Sidebar() {
       <div className={`shrink-0 px-5.5 py-4 border-b flex items-center justify-between gap-3 ${themePreset?.sidebarStyle === 'dark' ? 'border-slate-850' : 'border-slate-100'}`}>
         {!collapsed && (
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="text-xl leading-none shrink-0">{BRAND_CONFIG.logoEmoji}</span>
+            <FacultyFlowLogo
+              variant="mark"
+              size={30}
+            />
             <p className="font-extrabold text-base tracking-tight truncate">{app_name || BRAND_CONFIG.appName}</p>
           </div>
         )}
         {collapsed && (
-          <span className="text-xl leading-none mx-auto cursor-pointer" onClick={toggleCollapse}>{BRAND_CONFIG.logoEmoji}</span>
+          <span className="mx-auto cursor-pointer" onClick={toggleCollapse} title="Expand sidebar">
+            <FacultyFlowLogo variant="mark" size={28} />
+          </span>
         )}
         {!collapsed && (
           <button 
@@ -110,7 +116,7 @@ export default function Sidebar() {
             }`}
           >
             <div className="flex items-center gap-2 truncate">
-              <span className="text-sm shrink-0">{BRAND_CONFIG.organizationLogo}</span>
+              <FacultyFlowLogo variant="mark" size={20} />
               <span className="truncate">{activeDepartmentName}</span>
             </div>
             <ChevronDownIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />

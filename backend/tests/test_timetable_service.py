@@ -107,3 +107,71 @@ class TestGetAndDelete:
         slot = create_timetable_slot(db_session, teacher.id, subj.id, cls.id)
         delete_slot(slot.id, db_session)
         assert get_by_teacher(teacher.id, db_session) == []
+
+
+class TestResetTimetable:
+    def test_reset_by_teachers(self, db_session):
+        from app.services.timetable_service import reset_timetable
+        from app.schemas.timetable import TimetableResetRequest
+        from app.models.user import Role
+        dept, subj, cls, _, teacher1 = _setup(db_session)
+        teacher2 = _make_user(db_session, email="t2@test.com", department=dept.name)
+        admin = _make_user(db_session, email="admin@test.com", role=Role.system_admin)
+
+        create_timetable_slot(db_session, teacher1.id, subj.id, cls.id, day_order=1, period_number=1)
+        create_timetable_slot(db_session, teacher2.id, subj.id, cls.id, day_order=2, period_number=1)
+
+        req = TimetableResetRequest(scope="teachers", teacher_ids=[teacher1.id])
+        res = reset_timetable(req, db_session, actor_user=admin)
+
+        assert res["deleted_slots_count"] == 1
+        assert len(get_by_teacher(teacher1.id, db_session)) == 0
+        assert len(get_by_teacher(teacher2.id, db_session)) == 1
+
+    def test_reset_by_department(self, db_session):
+        from app.services.timetable_service import reset_timetable
+        from app.schemas.timetable import TimetableResetRequest
+        from app.models.user import Role
+        dept, subj, cls, _, teacher1 = _setup(db_session)
+        teacher2 = _make_user(db_session, email="t2@test.com", department=dept.name)
+        admin = _make_user(db_session, email="admin@test.com", role=Role.system_admin)
+
+        create_timetable_slot(db_session, teacher1.id, subj.id, cls.id, day_order=1, period_number=1)
+        create_timetable_slot(db_session, teacher2.id, subj.id, cls.id, day_order=2, period_number=1)
+
+        req = TimetableResetRequest(scope="department", department_id=dept.id)
+        res = reset_timetable(req, db_session, actor_user=admin)
+
+        assert res["deleted_slots_count"] == 2
+        assert len(get_by_teacher(teacher1.id, db_session)) == 0
+        assert len(get_by_teacher(teacher2.id, db_session)) == 0
+
+    def test_reset_all_global(self, db_session):
+        from app.services.timetable_service import reset_timetable
+        from app.schemas.timetable import TimetableResetRequest
+        from app.models.user import Role
+        dept, subj, cls, _, teacher1 = _setup(db_session)
+        teacher2 = _make_user(db_session, email="t2@test.com", department="OtherDept")
+        admin = _make_user(db_session, email="admin@test.com", role=Role.system_admin)
+
+        create_timetable_slot(db_session, teacher1.id, subj.id, cls.id, day_order=1, period_number=1)
+        create_timetable_slot(db_session, teacher2.id, subj.id, cls.id, day_order=2, period_number=1)
+
+        req = TimetableResetRequest(scope="all")
+        res = reset_timetable(req, db_session, actor_user=admin)
+
+        assert res["deleted_slots_count"] == 2
+        assert len(get_by_teacher(teacher1.id, db_session)) == 0
+        assert len(get_by_teacher(teacher2.id, db_session)) == 0
+
+    def test_reset_all_forbidden_for_tenant_dept(self, db_session):
+        from app.services.timetable_service import reset_timetable
+        from app.schemas.timetable import TimetableResetRequest
+        from app.models.user import Role
+        dept, _, _, _, _ = _setup(db_session)
+        admin = _make_user(db_session, email="deptadmin@test.com", role=Role.admin)
+
+        req = TimetableResetRequest(scope="all")
+        with pytest.raises(HTTPException) as exc:
+            reset_timetable(req, db_session, actor_user=admin, tenant_department_id=dept.id)
+        assert exc.value.status_code == 403

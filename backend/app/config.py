@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     FRONTEND_ORIGIN: List[str] = ["http://localhost:5173"]
     MAX_SECONDARY_ADMINS: int = 3
 
+    # ---------- Backup & Restore ----------
+    # Directory for backup files (relative to backend root, or absolute).
+    BACKUP_STORAGE_PATH: str = "./backups"
+    # Soft maximum number of user-created backups to keep (pre-restore backups excluded).
+    BACKUP_RETENTION_COUNT: int = 50
+    # Maximum allowed backup file size in megabytes.
+    BACKUP_MAX_SIZE_MB: int = 500
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

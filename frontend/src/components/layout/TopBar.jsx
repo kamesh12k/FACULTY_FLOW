@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useDepartment } from '../../context/DepartmentContext'
 import { useTheme } from '../../context/ThemeContext'
 import { BRAND_CONFIG } from '../../config/branding'
+import FacultyFlowLogo from '../brand/FacultyFlowLogo'
 import { academicCalendarApi } from '../../api/services'
 import { DayTypeBadge } from '../ui'
 import { SearchIcon, ChevronDownIcon } from '../icons'
@@ -57,7 +58,7 @@ export default function TopBar() {
         <div className="flex items-center justify-between px-4 lg:px-6 py-3.5 gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <span className="lg:hidden font-extrabold text-slate-900 dark:text-white text-base truncate flex items-center gap-2">
-              <span>{BRAND_CONFIG.logoEmoji}</span>
+              <FacultyFlowLogo variant="mark" size={24} />
               <span>{app_name || BRAND_CONFIG.appName}</span>
             </span>
             {today && (

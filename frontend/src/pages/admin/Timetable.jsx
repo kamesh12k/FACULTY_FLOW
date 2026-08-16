@@ -102,6 +102,7 @@ const IconTrash = () => <svg width="12" height="12" fill="none" stroke="currentC
 const IconChevron = () => <svg width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
 const IconCheck = () => <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>
 const IconWarning = () => <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+const IconReset = () => <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AdminTimetable() {
@@ -137,6 +138,16 @@ export default function AdminTimetable() {
   const [editRoom, setEditRoom] = useState('')
   const [poppedCells, setPoppedCells] = useState(new Set())
   const [confirmClearOpen, setConfirmClearOpen] = useState(false)
+
+  // ── Granular Timetable Reset state ──
+  const [resetModalOpen, setResetModalOpen] = useState(false)
+  const [resetScope, setResetScope] = useState('teachers') // 'all' | 'department' | 'teachers'
+  const [resetDepartmentId, setResetDepartmentId] = useState('')
+  const [resetSelectedTeacherIds, setResetSelectedTeacherIds] = useState([])
+  const [resetClearSubmissions, setResetClearSubmissions] = useState(false)
+  const [resetTeacherSearch, setResetTeacherSearch] = useState('')
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetConfirmAllText, setResetConfirmAllText] = useState('')
 
   const [selectedClassId, setSelectedClassId] = useState('')
   const [selectedSubjectId, setSelectedSubjectId] = useState('')
@@ -377,7 +388,70 @@ export default function AdminTimetable() {
     } finally { setSaving(false) }
   }, [slots, toast])
 
-  // ── Clear all ─────────────────────────────────────────────────────────────
+  // ── Reset Timetable handlers ──────────────────────────────────────────────
+  const handleOpenResetModal = () => {
+    setResetScope(selectedTeacherId ? 'teachers' : (isSystemAdmin ? 'department' : 'department'))
+    setResetDepartmentId(user?.department_id ? String(user.department_id) : (departments[0]?.id ? String(departments[0].id) : ''))
+    setResetSelectedTeacherIds(selectedTeacherId ? [Number(selectedTeacherId)] : [])
+    setResetClearSubmissions(false)
+    setResetTeacherSearch('')
+    setResetConfirmAllText('')
+    setResetModalOpen(true)
+  }
+
+  const handleExecuteReset = async () => {
+    if (resetScope === 'teachers' && resetSelectedTeacherIds.length === 0) {
+      toast('Please select at least one teacher to reset', 'error')
+      return
+    }
+    if (resetScope === 'department' && !resetDepartmentId) {
+      toast('Please select a department to reset', 'error')
+      return
+    }
+    if (resetScope === 'all' && resetConfirmAllText !== 'RESET ALL TIMETABLES') {
+      toast('Please type "RESET ALL TIMETABLES" to confirm', 'error')
+      return
+    }
+
+    setResetLoading(true)
+    try {
+      const payload = {
+        scope: resetScope,
+        department_id: resetScope === 'department' ? Number(resetDepartmentId) : null,
+        teacher_ids: resetScope === 'teachers' ? resetSelectedTeacherIds : null,
+        clear_submissions: resetClearSubmissions,
+      }
+      const res = await timetableApi.reset(payload)
+      toast(res.data?.message || 'Timetable reset successfully', 'success')
+      setResetModalOpen(false)
+
+      // Reload current teacher's timetable if affected
+      if (selectedTeacherId) {
+        const isAffected =
+          resetScope === 'all' ||
+          (resetScope === 'department' && selectedTeacher?.department_id === Number(resetDepartmentId)) ||
+          (resetScope === 'teachers' && resetSelectedTeacherIds.includes(Number(selectedTeacherId)))
+
+        if (isAffected) {
+          dispatch({ type: 'INIT', payload: [] })
+          setSelectedCell(null)
+        }
+      }
+    } catch (err) {
+      toast(err.response?.data?.detail || 'Failed to reset timetable', 'error')
+    } finally {
+      setResetLoading(false)
+    }
+  }
+
+  const filteredResetTeachers = teachers.filter(t => {
+    if (!isSystemAdmin && user?.department_id && t.department_id !== user.department_id) return false
+    if (!resetTeacherSearch) return true
+    const q = resetTeacherSearch.toLowerCase()
+    return (t.name || '').toLowerCase().includes(q) || (t.department || '').toLowerCase().includes(q)
+  })
+
+  // ── Clear all single teacher ───────────────────────────────────────────────
   const clearAll = useCallback(async () => {
     setConfirmClearOpen(false)
     setSaving(true)
@@ -610,16 +684,14 @@ export default function AdminTimetable() {
               ><IconRedo /></button>
             </div>
 
-            {slots.length > 0 && selectedTeacherId && (
-              <button
-                className="tt-btn tt-btn--danger"
-                onClick={() => setConfirmClearOpen(true)}
-                disabled={saving}
-                title="Clear all slots"
-              >
-                <IconTrash /> Clear all
-              </button>
-            )}
+            <button
+              className="tt-btn tt-btn--danger"
+              onClick={handleOpenResetModal}
+              disabled={saving || resetLoading}
+              title="Reset timetable (all teachers, by department, or selected teachers)"
+            >
+              <IconReset /> Reset Timetable
+            </button>
 
             {saving && (
               <span className="tt-saving">
@@ -1103,6 +1175,249 @@ export default function AdminTimetable() {
 
         </aside>
       </div>
+
+      {/* ── Granular Timetable Reset Modal ── */}
+      <Modal open={resetModalOpen} onClose={() => !resetLoading && setResetModalOpen(false)} title="Reset Timetable">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '13px', color: '#374151' }}>
+          <p style={{ margin: 0, fontSize: '12px', color: '#6B7280', lineHeight: '1.5' }}>
+            Choose the target scope to clear timetable slots. Scheduled periods will be cleared while teachers, classes, and subjects remain intact.
+          </p>
+
+          {/* Scope Selector Tabs */}
+          <div style={{ display: 'grid', gridTemplateColumns: isSystemAdmin ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)', gap: '6px', padding: '4px', background: '#F3F4F6', borderRadius: '10px' }}>
+            {isSystemAdmin && (
+              <button
+                type="button"
+                onClick={() => setResetScope('all')}
+                style={{
+                  padding: '8px 6px',
+                  borderRadius: '7px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  border: 0,
+                  cursor: 'pointer',
+                  background: resetScope === 'all' ? '#fff' : 'transparent',
+                  color: resetScope === 'all' ? '#DC2626' : '#4B5563',
+                  boxShadow: resetScope === 'all' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                🌐 All Teachers
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setResetScope('department')}
+              style={{
+                padding: '8px 6px',
+                borderRadius: '7px',
+                fontSize: '11px',
+                fontWeight: 700,
+                border: 0,
+                cursor: 'pointer',
+                background: resetScope === 'department' ? '#fff' : 'transparent',
+                color: resetScope === 'department' ? '#4F46E5' : '#4B5563',
+                boxShadow: resetScope === 'department' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              🏢 By Department
+            </button>
+            <button
+              type="button"
+              onClick={() => setResetScope('teachers')}
+              style={{
+                padding: '8px 6px',
+                borderRadius: '7px',
+                fontSize: '11px',
+                fontWeight: 700,
+                border: 0,
+                cursor: 'pointer',
+                background: resetScope === 'teachers' ? '#fff' : 'transparent',
+                color: resetScope === 'teachers' ? '#4F46E5' : '#4B5563',
+                boxShadow: resetScope === 'teachers' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              👨‍🏫 Selected Teacher(s)
+            </button>
+          </div>
+
+          {/* Scope = All */}
+          {resetScope === 'all' && (
+            <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '10px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px', color: '#991B1B', fontSize: '12px', lineHeight: '1.4' }}>
+                <IconWarning />
+                <div>
+                  <strong>Institution-wide Action:</strong> This will permanently delete <strong>all timetable slots across all departments and teachers</strong>.
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#7F1D1D', marginBottom: '4px' }}>
+                  Type <span style={{ fontFamily: 'monospace', background: '#FEE2E2', padding: '2px 4px', borderRadius: '4px' }}>RESET ALL TIMETABLES</span> to confirm:
+                </label>
+                <input
+                  type="text"
+                  value={resetConfirmAllText}
+                  onChange={e => setResetConfirmAllText(e.target.value)}
+                  placeholder="RESET ALL TIMETABLES"
+                  style={{ width: '100%', boxSizing: 'border-box', fontSize: '12px', padding: '8px 10px', borderRadius: '8px', border: '1px solid #F87171', background: '#fff' }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Scope = Department */}
+          {resetScope === 'department' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>Select Department</label>
+              <select
+                value={resetDepartmentId}
+                onChange={e => setResetDepartmentId(e.target.value)}
+                disabled={!isSystemAdmin && Boolean(user?.department_id)}
+                style={{ width: '100%', boxSizing: 'border-box', fontSize: '12px', padding: '8px 10px', borderRadius: '8px', border: '1px solid #D1D5DB', background: '#fff' }}
+              >
+                <option value="">Choose department…</option>
+                {departments.map(d => (
+                  <option key={d.id} value={d.id}>{d.name} ({d.code || 'Dept'})</option>
+                ))}
+              </select>
+              {resetDepartmentId && (
+                <p style={{ margin: 0, fontSize: '11px', color: '#6B7280' }}>
+                  Target: <strong>{teachers.filter(t => t.department_id === Number(resetDepartmentId)).length}</strong> teacher(s) in {departments.find(d => d.id === Number(resetDepartmentId))?.name || 'selected department'}.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Scope = Teachers */}
+          {resetScope === 'teachers' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>
+                  Select Teacher(s) ({resetSelectedTeacherIds.length} selected)
+                </label>
+                <div style={{ display: 'flex', gap: '6px', fontSize: '11px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const visibleIds = filteredResetTeachers.map(t => t.id)
+                      setResetSelectedTeacherIds(prev => Array.from(new Set([...prev, ...visibleIds])))
+                    }}
+                    style={{ border: 0, background: 'transparent', color: '#4F46E5', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                  >
+                    Select All
+                  </button>
+                  <span style={{ color: '#D1D5DB' }}>·</span>
+                  <button
+                    type="button"
+                    onClick={() => setResetSelectedTeacherIds([])}
+                    style={{ border: 0, background: 'transparent', color: '#6B7280', cursor: 'pointer', padding: 0 }}
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              {/* Teacher search inside modal */}
+              <input
+                type="text"
+                placeholder="Search teacher by name or department…"
+                value={resetTeacherSearch}
+                onChange={e => setResetTeacherSearch(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', fontSize: '12px', padding: '6px 10px', borderRadius: '8px', border: '1px solid #D1D5DB' }}
+              />
+
+              {/* Teacher List with Checkboxes */}
+              <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#FAFAFA', padding: '4px' }}>
+                {filteredResetTeachers.length === 0 ? (
+                  <p style={{ fontSize: '12px', color: '#9CA3AF', textAlign: 'center', padding: '16px 0', margin: 0 }}>No teachers found.</p>
+                ) : (
+                  filteredResetTeachers.map(t => {
+                    const isChecked = resetSelectedTeacherIds.includes(t.id)
+                    return (
+                      <label
+                        key={t.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '6px 8px',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          background: isChecked ? '#EEF2FF' : 'transparent',
+                          color: isChecked ? '#312E81' : '#374151',
+                          fontWeight: isChecked ? 600 : 400,
+                          marginBottom: '2px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              setResetSelectedTeacherIds(prev =>
+                                isChecked ? prev.filter(id => id !== t.id) : [...prev, t.id]
+                              )
+                            }}
+                            style={{ margin: 0 }}
+                          />
+                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</span>
+                        </div>
+                        {t.department && (
+                          <span style={{ fontSize: '10px', color: '#6B7280', background: '#fff', border: '1px solid #E5E7EB', padding: '1px 5px', borderRadius: '4px', flexShrink: 0 }}>
+                            {t.department}
+                          </span>
+                        )}
+                      </label>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Clear submissions option */}
+          <div style={{ paddingTop: '8px', borderTop: '1px solid #F3F4F6' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', fontSize: '11px', color: '#4B5563' }}>
+              <input
+                type="checkbox"
+                checked={resetClearSubmissions}
+                onChange={e => setResetClearSubmissions(e.target.checked)}
+                style={{ marginTop: '2px' }}
+              />
+              <span>Also clear pending and submitted timetable proposals for target(s).</span>
+            </label>
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '10px', borderTop: '1px solid #F3F4F6' }}>
+            <button
+              type="button"
+              className="tt-btn"
+              onClick={() => setResetModalOpen(false)}
+              disabled={resetLoading}
+              style={{ padding: '8px 14px' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="tt-btn tt-btn--danger"
+              onClick={handleExecuteReset}
+              disabled={
+                resetLoading ||
+                (resetScope === 'all' && resetConfirmAllText !== 'RESET ALL TIMETABLES') ||
+                (resetScope === 'department' && !resetDepartmentId) ||
+                (resetScope === 'teachers' && resetSelectedTeacherIds.length === 0)
+              }
+              style={{ padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              {resetLoading ? 'Resetting…' : 'Confirm Reset'}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={confirmClearOpen} onClose={() => setConfirmClearOpen(false)} title="Clear Timetable">
         <div style={{ padding: '4px' }}>

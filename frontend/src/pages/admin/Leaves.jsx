@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { leavesApi, adminApi } from '../../api/services'
+import { leavesApi, adminApi, departmentsApi } from '../../api/services'
 import { Spinner, StatusBadge, Modal, EmptyState, AssignmentTypeBadge } from '../../components/ui'
 import { SwapIcon, LockIcon, UnlockIcon, UndoIcon, SparklesIcon, AlertTriangleIcon } from '../../components/icons'
 
@@ -38,6 +38,7 @@ function RecommendationRow({ rec, onAssign, disabled }) {
 
 export default function AdminLeaves() {
   const [leaves, setLeaves] = useState([])
+  const [allDepartments, setAllDepartments] = useState([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(new Set()) // Stores consolidated group keys
   const [subModal, setSubModal] = useState(null) // { group, activeReq, recommendations, others }
@@ -98,6 +99,7 @@ export default function AdminLeaves() {
 
   const load = () => {
     setLoading(true)
+    departmentsApi.list(true).then(r => setAllDepartments(r.data || [])).catch(() => {})
     return leavesApi.all()
       .then(r => {
         setLeaves(r.data)
@@ -437,10 +439,22 @@ export default function AdminLeaves() {
       (!candidateFilters.search || `${name} ${department}`.toLowerCase().includes(candidateFilters.search.toLowerCase()))
   }
 
-  const candidateDepartments = subModal ? [...new Set([
-    ...subModal.recommendations.map(r => r.teacher.department),
-    ...subModal.others.map(t => t.department),
-  ].filter(Boolean))].sort() : []
+  const candidateDepartments = useMemo(() => {
+    if (!candidateFilters.crossDepartment) {
+      if (!subModal) return []
+      const names = []
+      subModal.recommendations.forEach(r => { if (r.teacher?.department) names.push(r.teacher.department) })
+      subModal.others.forEach(t => { if (t?.department) names.push(t.department) })
+      if (subModal.group?.teacher?.department) names.push(subModal.group.teacher.department)
+      return [...new Set(names.filter(Boolean))].sort()
+    }
+    const names = allDepartments.map(d => d.name)
+    if (subModal) {
+      subModal.recommendations.forEach(r => { if (r.teacher?.department) names.push(r.teacher.department) })
+      subModal.others.forEach(t => { if (t?.department) names.push(t.department) })
+    }
+    return [...new Set(names.filter(Boolean))].sort()
+  }, [allDepartments, subModal, candidateFilters.crossDepartment])
 
   return (
     <div className="space-y-6">
@@ -650,7 +664,11 @@ export default function AdminLeaves() {
               </div>
               <div className="flex flex-wrap gap-3 items-center">
                 <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer">
-                  <input type="checkbox" checked={candidateFilters.crossDepartment} onChange={e => applyCandidateFilters({ ...candidateFilters, crossDepartment: e.target.checked })} />
+                  <input
+                    type="checkbox"
+                    checked={candidateFilters.crossDepartment}
+                    onChange={e => applyCandidateFilters({ ...candidateFilters, crossDepartment: e.target.checked, department: !e.target.checked ? '' : candidateFilters.department })}
+                  />
                   Include other departments
                 </label>
                 <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer">

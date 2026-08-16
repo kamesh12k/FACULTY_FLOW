@@ -3,9 +3,9 @@ from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException
 
 from app.models.timetable import TimetableSlot
-from app.models.user import User
+from app.models.user import User, Role
 from app.models.class_ import Class
-from app.schemas.timetable import TimetableSlotCreate
+from app.schemas.timetable import TimetableSlotCreate, TimetableResetRequest
 
 
 def _slot_summary(slot: TimetableSlot) -> dict:
@@ -182,3 +182,154 @@ def delete_by_teacher(teacher_id: int, db: Session, tenant_department_id: int | 
             raise HTTPException(status_code=403, detail="Access denied")
     db.query(TimetableSlot).filter(TimetableSlot.teacher_id == teacher_id).delete()
     db.commit()
+
+
+def reset_timetable(
+    data: TimetableResetRequest,
+    db: Session,
+    actor_user: User,
+    tenant_department_id: int | None = None,
+) -> dict:
+    """
+    Granularly reset timetable slots with 3 supported scopes:
+      1. 'all'        — all teachers across the institution (System Admin only)
+      2. 'department' — all teachers in a specific department
+      3. 'teachers'   — one or more selected teachers
+
+    Optionally also clears pending/approved timetable submissions for the targets.
+    Logs every reset to the system audit log.
+    """
+    from app.models.department import Department
+    from app.models.timetable_submission import TimetableSubmission
+    from app.services.admin_service import log_audit_event
+
+    scope = data.scope.lower() if data.scope else ""
+    deleted_slots_count = 0
+    deleted_subs_count = 0
+    target_summary = ""
+
+    is_system_admin = actor_user.role == Role.system_admin
+    effective_dept_id = None if is_system_admin else (tenant_department_id or actor_user.department_id)
+
+    if scope == "all":
+        # Global institution-wide reset
+        if not is_system_admin:
+            raise HTTPException(
+                status_code=403,
+                detail="Only System Administrators can reset the timetable institution-wide.",
+            )
+        slots_q = db.query(TimetableSlot)
+        subs_q = db.query(TimetableSubmission)
+        deleted_slots_count = slots_q.count()
+        deleted_subs_count = subs_q.count() if data.clear_submissions else 0
+
+        slots_q.delete(synchronize_session=False)
+        if data.clear_submissions:
+            subs_q.delete(synchronize_session=False)
+
+        target_summary = "All teachers (institution-wide)"
+
+    elif scope == "department":
+        if not data.department_id:
+            raise HTTPException(
+                status_code=400,
+                detail="department_id is required when scope is 'department'.",
+            )
+        if effective_dept_id is not None and effective_dept_id != data.department_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only reset the timetable for your assigned department.",
+            )
+
+        dept = db.query(Department).filter(Department.id == data.department_id).first()
+        if not dept:
+            raise HTTPException(status_code=404, detail="Department not found.")
+
+        dept_teachers = db.query(User).filter(User.department_id == data.department_id).all()
+        dept_teacher_ids = [t.id for t in dept_teachers]
+        dept_class_ids = [c.id for c in db.query(Class.id).filter(Class.department_id == data.department_id).all()]
+
+        slots_q = db.query(TimetableSlot).filter(
+            (TimetableSlot.teacher_id.in_(dept_teacher_ids)) | (TimetableSlot.class_id.in_(dept_class_ids))
+        ) if (dept_teacher_ids or dept_class_ids) else db.query(TimetableSlot).filter(False)
+
+        subs_q = db.query(TimetableSubmission).filter(
+            (TimetableSubmission.teacher_id.in_(dept_teacher_ids)) | (TimetableSubmission.class_id.in_(dept_class_ids))
+        ) if (dept_teacher_ids or dept_class_ids) else db.query(TimetableSubmission).filter(False)
+
+        deleted_slots_count = slots_q.count()
+        deleted_subs_count = subs_q.count() if data.clear_submissions else 0
+
+        slots_q.delete(synchronize_session=False)
+        if data.clear_submissions:
+            subs_q.delete(synchronize_session=False)
+
+        target_summary = f"Department '{dept.name}' ({len(dept_teacher_ids)} teachers)"
+
+    elif scope == "teachers":
+        if not data.teacher_ids or len(data.teacher_ids) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="teacher_ids list must contain at least one teacher ID.",
+            )
+
+        teachers = db.query(User).filter(User.id.in_(data.teacher_ids)).all()
+        if not teachers:
+            raise HTTPException(status_code=404, detail="No matching teachers found.")
+
+        if effective_dept_id is not None:
+            non_dept = [t for t in teachers if t.department_id != effective_dept_id]
+            if non_dept:
+                raise HTTPException(
+                    status_code=403,
+                    detail="One or more selected teachers do not belong to your department.",
+                )
+
+        target_ids = [t.id for t in teachers]
+        slots_q = db.query(TimetableSlot).filter(TimetableSlot.teacher_id.in_(target_ids))
+        subs_q = db.query(TimetableSubmission).filter(TimetableSubmission.teacher_id.in_(target_ids))
+
+        deleted_slots_count = slots_q.count()
+        deleted_subs_count = subs_q.count() if data.clear_submissions else 0
+
+        slots_q.delete(synchronize_session=False)
+        if data.clear_submissions:
+            subs_q.delete(synchronize_session=False)
+
+        sample_names = ", ".join(t.name for t in teachers[:3])
+        if len(teachers) > 3:
+            sample_names += f" and {len(teachers) - 3} more"
+        target_summary = f"{len(teachers)} teacher(s) [{sample_names}]"
+
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid scope '{data.scope}'. Must be 'all', 'department', or 'teachers'.",
+        )
+
+    db.commit()
+
+    # Audit logging
+    log_audit_event(
+        db,
+        actor_user_id=actor_user.id,
+        action="timetable.reset",
+        target_type="timetable",
+        details={
+            "scope": scope,
+            "deleted_slots_count": deleted_slots_count,
+            "deleted_submissions_count": deleted_subs_count,
+            "target_summary": target_summary,
+            "department_id": data.department_id,
+            "teacher_ids": data.teacher_ids,
+        },
+    )
+    db.commit()
+
+    return {
+        "deleted_slots_count": deleted_slots_count,
+        "deleted_submissions_count": deleted_subs_count,
+        "scope": scope,
+        "target_summary": target_summary,
+        "message": f"Successfully reset timetable for {target_summary}. {deleted_slots_count} slot(s) cleared.",
+    }

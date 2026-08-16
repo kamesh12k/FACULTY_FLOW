@@ -83,3 +83,24 @@ class TimetableSubmissionOut(BaseModel):
     reviewed_at: datetime | None
 
     model_config = {"from_attributes": True}
+
+
+class TimetableResetScope(str):
+    all = "all"
+    department = "department"
+    teachers = "teachers"
+
+
+class TimetableResetRequest(BaseModel):
+    scope: str  # "all" | "department" | "teachers"
+    department_id: int | None = None
+    teacher_ids: list[int] | None = None
+    clear_submissions: bool = False
+
+
+class TimetableResetResponse(BaseModel):
+    deleted_slots_count: int
+    deleted_submissions_count: int = 0
+    scope: str
+    target_summary: str
+    message: str

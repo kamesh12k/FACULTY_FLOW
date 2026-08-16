@@ -46,7 +46,13 @@ def teacher_get_leave_requests(db: Session, teacher_id: int) -> list[LeaveReques
         .all()
     )
 
-def teacher_get_candidates(db: Session, leave_id: int, teacher_id: int) -> list:
+def teacher_get_candidates(
+    db: Session,
+    leave_id: int,
+    teacher_id: int,
+    include_cross_department: bool = False,
+    only_handles_class: bool = False,
+) -> list:
     check_teacher_self_management_allowed(db, teacher_id)
     # Verify leave request belongs to teacher and is approved
     leave = db.query(LeaveRequest).filter(
@@ -58,10 +64,63 @@ def teacher_get_candidates(db: Session, leave_id: int, teacher_id: int) -> list:
     if leave.status != LeaveStatus.approved:
         raise HTTPException(status_code=400, detail="Leave request is not approved yet")
     
-    cross = substitution_service.cross_department_substitutions_enabled(db, leave.teacher.department_id)
-    return substitution_service.get_ranked_recommendations(db, leave_id, tenant_department_id=leave.teacher.department_id, include_cross_department=cross)
+    allow_cross = include_cross_department and substitution_service.cross_department_substitutions_enabled(db, leave.teacher.department_id)
+    return substitution_service.get_ranked_recommendations(
+        db,
+        leave_id,
+        limit=100,
+        tenant_department_id=leave.teacher.department_id,
+        include_cross_department=allow_cross,
+        only_handles_class=only_handles_class,
+    )
 
-def teacher_assign_substitute(db: Session, leave_id: int, substitute_id: int, teacher_id: int) -> AlterAssignment:
+
+def teacher_get_free_teachers(
+    db: Session,
+    leave_id: int,
+    teacher_id: int,
+    include_cross_department: bool = False,
+    only_handles_class: bool = False,
+) -> list:
+    check_teacher_self_management_allowed(db, teacher_id)
+    leave = db.query(LeaveRequest).filter(
+        LeaveRequest.id == leave_id,
+        LeaveRequest.teacher_id == teacher_id
+    ).first()
+    if not leave:
+        raise HTTPException(status_code=404, detail="Leave request not found or does not belong to you")
+    if leave.status != LeaveStatus.approved:
+        raise HTTPException(status_code=400, detail="Leave request is not approved yet")
+
+    if include_cross_department:
+        if not substitution_service.cross_department_substitutions_enabled(db, leave.teacher.department_id):
+            raise HTTPException(status_code=403, detail="Cross-department substitutions are disabled for this department")
+        candidates = leave_service.detect_free_teachers(leave.day_order, leave.period_number, leave.teacher_id, db, None)
+    else:
+        candidates = leave_service.detect_free_teachers(leave.day_order, leave.period_number, leave.teacher_id, db, leave.teacher.department_id)
+
+    if only_handles_class:
+        from app.models.timetable import TimetableSlot
+        affected = db.query(TimetableSlot).filter(
+            TimetableSlot.teacher_id == leave.teacher_id,
+            TimetableSlot.day_order == leave.day_order,
+            TimetableSlot.period_number == leave.period_number
+        ).first()
+        if not affected:
+            return []
+        teacher_ids = {row[0] for row in db.query(TimetableSlot.teacher_id).filter(TimetableSlot.class_id == affected.class_id).all()}
+        candidates = [c for c in candidates if c.id in teacher_ids]
+
+    return candidates
+
+
+def teacher_assign_substitute(
+    db: Session,
+    leave_id: int,
+    substitute_id: int,
+    teacher_id: int,
+    include_cross_department: bool = False,
+) -> AlterAssignment:
     check_teacher_self_management_allowed(db, teacher_id)
     
     leave = db.query(LeaveRequest).filter(
@@ -95,10 +154,17 @@ def teacher_assign_substitute(db: Session, leave_id: int, substitute_id: int, te
         compatibility_score=best.score,
         actor_id=teacher_id,
         tenant_department_id=leave.teacher.department_id,
-        include_cross_department=substitute.department_id != leave.teacher.department_id,
+        include_cross_department=include_cross_department or (substitute.department_id != leave.teacher.department_id),
     )
 
-def teacher_override_substitute(db: Session, leave_id: int, substitute_id: int, teacher_id: int) -> AlterAssignment:
+
+def teacher_override_substitute(
+    db: Session,
+    leave_id: int,
+    substitute_id: int,
+    teacher_id: int,
+    include_cross_department: bool = False,
+) -> AlterAssignment:
     check_teacher_self_management_allowed(db, teacher_id)
     
     leave = db.query(LeaveRequest).filter(
@@ -131,8 +197,32 @@ def teacher_override_substitute(db: Session, leave_id: int, substitute_id: int, 
         actor=teacher,
         db=db,
         tenant_department_id=leave.teacher.department_id,
-        include_cross_department=substitute.department_id != leave.teacher.department_id,
+        include_cross_department=include_cross_department or (substitute.department_id != leave.teacher.department_id),
     )
+
+
+def teacher_undo_assignment(db: Session, leave_id: int, teacher_id: int) -> LeaveRequest:
+    check_teacher_self_management_allowed(db, teacher_id)
+    leave = db.query(LeaveRequest).filter(
+        LeaveRequest.id == leave_id,
+        LeaveRequest.teacher_id == teacher_id
+    ).first()
+    if not leave:
+        raise HTTPException(status_code=404, detail="Leave request not found or does not belong to you")
+    teacher = db.query(User).filter(User.id == teacher_id).first()
+    return leave_service.undo_assignment(leave_id, teacher, db, leave.teacher.department_id)
+
+
+def teacher_set_lock(db: Session, leave_id: int, locked: bool, teacher_id: int) -> AlterAssignment:
+    check_teacher_self_management_allowed(db, teacher_id)
+    leave = db.query(LeaveRequest).filter(
+        LeaveRequest.id == leave_id,
+        LeaveRequest.teacher_id == teacher_id
+    ).first()
+    if not leave:
+        raise HTTPException(status_code=404, detail="Leave request not found or does not belong to you")
+    teacher = db.query(User).filter(User.id == teacher_id).first()
+    return leave_service.set_assignment_lock(leave_id, locked, teacher, db, leave.teacher.department_id)
 
 
 def teacher_clear_assignments(db: Session, teacher_id: int) -> None:
