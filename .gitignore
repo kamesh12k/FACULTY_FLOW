@@ -31,3 +31,4 @@ full-pytest-*.txt
 
 # Scratch files
 scratch/
+logs/

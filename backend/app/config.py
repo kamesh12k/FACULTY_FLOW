@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     FRONTEND_ORIGIN: List[str] = ["http://localhost:5173"]
     MAX_SECONDARY_ADMINS: int = 3
 
+    # ---------- Database Connection Pool ----------
+    DB_POOL_SIZE: int = 50
+    DB_MAX_OVERFLOW: int = 30
+    DB_POOL_TIMEOUT: int = 30
+    DB_POOL_RECYCLE: int = 300
+
     # ---------- Backup & Restore ----------
     # Directory for backup files (relative to backend root, or absolute).
     BACKUP_STORAGE_PATH: str = "./backups"
