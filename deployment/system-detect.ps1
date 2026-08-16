@@ -152,14 +152,13 @@ function Get-FaflowToolLocations {
     if (Get-Command psql -ErrorAction SilentlyContinue) {
         $psqlPath = (Get-Command psql).Source
     } else {
-        $commonPsql = @(
-            "$env:ProgramFiles\PostgreSQL\17\bin\psql.exe",
-            "$env:ProgramFiles\PostgreSQL\16\bin\psql.exe",
-            "$env:ProgramFiles\PostgreSQL\15\bin\psql.exe",
-            "$env:ProgramFiles\PostgreSQL\14\bin\psql.exe",
-            "${env:ProgramFiles(x86)}\PostgreSQL\16\bin\psql.exe"
-        )
-        foreach ($p in $commonPsql) { if (Test-Path $p) { $psqlPath = $p; break } }
+        $pgBins = Get-ChildItem -Path @("$env:ProgramFiles\PostgreSQL", "${env:ProgramFiles(x86)}\PostgreSQL") -Recurse -Filter "psql.exe" -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -notmatch "pgAdmin" } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+        if ($pgBins) {
+            $psqlPath = $pgBins.FullName
+        }
     }
     $tools["PostgreSQL"] = $psqlPath
     
