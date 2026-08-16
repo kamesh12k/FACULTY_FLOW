@@ -4,7 +4,7 @@ import { avatarColors, initialsOf, getTeacherStatus, formatRelativeTime } from '
 function Avatar({ name }) {
   const c = avatarColors(name)
   return (
-    <div className={`h-9 w-9 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${c.bg} ${c.text} shadow-xs`}>
+    <div className={`h-6 w-6 shrink-0 rounded-full flex items-center justify-center text-[9px] font-bold ${c.bg} ${c.text}`}>
       {initialsOf(name)}
     </div>
   )
@@ -12,38 +12,50 @@ function Avatar({ name }) {
 
 function BalanceChip({ value }) {
   if (value > 0) return (
-    <span className="inline-flex items-center gap-1 font-mono font-extrabold text-xs px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-xs">
+    <span className="inline-flex items-center font-mono font-bold text-xs px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
       +{value}
     </span>
   )
   if (value < 0) return (
-    <span className="inline-flex items-center gap-1 font-mono font-extrabold text-xs px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200/80 shadow-xs">
+    <span className="inline-flex items-center font-mono font-bold text-xs px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200">
       {value}
     </span>
   )
   return (
-    <span className="inline-flex items-center gap-1 font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-slate-100 text-slate-500 border border-slate-200/80">
+    <span className="inline-flex items-center font-mono font-bold text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
       0
     </span>
   )
 }
 
-function StatusBadge({ balance }) {
+function StatusDot({ balance }) {
   const s = getTeacherStatus(balance)
+  let dotColor = 'bg-slate-400'
+  if (s.label === 'Excellent' || s.label === 'Good') dotColor = 'bg-emerald-500'
+  else if (s.label === 'Average') dotColor = 'bg-sky-500'
+  else if (s.label === 'Needs Attention') dotColor = 'bg-amber-500'
+  else if (s.label === 'Critical') dotColor = 'bg-rose-500'
+
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${s.bgClass} ${s.textClass}`}>
+    <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 font-medium">
+      <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
       {s.label}
     </span>
   )
 }
 
 const SortIcon = ({ active, dir }) => (
-  <span className={`ml-1 text-[10px] ${active ? 'text-indigo-600 font-bold' : 'text-slate-300'}`}>
+  <span className={`ml-1 text-[10px] ${active ? 'text-primary-600 font-bold' : 'text-slate-300'}`}>
     {active ? (dir === 'asc' ? '↑' : '↓') : '↕'}
   </span>
 )
 
-export default function BalanceTable({ report, transactions, onViewHistory, onAdjust }) {
+export default function BalanceTable({
+  report = [],
+  transactions = [],
+  onViewHistory,
+  onAdjust,
+}) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all') // all | positive | negative | flagged
   const [selectedDept, setSelectedDept] = useState('')
@@ -54,26 +66,65 @@ export default function BalanceTable({ report, transactions, onViewHistory, onAd
     return Array.from(new Set(report.map(r => r.department).filter(Boolean))).sort()
   }, [report])
 
-  const txByTeacher = useMemo(() => {
-    const m = {}
-    for (const tx of transactions) {
-      if (!m[tx.teacher_id]) m[tx.teacher_id] = []
-      m[tx.teacher_id].push(tx)
+  // Aggregate teacher-level transactional stats
+  const statsByTeacher = useMemo(() => {
+    const map = {}
+    for (const r of report) {
+      map[r.teacher_id] = {
+        earned: 0,
+        deducted: 0,
+        substitutions: 0,
+        lastActivity: null,
+      }
     }
-    return m
-  }, [transactions])
+
+    for (const tx of transactions) {
+      if (!map[tx.teacher_id]) {
+        map[tx.teacher_id] = {
+          earned: 0,
+          deducted: 0,
+          substitutions: 0,
+          lastActivity: null,
+        }
+      }
+
+      const entry = map[tx.teacher_id]
+      const change = Number(tx.change) || 0
+      const cat = (tx.category || '').toLowerCase()
+
+      if (change > 0) {
+        entry.earned += change
+        if (cat.includes('substitut')) entry.substitutions += 1
+      } else {
+        entry.deducted += Math.abs(change)
+      }
+
+      if (!entry.lastActivity || new Date(tx.created_at) > new Date(entry.lastActivity)) {
+        entry.lastActivity = tx.created_at
+      }
+    }
+
+    return map
+  }, [report, transactions])
 
   const rows = useMemo(() => {
     return report.map((r) => {
-      const teacherTxs = txByTeacher[r.teacher_id] || []
-      const lastTx = teacherTxs[0]
+      const stats = statsByTeacher[r.teacher_id] || {
+        earned: 0,
+        deducted: 0,
+        substitutions: 0,
+        lastActivity: null,
+      }
+
       return {
         ...r,
-        txCount: teacherTxs.length,
-        lastActivity: lastTx ? lastTx.created_at : null,
+        earned: stats.earned,
+        deducted: stats.deducted,
+        substitutions: stats.substitutions,
+        lastActivity: stats.lastActivity,
       }
     })
-  }, [report, txByTeacher])
+  }, [report, statsByTeacher])
 
   const filtered = useMemo(() => {
     let out = rows
@@ -87,19 +138,22 @@ export default function BalanceTable({ report, transactions, onViewHistory, onAd
     if (filter === 'positive') out = out.filter(r => r.balance > 0)
     else if (filter === 'negative') out = out.filter(r => r.balance < 0)
     else if (filter === 'flagged') {
-      const status = getTeacherStatus
       out = out.filter(r => {
-        const s = status(r.balance)
+        const s = getTeacherStatus(r.balance)
         return s.label === 'Critical' || s.label === 'Needs Attention'
       })
     }
+
     return [...out].sort((a, b) => {
       let av, bv
       if (sortKey === 'balance') { av = a.balance; bv = b.balance }
       else if (sortKey === 'name') { av = a.name; bv = b.name }
-      else if (sortKey === 'txCount') { av = a.txCount; bv = b.txCount }
-      else if (sortKey === 'lastActivity') { av = a.lastActivity ? new Date(a.lastActivity) : 0; bv = b.lastActivity ? new Date(b.lastActivity) : 0 }
+      else if (sortKey === 'earned') { av = a.earned; bv = b.earned }
+      else if (sortKey === 'deducted') { av = a.deducted; bv = b.deducted }
+      else if (sortKey === 'substitutions') { av = a.substitutions; bv = b.substitutions }
+      else if (sortKey === 'lastActivity') { av = a.lastActivity ? new Date(a.lastActivity).getTime() : 0; bv = b.lastActivity ? new Date(b.lastActivity).getTime() : 0 }
       else { av = a.balance; bv = b.balance }
+
       if (av < bv) return sortDir === 'asc' ? -1 : 1
       if (av > bv) return sortDir === 'asc' ? 1 : -1
       return 0
@@ -111,73 +165,89 @@ export default function BalanceTable({ report, transactions, onViewHistory, onAd
     else { setSortKey(key); setSortDir('desc') }
   }
 
-  const TH = ({ label, sortable, col }) => (
+  const resetFilters = () => {
+    setSearch('')
+    setFilter('all')
+    setSelectedDept('')
+  }
+
+  const TH = ({ label, sortable, col, className = '' }) => (
     <th
-      className={`px-4 py-3.5 text-left text-[11px] font-extrabold text-slate-500 uppercase tracking-wider whitespace-nowrap ${sortable ? 'cursor-pointer hover:text-slate-800 select-none' : ''}`}
+      className={`px-3 py-2 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider ${sortable ? 'cursor-pointer hover:text-slate-900 select-none' : ''} ${className}`}
       onClick={sortable ? () => toggleSort(col) : undefined}
     >
-      {label}
-      {sortable && <SortIcon active={sortKey === col} dir={sortDir} />}
+      <span className="inline-flex items-center">
+        {label}
+        {sortable && <SortIcon active={sortKey === col} dir={sortDir} />}
+      </span>
     </th>
   )
 
   return (
-    <div className="card overflow-hidden border border-slate-200/80 shadow-xs bg-white rounded-2xl">
-      {/* Header & Controls Bar */}
-      <div className="p-5 border-b border-slate-150 bg-gradient-to-r from-slate-50/80 via-white to-slate-50/30">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-              <span>💳</span> Faculty Credit Balance Matrix
-            </h2>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Showing {filtered.length} of {report.length} faculty members
-            </p>
+    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      {/* Controls Bar */}
+      <div className="p-3 sm:p-3.5 border-b border-slate-100 bg-slate-50/50">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2">
+            <h3 className="text-xs font-bold text-slate-900">Faculty Credit Overview</h3>
+            <span className="text-[10px] font-semibold text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
+              {filtered.length} faculty
+            </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Department Filter */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Search Input */}
+            <div className="relative min-w-[160px]">
+              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search faculty..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-7 pr-6 py-1 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 text-xs"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Department Dropdown */}
             {departments.length > 0 && (
               <select
-                className="input py-1.5 px-3 text-xs font-semibold bg-white border-slate-200"
+                className="py-1 px-2 text-xs font-medium bg-white border border-slate-200 rounded-lg focus:outline-none text-slate-700 cursor-pointer"
                 value={selectedDept}
                 onChange={e => setSelectedDept(e.target.value)}
               >
-                <option value="">All Departments</option>
+                <option value="">All Depts</option>
                 {departments.map(d => (
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>
             )}
 
-            {/* Search */}
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search teacher or dept..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-xs font-medium border border-slate-200 rounded-xl w-48 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white"
-              />
-              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-
             {/* Filter Tabs */}
-            <div className="flex flex-wrap rounded-xl border border-slate-200 overflow-hidden text-[11px] font-bold bg-slate-100/60 p-0.5 max-w-full">
+            <div className="flex rounded-lg border border-slate-200 bg-slate-100/80 p-0.5 text-xs font-semibold">
               {[
                 ['all', 'All'],
                 ['positive', 'Positive (+)'],
                 ['negative', 'Negative (-)'],
-                ['flagged', 'Attention Required'],
+                ['flagged', 'Attention'],
               ].map(([val, label]) => (
                 <button
                   key={val}
+                  type="button"
                   onClick={() => setFilter(val)}
-                  className={`px-3 py-1 rounded-lg transition-all ${
+                  className={`px-2 py-0.5 rounded text-[11px] transition-all cursor-pointer ${
                     filter === val
-                      ? 'bg-white text-indigo-700 font-extrabold shadow-xs'
+                      ? 'bg-white text-slate-900 font-bold shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -189,71 +259,96 @@ export default function BalanceTable({ report, transactions, onViewHistory, onAd
         </div>
       </div>
 
-      {/* Table Content */}
+      {/* Compact Responsive Table — No horizontal scrollbars */}
       {filtered.length === 0 ? (
-        <div className="py-16 text-center text-slate-400">
-          <p className="text-sm font-bold text-slate-600">No matching faculty members found</p>
-          <p className="text-xs text-slate-400 mt-1">Try adjusting your search query or department filter.</p>
+        <div className="py-8 text-center text-slate-400 space-y-1">
+          <p className="text-xs font-bold text-slate-700">No matching faculty records found</p>
+          {(search || filter !== 'all' || selectedDept) && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="text-[11px] font-bold text-primary-600 hover:text-primary-700 underline cursor-pointer"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       ) : (
-        <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-          <table className="w-full text-sm text-left" style={{ minWidth: '700px' }}>
-            <thead className="bg-slate-50 border-b border-slate-150 text-slate-500">
+        <div className="w-full">
+          <table className="w-full text-xs text-left border-collapse">
+            <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 select-none">
               <tr>
-                <TH label="#" />
-                <TH label="Faculty Member" sortable col="name" />
-                <TH label="Current Balance" sortable col="balance" />
-                <TH label="Health Status" />
-                <TH label="Last Activity" sortable col="lastActivity" />
-                <TH label="Tx Count" sortable col="txCount" />
-                <TH label="Quick Actions" />
+                <TH label="Faculty Member" sortable col="name" className="pl-4" />
+                <TH label="Net Balance" sortable col="balance" className="text-center" />
+                <TH label="Earned / Deducted" sortable col="earned" className="hidden sm:table-cell" />
+                <TH label="Substitutions" sortable col="substitutions" className="text-center hidden md:table-cell" />
+                <TH label="Last Activity" sortable col="lastActivity" className="hidden lg:table-cell" />
+                <th className="px-3 py-2 text-right pr-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((r, idx) => (
-                <tr key={r.teacher_id} className="hover:bg-slate-50/80 transition-colors duration-150">
-                  <td className="px-4 py-4 text-xs font-mono font-bold text-slate-400">
-                    #{idx + 1}
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-3">
+              {filtered.map((r) => (
+                <tr key={r.teacher_id} className="hover:bg-slate-50/70 transition-colors">
+                  {/* Faculty Member & Status */}
+                  <td className="px-3 py-2 pl-4">
+                    <div className="flex items-center gap-2">
                       <Avatar name={r.name} />
-                      <div>
-                        <p className="font-bold text-slate-900 text-sm leading-snug">{r.name}</p>
-                        <span className="inline-block text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded mt-0.5">
-                          {r.department || 'General Faculty'}
-                        </span>
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-900 text-xs truncate leading-tight">{r.name}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] text-slate-400 truncate">{r.department || 'Faculty'}</span>
+                          <span className="text-slate-300 text-[10px]">•</span>
+                          <StatusDot balance={r.balance} />
+                        </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-4">
+
+                  {/* Net Balance */}
+                  <td className="px-3 py-2 text-center whitespace-nowrap">
                     <BalanceChip value={r.balance} />
                   </td>
-                  <td className="px-4 py-4">
-                    <StatusBadge balance={r.balance} />
+
+                  {/* Earned / Deducted */}
+                  <td className="px-3 py-2 whitespace-nowrap hidden sm:table-cell">
+                    <span className="font-mono font-bold text-emerald-700">+{r.earned}</span>
+                    <span className="text-slate-300 mx-1">/</span>
+                    <span className="font-mono font-bold text-rose-700">{r.deducted > 0 ? `-${r.deducted}` : '0'}</span>
                   </td>
-                  <td className="px-4 py-4 text-xs text-slate-500 font-medium">
-                    {r.lastActivity ? formatRelativeTime(r.lastActivity) : 'No activity recorded'}
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md">
-                      {r.txCount}
+
+                  {/* Substitutions */}
+                  <td className="px-3 py-2 text-center whitespace-nowrap hidden md:table-cell">
+                    <span className="text-[11px] font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">
+                      {r.substitutions}
                     </span>
                   </td>
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-2">
+
+                  {/* Last Activity */}
+                  <td className="px-3 py-2 text-slate-500 text-[11px] whitespace-nowrap hidden lg:table-cell">
+                    {r.lastActivity ? formatRelativeTime(r.lastActivity) : '—'}
+                  </td>
+
+                  {/* Quick Actions */}
+                  <td className="px-3 py-2 text-right pr-4 whitespace-nowrap">
+                    <div className="inline-flex items-center gap-1.5">
                       <button
+                        type="button"
                         onClick={() => onViewHistory(r)}
-                        className="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition-colors"
+                        className="text-[11px] font-bold text-primary-700 hover:text-primary-800 bg-primary-50 hover:bg-primary-100 px-2 py-0.5 rounded transition border border-primary-200 shadow-2xs cursor-pointer"
                       >
-                        History
+                        Review
                       </button>
-                      <button
-                        onClick={() => onAdjust(r)}
-                        className="text-xs font-bold text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-2.5 py-1 rounded-lg transition-colors"
-                      >
-                        Adjust
-                      </button>
+                      {onAdjust && (
+                        <button
+                          type="button"
+                          onClick={() => onAdjust(r)}
+                          className="text-[11px] font-semibold text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 px-1.5 py-0.5 rounded transition border border-slate-200 shadow-2xs cursor-pointer"
+                        >
+                          Adjust
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

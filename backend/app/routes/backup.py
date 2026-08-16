@@ -23,8 +23,8 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.core.dependencies import require_system_admin
-from app.models.user import User
+from app.core.dependencies import require_admin
+from app.models.user import User, Role
 from app.schemas.backup import (
     BackupMetaOut,
     BackupSummaryOut,
@@ -38,13 +38,21 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin/backups", tags=["Backup & Restore"])
 
 
+def _get_dept_scope(admin: User) -> tuple[int | None, str | None]:
+    """Returns (department_id, department_name) if admin is a Dept HOD, else (None, None) for System Admin."""
+    if admin.role == Role.system_admin:
+        return None, None
+    return admin.department_id, admin.department
+
+
 @router.post("/import", response_model=BackupMetaOut, status_code=201)
 async def import_backup_file(
     file: UploadFile = File(...),
-    admin: User = Depends(require_system_admin),
+    admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """Import a backup JSON file from local storage. System Admin only."""
+    """Import a backup JSON file from local storage. Department HOD & System Admin."""
+    dept_id, dept_name = _get_dept_scope(admin)
     try:
         file_bytes = await file.read()
         meta = backup_service.import_backup(
@@ -53,6 +61,8 @@ async def import_backup_file(
             actor_user_id=admin.id,
             actor_name=admin.username or admin.name,
             db=db,
+            tenant_department_id=dept_id,
+            tenant_department_name=dept_name,
         )
     except ValueError as e:
         raise HTTPException(
@@ -69,15 +79,18 @@ async def import_backup_file(
 
 @router.post("", response_model=BackupMetaOut, status_code=201)
 def create_backup(
-    admin: User = Depends(require_system_admin),
+    admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """Create a full database backup. System Admin only."""
+    """Create a backup. Scoped to the department for Department HODs; full database for System Admins."""
+    dept_id, dept_name = _get_dept_scope(admin)
     try:
         meta = backup_service.create_backup(
             db=db,
             actor_user_id=admin.id,
             actor_name=admin.username or admin.name,
+            tenant_department_id=dept_id,
+            tenant_department_name=dept_name,
         )
     except RuntimeError as e:
         raise HTTPException(
@@ -89,27 +102,30 @@ def create_backup(
 
 @router.get("/summary", response_model=BackupSummaryOut)
 def get_summary(
-    _admin: User = Depends(require_system_admin),
+    admin: User = Depends(require_admin),
 ):
-    """Return aggregate backup statistics. System Admin only."""
-    return backup_service.get_backup_summary()
+    """Return aggregate backup statistics for the current department (or system)."""
+    dept_id, _ = _get_dept_scope(admin)
+    return backup_service.get_backup_summary(tenant_department_id=dept_id)
 
 
 @router.get("", response_model=list[BackupMetaOut])
 def list_backups(
-    _admin: User = Depends(require_system_admin),
+    admin: User = Depends(require_admin),
 ):
-    """List all backups (newest first). System Admin only."""
-    return backup_service.list_backups()
+    """List backups (newest first). Filtered to department for Department HODs."""
+    dept_id, _ = _get_dept_scope(admin)
+    return backup_service.list_backups(tenant_department_id=dept_id)
 
 
 @router.get("/{backup_id}", response_model=BackupMetaOut)
 def get_backup(
     backup_id: str,
-    _admin: User = Depends(require_system_admin),
+    admin: User = Depends(require_admin),
 ):
-    """Get metadata for a single backup. System Admin only."""
-    entry = backup_service.get_backup(backup_id)
+    """Get metadata for a single backup."""
+    dept_id, _ = _get_dept_scope(admin)
+    entry = backup_service.get_backup(backup_id, tenant_department_id=dept_id)
     if entry is None:
         raise HTTPException(status_code=404, detail="Backup not found")
     return entry
@@ -118,26 +134,26 @@ def get_backup(
 @router.get("/{backup_id}/download")
 def download_backup(
     backup_id: str,
-    _admin: User = Depends(require_system_admin),
+    admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """
     Download a backup file.
     The filename is resolved server-side from the index — the client
     cannot specify arbitrary filesystem paths.
-    System Admin only.
     """
+    dept_id, _ = _get_dept_scope(admin)
     try:
-        file_path = backup_service.get_backup_file_path(backup_id)
+        file_path = backup_service.get_backup_file_path(backup_id, tenant_department_id=dept_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
     # Audit the download
     from app.services.admin_service import log_audit_event
-    entry = backup_service.get_backup(backup_id)
+    entry = backup_service.get_backup(backup_id, tenant_department_id=dept_id)
     log_audit_event(
         db,
-        actor_user_id=_admin.id,
+        actor_user_id=admin.id,
         action="backup.downloaded",
         target_type="backup",
         details={"backup_id": backup_id, "filename": entry["filename"] if entry else "unknown"},
@@ -158,29 +174,30 @@ def download_backup(
 @router.post("/{backup_id}/validate", response_model=BackupMetaOut)
 def validate_backup(
     backup_id: str,
-    _admin: User = Depends(require_system_admin),
+    admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """
     Validate a backup's integrity.
     Checks: file exists, non-zero, valid JSON, expected format, checksum.
-    System Admin only.
     """
+    dept_id, _ = _get_dept_scope(admin)
     result = backup_service.validate_backup(backup_id)
-    if result.get("validation_status") == "not_found":
+    if result.get("validation_status") == "not_found" or (dept_id is not None and result.get("department_id") != dept_id):
         raise HTTPException(status_code=404, detail="Backup not found")
 
     # Audit the validation
     from app.services.admin_service import log_audit_event
     log_audit_event(
         db,
-        actor_user_id=_admin.id,
+        actor_user_id=admin.id,
         action="backup.validated",
         target_type="backup",
         details={
             "backup_id": backup_id,
             "validation_status": result.get("validation_status"),
             "errors": result.get("validation_errors", []),
+            "department_id": dept_id,
         },
     )
     db.commit()
@@ -192,26 +209,26 @@ def validate_backup(
 def restore_backup(
     backup_id: str,
     body: RestoreConfirmRequest,
-    admin: User = Depends(require_system_admin),
+    admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """
     Safely restore a backup.
-
-    Requires explicit typed confirmation in the request body.
-    Automatically creates a pre-restore safety backup before restoring.
-    If the safety backup fails, the restore is aborted.
-    System Admin only.
+    Department HODs restore ONLY their department's data;
+    System Admins restore full database state.
     """
+    dept_id, dept_name = _get_dept_scope(admin)
     try:
         result = backup_service.restore_backup(
             db=db,
             backup_id=backup_id,
             actor_user_id=admin.id,
             actor_name=admin.username or admin.name,
+            tenant_department_id=dept_id,
+            tenant_department_name=dept_name,
         )
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -223,15 +240,17 @@ def restore_backup(
 @router.delete("/{backup_id}", status_code=204)
 def delete_backup(
     backup_id: str,
-    admin: User = Depends(require_system_admin),
+    admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """Delete a backup. Requires confirmation from the UI. System Admin only."""
+    """Delete a backup. Requires confirmation from the UI."""
+    dept_id, _ = _get_dept_scope(admin)
     try:
         backup_service.delete_backup(
             backup_id=backup_id,
             db=db,
             actor_user_id=admin.id,
+            tenant_department_id=dept_id,
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

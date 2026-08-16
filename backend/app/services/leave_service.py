@@ -341,6 +341,7 @@ def assign_substitute(
     actor_id: int | None = None,
     tenant_department_id: int | None = None,
     include_cross_department: bool = False,
+    override_substitution_limit: bool = False,
 ) -> AlterAssignment:
     leave = _get_leave_or_404(leave_id, db, tenant_department_id)
 
@@ -367,6 +368,64 @@ def assign_substitute(
     if substitute.id == leave.teacher_id:
         raise HTTPException(status_code=400, detail="A teacher cannot be their own substitute")
 
+    # Hard conflict checks — these NEVER bend regardless of override flag
+    busy = (
+        db.query(TimetableSlot)
+        .filter(TimetableSlot.teacher_id == substitute.id, TimetableSlot.day_order == leave.day_order,
+                TimetableSlot.period_number == leave.period_number)
+        .first()
+    )
+    if busy:
+        raise HTTPException(status_code=400, detail=f"{substitute.name} is already teaching during period {leave.period_number}")
+
+    own_leave = (
+        db.query(LeaveRequest)
+        .filter(LeaveRequest.teacher_id == substitute.id, LeaveRequest.date == leave.date,
+                LeaveRequest.period_number == leave.period_number, LeaveRequest.status == LeaveStatus.approved)
+        .first()
+    )
+    if own_leave:
+        raise HTTPException(status_code=400, detail=f"{substitute.name} is on approved leave for period {leave.period_number}")
+
+    already_subbing = (
+        db.query(AlterAssignment)
+        .join(LeaveRequest, AlterAssignment.leave_request_id == LeaveRequest.id)
+        .filter(AlterAssignment.substitute_teacher_id == substitute.id, LeaveRequest.date == leave.date,
+                LeaveRequest.period_number == leave.period_number)
+        .first()
+    )
+    if already_subbing:
+        raise HTTPException(status_code=400, detail=f"{substitute.name} is already substituting another class during period {leave.period_number}")
+
+    # 7-Day Rolling Substitution Limit Validation
+    limit_info = substitution_service.check_7day_substitution_limit(db, substitute.id, leave.date)
+    if limit_info["limit_reached"]:
+        if not override_substitution_limit:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "LIMIT_ACKNOWLEDGEMENT_REQUIRED",
+                    "message": f"{substitute.name} has reached the maximum number of substitution allocations allowed within the current 7-day window.",
+                    "teacher_id": substitute.id,
+                    "teacher_name": substitute.name,
+                    "current_allocations": limit_info["current_allocations"],
+                    "max_allocations": limit_info["max_allocations"],
+                    "projected_allocations": limit_info["projected_allocations"],
+                },
+            )
+        else:
+            log_audit_event(
+                db, actor_id, "substitution.limit_override", "leave_request", leave.id,
+                {
+                    "substitute_teacher_id": substitute.id,
+                    "substitute_name": substitute.name,
+                    "current_7day_allocations": limit_info["current_allocations"],
+                    "max_allocations": limit_info["max_allocations"],
+                    "projected_allocations": limit_info["projected_allocations"],
+                    "authorized_by_id": actor_id,
+                },
+            )
+
     assignment = substitution_service.create_assignment(
         db, leave, substitute, assignment_type, compatibility_score, actor_id=actor_id,
     )
@@ -380,6 +439,7 @@ def override_substitute(
     leave_id: int, new_substitute_id: int, actor: User, db: Session,
     tenant_department_id: int | None = None,
     include_cross_department: bool = False,
+    override_substitution_limit: bool = False,
 ) -> AlterAssignment:
     """Replaces an existing assignment (often an auto-assigned one) with
     a different substitute, chosen by an admin. Reverses the original
@@ -407,14 +467,70 @@ def override_substitute(
     if new_substitute.id == existing.substitute_teacher_id:
         raise HTTPException(status_code=400, detail="That teacher is already assigned")
 
+    # Hard conflict checks — these NEVER bend regardless of override flag
+    busy = (
+        db.query(TimetableSlot)
+        .filter(TimetableSlot.teacher_id == new_substitute.id, TimetableSlot.day_order == leave.day_order,
+                TimetableSlot.period_number == leave.period_number)
+        .first()
+    )
+    if busy:
+        raise HTTPException(status_code=400, detail=f"{new_substitute.name} is already teaching during period {leave.period_number}")
+
+    own_leave = (
+        db.query(LeaveRequest)
+        .filter(LeaveRequest.teacher_id == new_substitute.id, LeaveRequest.date == leave.date,
+                LeaveRequest.period_number == leave.period_number, LeaveRequest.status == LeaveStatus.approved)
+        .first()
+    )
+    if own_leave:
+        raise HTTPException(status_code=400, detail=f"{new_substitute.name} is on approved leave for period {leave.period_number}")
+
+    already_subbing = (
+        db.query(AlterAssignment)
+        .join(LeaveRequest, AlterAssignment.leave_request_id == LeaveRequest.id)
+        .filter(AlterAssignment.substitute_teacher_id == new_substitute.id, LeaveRequest.date == leave.date,
+                LeaveRequest.period_number == leave.period_number, AlterAssignment.id != existing.id)
+        .first()
+    )
+    if already_subbing:
+        raise HTTPException(status_code=400, detail=f"{new_substitute.name} is already substituting another class during period {leave.period_number}")
+
+    # 7-Day Rolling Substitution Limit Validation
+    limit_info = substitution_service.check_7day_substitution_limit(db, new_substitute.id, leave.date)
+    if limit_info["limit_reached"]:
+        if not override_substitution_limit:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "LIMIT_ACKNOWLEDGEMENT_REQUIRED",
+                    "message": f"{new_substitute.name} has reached the maximum number of substitution allocations allowed within the current 7-day window.",
+                    "teacher_id": new_substitute.id,
+                    "teacher_name": new_substitute.name,
+                    "current_allocations": limit_info["current_allocations"],
+                    "max_allocations": limit_info["max_allocations"],
+                    "projected_allocations": limit_info["projected_allocations"],
+                },
+            )
+        else:
+            log_audit_event(
+                db, actor.id, "substitution.limit_override", "leave_request", leave.id,
+                {
+                    "substitute_teacher_id": new_substitute.id,
+                    "substitute_name": new_substitute.name,
+                    "current_7day_allocations": limit_info["current_allocations"],
+                    "max_allocations": limit_info["max_allocations"],
+                    "projected_allocations": limit_info["projected_allocations"],
+                    "authorized_by_id": actor.id,
+                },
+            )
 
     old_substitute_id = existing.substitute_teacher_id
     old_type = existing.assignment_type
 
-    # Reverse the old credit changes, then apply new ones — net effect on
-    # the original leave-taker is zero, but the displaced substitute's
-    # credit is correctly returned.
-    teacher_name = leave.teacher.name if (leave.teacher and leave.teacher.name) else f"teacher {leave.teacher_id}"
+    # Reverse old credit change and apply new one
+    teacher = leave.teacher or db.query(User).filter(User.id == leave.teacher_id).first()
+    teacher_name = teacher.name if (teacher and teacher.name) else f"teacher #{leave.teacher_id}"
     apply_credit_change(
         teacher_id=old_substitute_id, change=-1,
         reason=f"Override: removed as substitute for {teacher_name} on {leave.date} period {leave.period_number}",

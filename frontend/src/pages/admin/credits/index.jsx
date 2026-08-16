@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import { creditsApi, teachersApi, adminApi } from '../../../api/services'
 import { Spinner, Modal, ErrorAlert } from '../../../components/ui'
+import { useAuth } from '../../../context/AuthContext'
+import { generateCreditPdfReport } from './pdfReportGenerator'
 
-import KPICards from './KPICards'
-import Leaderboard from './Leaderboard'
-import AttentionPanel from './AttentionPanel'
+import AttentionBanner from './AttentionBanner'
 import BalanceTable from './BalanceTable'
 import ActivityTimeline from './ActivityTimeline'
 import CreditHistoryDrawer from './CreditHistoryDrawer'
@@ -33,13 +33,15 @@ function RefreshIcon({ className = 'w-4 h-4', spinning }) {
 }
 
 export default function AdminCredits() {
+  const { user } = useAuth()
   const [report, setReport] = useState([])
   const [transactions, setTransactions] = useState([])
   const [allTeachers, setAllTeachers] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [generatingPdf, setGeneratingPdf] = useState(false)
+  const [pdfToast, setPdfToast] = useState(null)
   const [lastUpdated, setLastUpdated] = useState(null)
-  const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'balances' | 'activity'
 
   // Single adjustment modal state
   const [modalOpen, setModalOpen] = useState(false)
@@ -47,7 +49,7 @@ export default function AdminCredits() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  // Drawer state (credit history)
+  // Drawer state (credit history & balance explanation)
   const [drawerTeacher, setDrawerTeacher] = useState(null)
 
   const loadData = useCallback((silent = false) => {
@@ -58,8 +60,8 @@ export default function AdminCredits() {
       teachersApi.list(),
     ])
       .then(([r, t, teachers]) => {
-        setReport(r.data)
-        setTransactions(t.data)
+        setReport(r.data || [])
+        setTransactions(t.data || [])
         setAllTeachers(teachers.data || [])
         setLastUpdated(new Date())
       })
@@ -121,154 +123,186 @@ export default function AdminCredits() {
     }
   }
 
+  const handleGeneratePdf = async () => {
+    setGeneratingPdf(true)
+    setPdfToast(null)
+    try {
+      const res = await generateCreditPdfReport({
+        report,
+        transactions,
+        allTeachers,
+        filterScope: {},
+        currentUser: user || {},
+      })
+      if (!res.success && res.reason === 'NO_DATA') {
+        setPdfToast({
+          type: 'error',
+          message: 'No credit data available. There are no credit records matching the current report.',
+        })
+      } else {
+        setPdfToast({
+          type: 'success',
+          message: `Official credit report "${res.fileName}" generated successfully.`,
+        })
+      }
+    } catch (err) {
+      console.error('PDF report error:', err)
+      setPdfToast({
+        type: 'error',
+        message: 'Failed to generate PDF report. Please try again.',
+      })
+    } finally {
+      setGeneratingPdf(false)
+      setTimeout(() => setPdfToast(null), 6000)
+    }
+  }
+
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 gap-4">
+      <div className="flex flex-col items-center justify-center py-24 gap-3">
         <Spinner size="lg" />
-        <p className="text-sm font-semibold text-slate-500">Loading Credit Intelligence System…</p>
+        <p className="text-xs font-semibold text-slate-500">Loading Faculty Credit System…</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 max-w-screen-2xl mx-auto pb-10">
+    <div className="space-y-5 max-w-screen-2xl mx-auto pb-10">
 
-      {/* ── Enterprise Hero Header ── */}
-      <div className="rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 shadow-md relative overflow-hidden">
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-indigo-500/10 to-transparent pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <span className="px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] font-extrabold uppercase tracking-wider border border-indigo-500/30">
-                Institutional Financial Controls
-              </span>
-              {lastUpdated && (
-                <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
-                  Updated {lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              )}
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-2.5 flex items-center gap-3 text-white">
-              <span>💳</span> Credits Intelligence & Audit System
+      {/* ── Compact Operational Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1 border-b border-slate-100">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+              Faculty Credits
             </h1>
-            <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl font-medium leading-relaxed">
-              Real-time faculty credit accounting, automated substitution balancing, and risk reconciliation radar.
-            </p>
+            {lastUpdated && (
+              <span className="text-[11px] text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md font-medium">
+                Synced {lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
           </div>
-
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            <button
-              onClick={() => loadData(true)}
-              disabled={refreshing}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white/10 hover:bg-white/20 text-white rounded-xl backdrop-blur-md border border-white/10 transition active:scale-95 disabled:opacity-50"
-            >
-              <RefreshIcon className="w-3.5 h-3.5" spinning={refreshing} />
-              Sync Data
-            </button>
-            <button
-              onClick={() => openAdjustModal()}
-              className="btn-primary text-xs py-2 px-3.5 rounded-xl font-bold flex items-center gap-1.5 shadow-sm active:scale-95"
-            >
-              <span>+</span> Adjust Credits
-            </button>
-            <button
-              onClick={handleClearHistory}
-              disabled={refreshing}
-              className="px-3 py-2 text-xs font-semibold text-rose-300 hover:text-white bg-rose-950/40 hover:bg-rose-900/60 rounded-xl border border-rose-800/40 transition disabled:opacity-40"
-              title="Reset credit history"
-            >
-              Reset History
-            </button>
-          </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Department credit balance management, workload distribution, and audit verification.
+          </p>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="mt-8 pt-4 border-t border-white/10 flex items-center gap-2 overflow-x-auto">
-          {[
-            ['overview', '📊 Executive Overview'],
-            ['balances', '💳 Faculty Balance Matrix'],
-            ['activity', '📜 Transaction Audit Stream'],
-          ].map(([tabKey, tabLabel]) => (
-            <button
-              key={tabKey}
-              onClick={() => setActiveTab(tabKey)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                activeTab === tabKey
-                  ? 'bg-white text-slate-900 shadow-md font-extrabold'
-                  : 'text-slate-300 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              {tabLabel}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => loadData(true)}
+            disabled={refreshing}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 rounded-xl border border-slate-200 transition shadow-2xs disabled:opacity-50 cursor-pointer"
+          >
+            <RefreshIcon className="w-3.5 h-3.5" spinning={refreshing} />
+            Sync Data
+          </button>
+          <button
+            type="button"
+            onClick={handleGeneratePdf}
+            disabled={generatingPdf || loading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 rounded-xl border border-slate-200 transition shadow-2xs disabled:opacity-50 cursor-pointer"
+            title="Generate official institution PDF credit report"
+          >
+            {generatingPdf ? (
+              <svg className="w-3.5 h-3.5 animate-spin text-primary-600" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+            ) : (
+              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            )}
+            {generatingPdf ? 'Generating PDF…' : 'Generate PDF'}
+          </button>
+          <button
+            type="button"
+            onClick={() => openAdjustModal()}
+            className="btn-primary text-xs py-1.5 px-3 rounded-xl font-bold flex items-center gap-1 shadow-2xs cursor-pointer"
+          >
+            <span>+</span> Adjust Credits
+          </button>
+          <button
+            type="button"
+            onClick={handleClearHistory}
+            disabled={refreshing}
+            className="px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl border border-rose-200 transition disabled:opacity-40 cursor-pointer"
+            title="Reset credit history"
+          >
+            Reset History
+          </button>
         </div>
       </div>
 
-      {/* ── Tab 1: Executive Overview ── */}
-      {activeTab === 'overview' && (
-        <div className="space-y-6 animate-fadeIn">
-          <KPICards report={report} transactions={transactions} />
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Leaderboard report={report} />
-            <AttentionPanel
-              report={report}
-              transactions={transactions}
-              onReview={(t) => setDrawerTeacher(t)}
-            />
-          </div>
-
-          <BalanceTable
-            report={report}
-            transactions={transactions}
-            onViewHistory={(t) => setDrawerTeacher(t)}
-            onAdjust={openAdjustModal}
-          />
+      {/* ── Toast Notification Banner ── */}
+      {pdfToast && (
+        <div className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between border shadow-2xs ${
+          pdfToast.type === 'success'
+            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+            : 'bg-rose-50 text-rose-800 border-rose-200'
+        }`}>
+          <span>{pdfToast.message}</span>
+          <button
+            type="button"
+            onClick={() => setPdfToast(null)}
+            className="text-slate-400 hover:text-slate-700 ml-2"
+          >
+            ✕
+          </button>
         </div>
       )}
 
-      {/* ── Tab 2: Faculty Balance Matrix ── */}
-      {activeTab === 'balances' && (
-        <div className="space-y-6 animate-fadeIn">
-          <BalanceTable
-            report={report}
-            transactions={transactions}
-            onViewHistory={(t) => setDrawerTeacher(t)}
-            onAdjust={openAdjustModal}
-          />
-        </div>
-      )}
+      {/* ── 1. WHAT NEEDS MY ATTENTION? (Operational Banner) ── */}
+      <AttentionBanner
+        report={report}
+        transactions={transactions}
+        onReviewTeacher={(t) => setDrawerTeacher(t)}
+      />
 
-      {/* ── Tab 3: Transaction Audit Stream ── */}
-      {activeTab === 'activity' && (
-        <div className="space-y-6 animate-fadeIn">
-          <ActivityTimeline transactions={transactions} report={report} />
-          <ExportBar report={report} transactions={transactions} />
-        </div>
-      )}
+      {/* ── 2. PRIMARY WORK AREA: FACULTY CREDIT OVERVIEW (Sortable Table) ── */}
+      <BalanceTable
+        report={report}
+        transactions={transactions}
+        onViewHistory={(t) => setDrawerTeacher(t)}
+        onAdjust={openAdjustModal}
+      />
 
-      {/* ── Credit History Drawer ── */}
+      {/* ── 3. RECENT CREDIT ACTIVITY & TRANSACTION AUDIT STREAM ── */}
+      <ActivityTimeline
+        transactions={transactions}
+        report={report}
+        allTeachers={allTeachers}
+      />
+
+      {/* ── 4. REPORTING & MASTER EXPORTS ── */}
+      <ExportBar
+        report={report}
+        transactions={transactions}
+        allTeachers={allTeachers}
+      />
+
+      {/* ── 5. TEACHER DETAIL DRAWER (Explainable Balance & Actions) ── */}
       {drawerTeacher && (
         <CreditHistoryDrawer
           teacher={drawerTeacher}
           transactions={transactions}
+          allTeachers={allTeachers}
           onClose={() => setDrawerTeacher(null)}
           onAdjust={(t) => { setDrawerTeacher(null); openAdjustModal(t) }}
         />
       )}
 
-      {/* ── Single Adjustment Modal ── */}
+      {/* ── 6. SINGLE ADJUSTMENT MODAL (Deliberate Admin Action) ── */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Manual Credit Adjustment">
         <form onSubmit={handleAdjust} className="space-y-4">
           <ErrorAlert message={error} />
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Faculty Member</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Faculty Member</label>
             <select
               required
-              className="input w-full"
+              className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition cursor-pointer"
               value={form.teacher_id}
               onChange={e => setForm({ ...form, teacher_id: e.target.value })}
             >
@@ -291,10 +325,10 @@ export default function AdminCredits() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Credit Category</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Credit Category</label>
             <select
               required
-              className="input w-full"
+              className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition cursor-pointer"
               value={form.category}
               onChange={e => setForm({ ...form, category: e.target.value })}
             >
@@ -305,32 +339,42 @@ export default function AdminCredits() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Adjustment Value</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Adjustment Value</label>
             <input
               type="number"
               required
-              placeholder="e.g. 1 to add, -1 to deduct"
-              className="input w-full"
+              placeholder="e.g. 1 to award, -1 to deduct"
+              className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition"
               value={form.change}
               onChange={e => setForm({ ...form, change: e.target.value })}
             />
-            <p className="text-[10px] text-gray-400 mt-1 font-medium">Positive integer to award credits, negative integer to deduct.</p>
+            <p className="text-[11px] text-slate-500 mt-1">Positive number to add credits, negative number to deduct.</p>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Reason for Adjustment</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Reason for Adjustment</label>
             <textarea
               required
               placeholder="e.g. Exam invigilation duty cover..."
-              className="input w-full h-20 py-2 resize-none"
+              className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition h-20 resize-none"
               value={form.reason}
               onChange={e => setForm({ ...form, reason: e.target.value })}
             />
           </div>
 
-          <div className="flex gap-2 pt-1">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary flex-1">Cancel</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1">
+          <div className="flex gap-2 pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              className="btn-secondary flex-1 text-xs py-2 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="btn-primary flex-1 text-xs py-2 cursor-pointer"
+            >
               {saving ? 'Applying…' : 'Apply Adjustment'}
             </button>
           </div>

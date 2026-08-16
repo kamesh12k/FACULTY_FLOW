@@ -130,7 +130,13 @@ def assign_substitute(
     this with the same substitute_teacher_id; the assignment_type still
     records as admin_assigned because *this endpoint* doesn't know which
     list the id came from. Use /recommendations to show the ranked list."""
-    return leave_service.assign_substitute(leave_id, data.substitute_teacher_id, db, tenant_department_id=tenant_department_id, include_cross_department=include_cross_department)
+    return leave_service.assign_substitute(
+        leave_id, data.substitute_teacher_id, db,
+        actor_id=_admin.id,
+        tenant_department_id=tenant_department_id,
+        include_cross_department=include_cross_department,
+        override_substitution_limit=data.override_substitution_limit,
+    )
 
 
 @router.get("/{leave_id}/recommendations", response_model=list[RecommendationOut])
@@ -170,7 +176,9 @@ def assign_recommended_substitute(
     return leave_service.assign_substitute(
         leave_id, data.substitute_teacher_id, db,
         assignment_type=AssignmentType.faculty_recommended, compatibility_score=score,
+        actor_id=_admin.id,
         tenant_department_id=tenant_department_id, include_cross_department=include_cross_department,
+        override_substitution_limit=data.override_substitution_limit,
     )
 
 
@@ -185,7 +193,12 @@ def override_substitute(
 ):
     """Replaces an existing substitute assignment with a different
     teacher — for correcting an auto-assignment or a prior manual pick."""
-    return leave_service.override_substitute(leave_id, data.new_substitute_teacher_id, admin, db, tenant_department_id, include_cross_department)
+    return leave_service.override_substitute(
+        leave_id, data.new_substitute_teacher_id, admin, db,
+        tenant_department_id=tenant_department_id,
+        include_cross_department=include_cross_department,
+        override_substitution_limit=data.override_substitution_limit,
+    )
 
 
 @router.post("/{leave_id}/undo-assignment", response_model=LeaveOut)

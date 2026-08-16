@@ -9,9 +9,17 @@ class RecommendationOut(BaseModel):
     teacher: UserOut
     score: float
     reasons: list[str]
-    today_workload: int
-    week_workload: int
-    workload_count: int
+    today_workload: int = 0
+    projected_today_workload: int = 0
+    today_periods: list[int] = []
+    week_workload: int = 0
+    projected_week_workload: int = 0
+    substitutions_today: int = 0
+    substitutions_week: int = 0
+    longest_continuous_periods: int = 0
+    projected_longest_continuous_periods: int = 0
+    workload_count: int = 0
+    fairness: float = 0.0
 
     model_config = {"from_attributes": True}
 

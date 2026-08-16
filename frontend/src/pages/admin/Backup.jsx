@@ -188,6 +188,11 @@ function RestoreModal({ backup, onConfirm, onCancel, loading }) {
         {/* Backup info */}
         <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4 space-y-1.5 text-[13px]">
           <div className="flex justify-between"><span className="text-gray-500">Backup</span><span className="font-semibold text-gray-800 truncate max-w-[250px]">{backup?.filename}</span></div>
+          {backup?.department_name ? (
+            <div className="flex justify-between"><span className="text-gray-500">Scope</span><span className="font-bold text-primary-700">{backup.department_name} Department Only</span></div>
+          ) : (
+            <div className="flex justify-between"><span className="text-gray-500">Scope</span><span className="font-medium text-gray-700">Full Database</span></div>
+          )}
           <div className="flex justify-between"><span className="text-gray-500">Created</span><span className="text-gray-700">{formatDateTime(backup?.created_at)}</span></div>
           <div className="flex justify-between"><span className="text-gray-500">Created by</span><span className="text-gray-700">{backup?.created_by || '—'}</span></div>
           <div className="flex justify-between"><span className="text-gray-500">Size</span><span className="text-gray-700">{formatBytes(backup?.file_size_bytes)}</span></div>
@@ -197,8 +202,14 @@ function RestoreModal({ backup, onConfirm, onCancel, loading }) {
         <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 flex gap-3">
           <AlertTriangleIcon className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="text-[13px] text-amber-800 leading-snug space-y-1">
-            <p className="font-bold">Restoring will replace the current database state.</p>
-            <p>Before continuing, the system will automatically create a <strong>safety backup of the current database</strong>. If that safety backup cannot be created, the restore will be aborted.</p>
+            <p className="font-bold">
+              {backup?.department_name
+                ? `Restoring will replace data for ${backup.department_name} Department only.`
+                : 'Restoring will replace the current database state.'}
+            </p>
+            <p>
+              Before continuing, the system will automatically create a <strong>safety backup of the current {backup?.department_name ? `${backup.department_name} data` : 'database'}</strong>. If that safety backup cannot be created, the restore will be aborted.
+            </p>
           </div>
         </div>
 
@@ -475,7 +486,7 @@ export default function BackupRestore() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">Backup & Restore</h1>
-          <p className="text-[13px] text-gray-500 mt-1">Create, manage, and restore database backups. System Admin only.</p>
+          <p className="text-[13px] text-gray-500 mt-1">Create, manage, and restore database backups. Department HOD & Administrator.</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <input
@@ -599,8 +610,18 @@ export default function BackupRestore() {
                     <tr key={backup.backup_id} className="hover:bg-gray-50/60 transition-colors">
                       <td className="px-6 py-4">
                         <p className="font-semibold text-gray-800 truncate max-w-[240px]">{backup.filename}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                           <span className="text-[10px] text-gray-400 font-mono">{backup.backup_id.slice(0, 8)}…</span>
+                          {backup.department_name && (
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[9px] font-bold border bg-blue-50 text-blue-700 border-blue-200">
+                              {backup.department_name}
+                            </span>
+                          )}
+                          {backup.backup_scope === 'full' && (
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[9px] font-bold border bg-emerald-50 text-emerald-700 border-emerald-200">
+                              Full DB
+                            </span>
+                          )}
                           {backup.backup_type === 'imported' && (
                             <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[9px] font-bold border bg-purple-50 text-purple-700 border-purple-200">
                               Imported

@@ -17,7 +17,7 @@ of truth, so there's only ever one place that can disagree with itself.
 This trades a small amount of query cost for never needing a
 reconciliation job.
 """
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from dataclasses import dataclass, field
 
 from sqlalchemy import func
@@ -160,12 +160,196 @@ class Candidate:
     teacher: User
     score: float = 0.0
     reasons: list[str] = field(default_factory=list)
-    same_subject: bool = False  # Vestigial: no longer drives scoring
-    same_department: bool = False  # Vestigial: no longer drives scoring
+    same_subject: bool = False
+    same_department: bool = False
     workload_count: int = 0
     fairness: float = 0.0
     today_workload: int = 0
+    projected_today_workload: int = 0
+    today_periods: list[int] = field(default_factory=list)
     week_workload: int = 0
+    projected_week_workload: int = 0
+    substitutions_today: int = 0
+    substitutions_week: int = 0
+    longest_continuous_periods: int = 0
+    projected_longest_continuous_periods: int = 0
+
+
+def calculate_longest_continuous_block(periods: set[int] | list[int]) -> int:
+    """Computes the maximum length of consecutive period numbers.
+    e.g. {1, 2, 3} -> 3; {1, 2, 4, 5} -> 2; {1, 3, 5} -> 1; {} -> 0."""
+    if not periods:
+        return 0
+    sorted_periods = sorted(periods)
+    max_len = 1
+    curr_len = 1
+    for i in range(1, len(sorted_periods)):
+        if sorted_periods[i] == sorted_periods[i - 1] + 1:
+            curr_len += 1
+            max_len = max(max_len, curr_len)
+        elif sorted_periods[i] != sorted_periods[i - 1]:
+            curr_len = 1
+    return max_len
+
+
+def get_teacher_day_periods(
+    db: Session,
+    teacher_id: int,
+    day_order: int,
+    leave_date: date,
+    in_memory_assignments: list[tuple[date, int, int]] | None = None,
+) -> set[int]:
+    """Returns all period numbers taught by the teacher on the given Day Order and Date,
+    including regular timetable slots and assigned substitutions (DB + in-memory)."""
+    slot_periods = {
+        row[0] for row in db.query(TimetableSlot.period_number)
+        .filter(TimetableSlot.teacher_id == teacher_id, TimetableSlot.day_order == day_order)
+        .all()
+    }
+    sub_periods_db = {
+        row[0] for row in db.query(LeaveRequest.period_number)
+        .join(AlterAssignment, AlterAssignment.leave_request_id == LeaveRequest.id)
+        .filter(
+            AlterAssignment.substitute_teacher_id == teacher_id,
+            LeaveRequest.date == leave_date,
+            LeaveRequest.status == LeaveStatus.approved,
+        )
+        .all()
+    }
+    sub_periods_mem = set()
+    if in_memory_assignments:
+        sub_periods_mem = {
+            p for d, p, tid in in_memory_assignments
+            if tid == teacher_id and d == leave_date
+        }
+    return slot_periods | sub_periods_db | sub_periods_mem
+
+
+def calculate_weekly_workload(
+    db: Session,
+    teacher_id: int,
+    leave_date: date,
+    in_memory_assignments: list[tuple[date, int, int]] | None = None,
+) -> int:
+    """Computes total weekly teaching periods across the full 1-6 Day Order rotation,
+    plus substitutions assigned within the 7-day rolling window."""
+    timetable_count = (
+        db.query(TimetableSlot)
+        .filter(TimetableSlot.teacher_id == teacher_id)
+        .count()
+    )
+    seven_days_ago = leave_date - timedelta(days=7)
+    db_subs_count = (
+        db.query(AlterAssignment)
+        .join(LeaveRequest, AlterAssignment.leave_request_id == LeaveRequest.id)
+        .filter(
+            AlterAssignment.substitute_teacher_id == teacher_id,
+            LeaveRequest.date >= seven_days_ago,
+            LeaveRequest.date <= leave_date,
+            LeaveRequest.status == LeaveStatus.approved,
+        )
+        .count()
+    )
+    mem_subs_count = 0
+    if in_memory_assignments:
+        mem_subs_count = sum(
+            1 for d, p, tid in in_memory_assignments
+            if tid == teacher_id and seven_days_ago <= d <= leave_date
+        )
+    return timetable_count + db_subs_count + mem_subs_count
+
+
+def get_teacher_substitution_counts(
+    db: Session,
+    teacher_id: int,
+    leave_date: date,
+    in_memory_assignments: list[tuple[date, int, int]] | None = None,
+) -> tuple[int, int]:
+    """Returns (substitutions_today, substitutions_this_week)."""
+    today_db = (
+        db.query(AlterAssignment)
+        .join(LeaveRequest, AlterAssignment.leave_request_id == LeaveRequest.id)
+        .filter(
+            AlterAssignment.substitute_teacher_id == teacher_id,
+            LeaveRequest.date == leave_date,
+            LeaveRequest.status == LeaveStatus.approved,
+        )
+        .count()
+    )
+    today_mem = 0
+    if in_memory_assignments:
+        today_mem = sum(
+            1 for d, p, tid in in_memory_assignments
+            if tid == teacher_id and d == leave_date
+        )
+    subs_today = today_db + today_mem
+
+    seven_days_ago = leave_date - timedelta(days=7)
+    week_db = (
+        db.query(AlterAssignment)
+        .join(LeaveRequest, AlterAssignment.leave_request_id == LeaveRequest.id)
+        .filter(
+            AlterAssignment.substitute_teacher_id == teacher_id,
+            LeaveRequest.date >= seven_days_ago,
+            LeaveRequest.date <= leave_date,
+            LeaveRequest.status == LeaveStatus.approved,
+        )
+        .count()
+    )
+    week_mem = 0
+    if in_memory_assignments:
+        week_mem = sum(
+            1 for d, p, tid in in_memory_assignments
+            if tid == teacher_id and seven_days_ago <= d <= leave_date
+        )
+    subs_week = week_db + week_mem
+    return subs_today, subs_week
+
+
+def check_7day_substitution_limit(
+    db: Session,
+    substitute_id: int,
+    leave_date: date,
+) -> dict:
+    """
+    Evaluates rolling 7-day substitution allocations against the configured limit.
+    Returns metadata with current, max, projected allocations and whether limit is reached.
+    """
+    seven_days_ago = leave_date - timedelta(days=7)
+    current_count = (
+        db.query(AlterAssignment)
+        .join(LeaveRequest, AlterAssignment.leave_request_id == LeaveRequest.id)
+        .filter(
+            AlterAssignment.substitute_teacher_id == substitute_id,
+            LeaveRequest.date >= seven_days_ago,
+            LeaveRequest.date <= leave_date,
+            LeaveRequest.status == LeaveStatus.approved,
+        )
+        .count()
+    )
+
+    pref = get_or_create_preferences(db, substitute_id)
+    max_limit = pref.max_weekly_substitutions
+    if max_limit is None:
+        sub = db.query(User).filter(User.id == substitute_id).first()
+        dept_id = sub.department_id if sub else None
+        dept_setting = get_setting(db, "max_weekly_substitutions", None, dept_id)
+        if dept_setting:
+            try:
+                max_limit = int(dept_setting)
+            except (ValueError, TypeError):
+                max_limit = None
+
+    limit_reached = False
+    if max_limit is not None and current_count >= max_limit:
+        limit_reached = True
+
+    return {
+        "current_allocations": current_count,
+        "max_allocations": max_limit,
+        "projected_allocations": current_count + 1,
+        "limit_reached": limit_reached,
+    }
 
 
 def _is_hard_eligible(
@@ -229,7 +413,7 @@ def _is_hard_eligible(
     if leave.is_emergency and require_auto_opt_in and not pref.allow_emergency_assignments:
         return False, "has opted out of emergency assignments"
 
-    if pref.max_weekly_substitutions is not None:
+    if require_auto_opt_in and pref.max_weekly_substitutions is not None:
         since = datetime.now(timezone.utc) - timedelta(days=7)
         recent = count_recent_substitutions(db, candidate.id, since)
         if recent >= pref.max_weekly_substitutions:
@@ -273,7 +457,7 @@ def _is_hard_eligible_bulk(
     if leave.is_emergency and require_auto_opt_in and not pref.allow_emergency_assignments:
         return False, "has opted out of emergency assignments"
 
-    if pref.max_weekly_substitutions is not None:
+    if require_auto_opt_in and pref.max_weekly_substitutions is not None:
         recent = recent_sub_counts.get(candidate.id, 0)
         if recent >= pref.max_weekly_substitutions:
             return False, f"at weekly substitution cap ({pref.max_weekly_substitutions})"
@@ -372,64 +556,129 @@ def _subject_and_department_for_leave(db: Session, leave: LeaveRequest) -> tuple
     return subject, dept_name
 
 
-def score_candidate(db: Session, candidate: User, leave: LeaveRequest, subject: Subject | None, dept_name: str | None) -> Candidate:
+def score_candidate(
+    db: Session,
+    candidate: User,
+    leave: LeaveRequest,
+    subject: Subject | None,
+    dept_name: str | None,
+    in_memory_assignments: list[tuple[date, int, int]] | None = None,
+) -> Candidate:
     """
-    Workload-only compatibility score, 0-100. A candidate's suitability is
-    based purely on how free they currently are — not subject match,
-    department, or fairness-vs-peers — so a genuinely available teacher
-    is never passed over for one who merely "looks better on paper."
-
-    Two components, both "fewer periods scheduled = higher score":
-      - Today's workload     (periods on this SAME day_order)        — weight 60
-      - This week's workload (periods across the full 1-6 rotation)  — weight 40
+    Simulates post-assignment workload in memory and computes a comprehensive,
+    multi-dimensional workload and fairness compatibility score (0-100).
+    
+    Dimensions & Weights:
+      1. Projected Daily Workload       (weight: 35) — lower total day periods = higher score
+      2. Consecutive Period Block Safety (weight: 30) — avoids continuous teaching fatigue
+      3. Projected Weekly Workload      (weight: 20) — balanced rotation distribution
+      4. Substitution Fairness          (weight: 10) — balance recent substitution load
+      5. Subject / Dept Suitability     (weight: 5)  — tie-breaking bonus
     """
     result = Candidate(teacher=candidate)
 
-    # Today's workload: how many periods this candidate already teaches
-    # on the same day_order as the leave being covered.
-    today_period_count = (
-        db.query(TimetableSlot)
-        .filter(TimetableSlot.teacher_id == candidate.id, TimetableSlot.day_order == leave.day_order)
-        .count()
+    # 1. Daily Workload & Simulation
+    current_day_periods = get_teacher_day_periods(
+        db, candidate.id, leave.day_order, leave.date, in_memory_assignments
     )
-    result.today_workload = today_period_count
-    today_component = max(0.0, 60 * (1 - min(today_period_count, 5) / 5))  # 5 periods/day max
-    result.score += today_component
-    # Today's workload string
-    if today_period_count == 0:
-        result.reasons.append("Free all day today")
-    elif today_period_count == 1:
-        result.reasons.append("1 period today")
-    else:
-        result.reasons.append(f"{today_period_count} periods today")
-
-    # Today's periods list
-    if today_period_count > 0:
-        slots = (
-            db.query(TimetableSlot.period_number)
-            .filter(TimetableSlot.teacher_id == candidate.id, TimetableSlot.day_order == leave.day_order)
-            .order_by(TimetableSlot.period_number)
-            .all()
-        )
-        periods_today = [row[0] for row in slots]
-        result.reasons.append(f"Periods: {', '.join(map(str, periods_today))}")
-
-    # Weekly workload: total periods across the full Day Order rotation (1-6).
-    week_period_count = (
-        db.query(TimetableSlot)
-        .filter(TimetableSlot.teacher_id == candidate.id)
-        .count()
-    )
-    result.week_workload = week_period_count
-    result.workload_count = week_period_count
-    week_component = max(0.0, 40 * (1 - min(week_period_count, 30) / 30))
-    result.score += week_component
+    result.today_workload = len(current_day_periods)
+    result.today_periods = sorted(list(current_day_periods))
     
-    # Weekly workload string
-    if week_period_count == 1:
-        result.reasons.append("1 period this week")
+    projected_day_periods = set(current_day_periods) | {leave.period_number}
+    result.projected_today_workload = len(projected_day_periods)
+    
+    # 2. Consecutive Period Analysis
+    result.longest_continuous_periods = calculate_longest_continuous_block(current_day_periods)
+    result.projected_longest_continuous_periods = calculate_longest_continuous_block(projected_day_periods)
+
+    # 3. Weekly Workload & Simulation
+    current_weekly_periods = calculate_weekly_workload(
+        db, candidate.id, leave.date, in_memory_assignments
+    )
+    result.week_workload = current_weekly_periods
+    result.workload_count = current_weekly_periods
+    result.projected_week_workload = current_weekly_periods + 1
+
+    # 4. Substitution Counts & Fairness
+    subs_today, subs_week = get_teacher_substitution_counts(
+        db, candidate.id, leave.date, in_memory_assignments
+    )
+    result.substitutions_today = subs_today
+    result.substitutions_week = subs_week
+    
+    fairness = fairness_score(db, candidate.id)
+    result.fairness = fairness
+
+    # --- Scoring Components ---
+    # A. Daily Workload Score (35 pts max)
+    # 1 period total (free before) -> 35 pts; 2 -> 28; 3 -> 21; 4 -> 14; 5 -> 7; >5 -> 0
+    daily_score = max(0.0, 35.0 * (1.0 - min(max(0, result.projected_today_workload - 1), 5) / 5.0))
+    result.score += daily_score
+
+    # B. Consecutive Period Safety Score (35 pts max)
+    # Continuous block of 1 -> 35 pts; 2 -> 30 pts; 3 -> 22 pts; 4 -> 8 pts; >=5 -> 0 pts
+    proj_cont = result.projected_longest_continuous_periods
+    if proj_cont <= 1:
+        cont_score = 35.0
+    elif proj_cont == 2:
+        cont_score = 30.0
+    elif proj_cont == 3:
+        cont_score = 22.0
+    elif proj_cont == 4:
+        cont_score = 8.0
     else:
-        result.reasons.append(f"{week_period_count} periods this week")
+        cont_score = 0.0
+    result.score += cont_score
+
+    # C. Weekly Workload Score (20 pts max)
+    # 30 periods/week benchmark
+    weekly_score = max(0.0, 20.0 * (1.0 - min(max(0, result.projected_week_workload - 1), 30) / 30.0))
+    result.score += weekly_score
+
+    # D. Fairness Score (10 pts max)
+    # Check rolling 7-day limit
+    limit_info = check_7day_substitution_limit(db, candidate.id, leave.date)
+    if limit_info["limit_reached"]:
+        fair_comp = 0.0
+    elif subs_week == 0:
+        fair_comp = 10.0
+    elif subs_week == 1:
+        fair_comp = 8.0
+    elif subs_week == 2:
+        fair_comp = 5.0
+    else:
+        fair_comp = max(0.0, 10.0 - (subs_week * 2.5))
+    result.score += fair_comp
+
+    # E. Same Subject / Class Experience (5 pts max)
+    if subject and subject.id:
+        has_subject = (
+            db.query(TimetableSlot)
+            .filter(TimetableSlot.teacher_id == candidate.id, TimetableSlot.subject_id == subject.id)
+            .first()
+        )
+        if has_subject:
+            result.same_subject = True
+            result.score += 3.0
+
+    # --- Distinct Contextual Badges ---
+    if result.same_department:
+        result.reasons.append("Same department")
+    else:
+        result.reasons.append("Cross-department")
+
+    if result.same_subject:
+        result.reasons.append("Teaches this subject")
+
+    if limit_info["limit_reached"]:
+        result.reasons.append(f"⚠ 7-day limit reached ({limit_info['current_allocations']}/{limit_info['max_allocations']})")
+    elif subs_week == 0:
+        result.reasons.append("0 substitutions this week")
+    else:
+        result.reasons.append(f"{subs_week} sub(s) this week")
+
+    if proj_cont >= 4:
+        result.reasons.append(f"⚠ {proj_cont} back-to-back classes without break")
 
     result.score = round(min(result.score, 100.0), 1)
     return result
@@ -439,12 +688,23 @@ def cross_department_substitutions_enabled(db: Session, department_id: int | Non
     return get_setting(db, "cross_department_substitutions_enabled", "false", department_id) == "true"
 
 
-def get_ranked_recommendations(db: Session, leave_id: int, limit: int = 100, tenant_department_id: int | None = None, include_cross_department: bool = False, only_handles_class: bool = False) -> list[Candidate]:
+def get_ranked_recommendations(
+    db: Session,
+    leave_id: int,
+    limit: int = 100,
+    tenant_department_id: int | None = None,
+    include_cross_department: bool = False,
+    only_handles_class: bool = False,
+    in_memory_assignments: list[tuple[date, int, int]] | None = None,
+) -> list[Candidate]:
     leave = _get_leave_or_404(db, leave_id, tenant_department_id)
     if include_cross_department and not cross_department_substitutions_enabled(db, leave.teacher.department_id):
         raise HTTPException(status_code=403, detail="Cross-department substitutions are disabled for this department")
     subject, dept_name = _subject_and_department_for_leave(db, leave)
-    eligible = list_eligible_candidates(db, leave, require_auto_opt_in=False, tenant_department_id=None if include_cross_department else tenant_department_id)
+    eligible = list_eligible_candidates(
+        db, leave, require_auto_opt_in=False,
+        tenant_department_id=None if include_cross_department else tenant_department_id,
+    )
     if only_handles_class:
         affected_slot = db.query(TimetableSlot).filter(
             TimetableSlot.teacher_id == leave.teacher_id,
@@ -459,10 +719,11 @@ def get_ranked_recommendations(db: Session, leave_id: int, limit: int = 100, ten
         }
         eligible = [teacher for teacher in eligible if teacher.id in experienced_ids]
 
-    scored = [score_candidate(db, c, leave, subject, dept_name) for c in eligible]
-    # Prefer the home department whenever comparable candidates are available.
+    scored = [score_candidate(db, c, leave, subject, dept_name, in_memory_assignments) for c in eligible]
+    # Prefer home department as a tie-breaking bonus
     for candidate in scored:
         if candidate.teacher.department_id == leave.teacher.department_id:
+            candidate.same_department = True
             candidate.score = min(100.0, candidate.score + 5)
             candidate.reasons.append("Same department")
         else:
@@ -491,7 +752,8 @@ def create_assignment(
         reason=f"Leave on {leave.date} (Day Order {leave.day_order}) period {leave.period_number}",
         leave_id=leave.id, db=db, category="penalty",
     )
-    teacher_name = leave.teacher.name if (leave.teacher and leave.teacher.name) else f"teacher {leave.teacher_id}"
+    teacher = leave.teacher or db.query(User).filter(User.id == leave.teacher_id).first()
+    teacher_name = teacher.name if (teacher and teacher.name) else f"teacher #{leave.teacher_id}"
     apply_credit_change(
         teacher_id=substitute.id, change=+1,
         reason=f"Substitute for {teacher_name} on {leave.date} (Day Order {leave.day_order}) period {leave.period_number}",
@@ -526,8 +788,8 @@ def auto_process_approved_leave(db: Session, leave: LeaveRequest) -> AlterAssign
                     not pushed proactively. Kept simple: one fewer thing
                     that can race against an admin already mid-assignment.
       - autonomous: picks the top-ranked HARD-ELIGIBLE candidate (opted
-                    in, under their cap) and assigns immediately, no
-                    approval step.
+                    in, under their cap, passing workload safety thresholds)
+                    and assigns immediately.
     Returns the created assignment, or None if no eligible candidate
     exists / mode doesn't auto-execute."""
     dept_id = None
@@ -550,8 +812,35 @@ def auto_process_approved_leave(db: Session, leave: LeaveRequest) -> AlterAssign
         return None
 
     scored = [score_candidate(db, c, leave, subject, dept_name) for c in eligible]
+    for candidate in scored:
+        if candidate.teacher.department_id == leave.teacher.department_id:
+            candidate.same_department = True
+            candidate.score = min(100.0, candidate.score + 5)
+            candidate.reasons.append("Same department")
+        else:
+            candidate.reasons.append("Cross-department cover")
     scored.sort(key=lambda c: c.score, reverse=True)
-    best = scored[0]
+
+    # Autonomous workload safety check:
+    # Avoid auto-assigning if candidate would exceed 4 continuous periods or 5 daily periods,
+    # or score is below minimal safe threshold (20.0).
+    safe_candidates = [
+        c for c in scored
+        if c.projected_longest_continuous_periods < 5 and c.projected_today_workload <= 5 and c.score >= 20.0
+    ]
+    if not safe_candidates:
+        log_audit_event(
+            db, None, "substitution.autonomous_no_safe_candidate", "leave_request", leave.id,
+            {
+                "top_candidate_id": scored[0].teacher.id if scored else None,
+                "top_candidate_score": scored[0].score if scored else None,
+                "reason": "All candidates violate workload safety thresholds",
+            },
+        )
+        db.commit()
+        return None
+
+    best = safe_candidates[0]
 
     assignment_type = AssignmentType.emergency if leave.is_emergency else AssignmentType.auto_assigned
     assignment = create_assignment(db, leave, best.teacher, assignment_type, best.score, actor_id=None)
@@ -664,19 +953,27 @@ def run_dry_run_simulation(db: Session, start_date, end_date, department_id: int
             if on_leave:
                 continue
                 
-            # 4. Not already subbing today (database check + in-memory check)
+            # 4. Not already subbing this period (database check + in-memory check)
             already_subbing_db = db.query(AlterAssignment).join(LeaveRequest).filter(
                 AlterAssignment.substitute_teacher_id == t.id,
-                LeaveRequest.date == leave.date
+                LeaveRequest.date == leave.date,
+                LeaveRequest.period_number == leave.period_number
             ).first()
             if already_subbing_db:
                 continue
                 
             already_subbing_mem = any(
-                d == leave.date and tid == t.id
+                d == leave.date and p == leave.period_number and tid == t.id
                 for d, p, tid in in_memory_assignments
             )
             if already_subbing_mem:
+                continue
+
+            already_subbing_today_mem = any(
+                d == leave.date and tid == t.id
+                for d, p, tid in in_memory_assignments
+            )
+            if already_subbing_today_mem:
                 continue
                 
             # 5. Check preferences
@@ -693,12 +990,12 @@ def run_dry_run_simulation(db: Session, start_date, end_date, department_id: int
                 db_count = db.query(AlterAssignment).join(LeaveRequest).filter(
                     AlterAssignment.substitute_teacher_id == t.id,
                     LeaveRequest.date >= seven_days_ago,
-                    LeaveRequest.date < leave.date
+                    LeaveRequest.date <= leave.date
                 ).count()
                 # Mem count
                 mem_count = sum(
                     1 for d, p, tid in in_memory_assignments
-                    if tid == t.id and d >= seven_days_ago and d < leave.date
+                    if tid == t.id and seven_days_ago <= d <= leave.date
                 )
                 if (db_count + mem_count) >= pref.max_weekly_substitutions:
                     continue
@@ -718,11 +1015,11 @@ def run_dry_run_simulation(db: Session, start_date, end_date, department_id: int
             simulated_failed += 1
             continue
             
-        # Score and rank candidates
+        # Score and rank candidates with in-memory simulation awareness
         subject, dept_name = _subject_and_department_for_leave(db, leave)
         scored_candidates = []
         for c in eligible_candidates:
-            score_res = score_candidate(db, c, leave, subject, dept_name)
+            score_res = score_candidate(db, c, leave, subject, dept_name, in_memory_assignments)
             scored_candidates.append((c, score_res.score))
             
         # Pick the best

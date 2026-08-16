@@ -149,6 +149,9 @@ def _meta_entry(
     status: str = "completed",
     validation_status: str = "not_validated",
     is_pre_restore: bool = False,
+    department_id: int | None = None,
+    department_name: str | None = None,
+    backup_scope: str = "full",
 ) -> dict:
     return {
         "backup_id": backup_id,
@@ -164,6 +167,9 @@ def _meta_entry(
         "last_validated_at": None,
         "restored_at": None,
         "table_count": len(BACKUP_TABLES),
+        "department_id": department_id,
+        "department_name": department_name,
+        "backup_scope": backup_scope,
     }
 
 
@@ -176,6 +182,8 @@ def import_backup(
     actor_user_id: int | None,
     actor_name: str,
     db: Session,
+    tenant_department_id: int | None = None,
+    tenant_department_name: str | None = None,
 ) -> dict:
     """
     Import an uploaded FAFLOW backup JSON file from the client's local machine.
@@ -217,12 +225,25 @@ def import_backup(
             "Only 'faflow_json_v1' is supported."
         )
 
+    file_dept_id = meta_section.get("department_id")
+    file_scope = meta_section.get("backup_scope", "full")
+
+    # Scope validation for department admins
+    if tenant_department_id is not None:
+        if file_dept_id is not None and file_dept_id != tenant_department_id:
+            raise ValueError(
+                f"Cannot import backup from another department (ID {file_dept_id}). "
+                f"Your department ID is {tenant_department_id}."
+            )
+        file_dept_id = tenant_department_id
+        file_scope = "department"
+
     # 4. Save to disk under a safe server-generated filename
     backup_id = str(uuid.uuid4())
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
-    # Sanitise the original filename for use in the stored name only (not path)
     safe_orig = "".join(c if c.isalnum() or c in "-_." else "_" for c in original_filename)[:80]
-    filename = f"imported_{ts}_{backup_id[:8]}_{safe_orig}"
+    prefix = f"dept_{tenant_department_id}_" if tenant_department_id else ""
+    filename = f"{prefix}imported_{ts}_{backup_id[:8]}_{safe_orig}"
     if not filename.endswith(".json"):
         filename += ".json"
 
@@ -247,7 +268,10 @@ def import_backup(
         file_size_bytes=file_size,
         checksum=checksum,
         backup_type="imported",
-        validation_status="valid",  # we already validated the format above
+        validation_status="valid",
+        department_id=file_dept_id,
+        department_name=tenant_department_name or meta_section.get("department_name"),
+        backup_scope=file_scope,
     )
 
     index = _load_index()
@@ -264,6 +288,8 @@ def import_backup(
             "filename": filename,
             "original_filename": original_filename,
             "file_size_bytes": file_size,
+            "department_id": file_dept_id,
+            "backup_scope": file_scope,
         },
     )
     db.commit()
@@ -283,36 +309,167 @@ def create_backup(
     actor_name: str,
     is_pre_restore: bool = False,
     pre_restore_ref: str | None = None,
+    tenant_department_id: int | None = None,
+    tenant_department_name: str | None = None,
 ) -> dict:
     """
-    Dump all application tables to a timestamped JSON file.
+    Dump application tables to a timestamped JSON file.
+    If tenant_department_id is provided, dumps ONLY data for that specific department.
     Returns the metadata entry dict (same shape as BackupMetaOut).
-    Raises RuntimeError if the backup cannot be written.
     """
     backup_id = str(uuid.uuid4())
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
+    prefix = f"dept_{tenant_department_id}_" if tenant_department_id is not None else ""
+
     if is_pre_restore:
-        filename = f"pre_restore_backup_{ts}.json"
+        filename = f"{prefix}pre_restore_backup_{ts}.json"
     else:
-        filename = _safe_filename(ts)
+        filename = f"{prefix}faflow_backup_{ts}.json"
 
     backup_dir = _backup_dir()
     file_path = backup_dir / filename
 
     snapshot: dict[str, list[dict[str, Any]]] = {}
     tables_dumped = []
-    for table in BACKUP_TABLES:
-        try:
-            rows = db.execute(text(f"SELECT * FROM {table}")).mappings().all()
-            snapshot[table] = [dict(r) for r in rows]
-            tables_dumped.append(table)
-        except Exception as e:
-            # Table may not exist in this installation — skip it gracefully
-            logger.warning("backup_service: skipping table %s: %s", table, e)
-            snapshot[table] = []
+
+    if tenant_department_id is None:
+        # Full database snapshot
+        for table in BACKUP_TABLES:
+            try:
+                rows = db.execute(text(f"SELECT * FROM {table}")).mappings().all()
+                snapshot[table] = [dict(r) for r in rows]
+                tables_dumped.append(table)
+            except Exception as e:
+                logger.warning("backup_service: skipping table %s: %s", table, e)
+                snapshot[table] = []
+    else:
+        # Scoped snapshot for this department ONLY
+        dept_id = tenant_department_id
+
+        # 1. Department record
+        dept_rows = db.execute(text("SELECT * FROM departments WHERE id = :dept_id"), {"dept_id": dept_id}).mappings().all()
+        snapshot["departments"] = [dict(r) for r in dept_rows]
+        tables_dumped.append("departments")
+
+        # 2. Users in department
+        user_rows = db.execute(text("SELECT * FROM users WHERE department_id = :dept_id"), {"dept_id": dept_id}).mappings().all()
+        snapshot["users"] = [dict(r) for r in user_rows]
+        tables_dumped.append("users")
+
+        # 3. Classes in department
+        class_rows = db.execute(text("SELECT * FROM classes WHERE department_id = :dept_id"), {"dept_id": dept_id}).mappings().all()
+        snapshot["classes"] = [dict(r) for r in class_rows]
+        tables_dumped.append("classes")
+
+        # 4. Subjects in department
+        subject_rows = db.execute(text("SELECT * FROM subjects WHERE department_id = :dept_id"), {"dept_id": dept_id}).mappings().all()
+        snapshot["subjects"] = [dict(r) for r in subject_rows]
+        tables_dumped.append("subjects")
+
+        # 5. Rooms in department / shared
+        room_rows = db.execute(text("SELECT * FROM rooms WHERE department_id = :dept_id OR department_id IS NULL"), {"dept_id": dept_id}).mappings().all()
+        snapshot["rooms"] = [dict(r) for r in room_rows]
+        tables_dumped.append("rooms")
+
+        # 6. Timetable submissions in department
+        tt_sub_rows = db.execute(text("""
+            SELECT * FROM timetable_submissions
+            WHERE teacher_id IN (SELECT id FROM users WHERE department_id = :dept_id)
+               OR class_id IN (SELECT id FROM classes WHERE department_id = :dept_id)
+        """), {"dept_id": dept_id}).mappings().all()
+        snapshot["timetable_submissions"] = [dict(r) for r in tt_sub_rows]
+        tables_dumped.append("timetable_submissions")
+
+        # 7. Timetable slots for department classes or teachers
+        tt_slot_rows = db.execute(text("""
+            SELECT ts.* FROM timetable_slots ts
+            WHERE ts.class_id IN (SELECT id FROM classes WHERE department_id = :dept_id)
+               OR ts.teacher_id IN (SELECT id FROM users WHERE department_id = :dept_id)
+        """), {"dept_id": dept_id}).mappings().all()
+        snapshot["timetable_slots"] = [dict(r) for r in tt_slot_rows]
+        tables_dumped.append("timetable_slots")
+
+        # 8. Leave requests for department teachers
+        leave_rows = db.execute(text("""
+            SELECT * FROM leave_requests
+            WHERE teacher_id IN (SELECT id FROM users WHERE department_id = :dept_id)
+        """), {"dept_id": dept_id}).mappings().all()
+        snapshot["leave_requests"] = [dict(r) for r in leave_rows]
+        tables_dumped.append("leave_requests")
+
+        # 9. Alter assignments for department leaves or substitute teachers
+        alter_rows = db.execute(text("""
+            SELECT aa.* FROM alter_assignments aa
+            WHERE aa.leave_request_id IN (SELECT id FROM leave_requests WHERE teacher_id IN (SELECT id FROM users WHERE department_id = :dept_id))
+               OR aa.substitute_teacher_id IN (SELECT id FROM users WHERE department_id = :dept_id)
+        """), {"dept_id": dept_id}).mappings().all()
+        snapshot["alter_assignments"] = [dict(r) for r in alter_rows]
+        tables_dumped.append("alter_assignments")
+
+        # 10. Substitution preferences
+        pref_rows = db.execute(text("""
+            SELECT * FROM substitution_preferences
+            WHERE teacher_id IN (SELECT id FROM users WHERE department_id = :dept_id)
+        """), {"dept_id": dept_id}).mappings().all()
+        snapshot["substitution_preferences"] = [dict(r) for r in pref_rows]
+        tables_dumped.append("substitution_preferences")
+
+        # 11. Teacher credits
+        cred_rows = db.execute(text("""
+            SELECT * FROM teacher_credits
+            WHERE teacher_id IN (SELECT id FROM users WHERE department_id = :dept_id)
+        """), {"dept_id": dept_id}).mappings().all()
+        snapshot["teacher_credits"] = [dict(r) for r in cred_rows]
+        tables_dumped.append("teacher_credits")
+
+        # 12. Credit transactions
+        tx_rows = db.execute(text("""
+            SELECT * FROM credit_transactions
+            WHERE teacher_id IN (SELECT id FROM users WHERE department_id = :dept_id)
+        """), {"dept_id": dept_id}).mappings().all()
+        snapshot["credit_transactions"] = [dict(r) for r in tx_rows]
+        tables_dumped.append("credit_transactions")
+
+        # 13. Operational staff in department
+        staff_rows = db.execute(text("SELECT * FROM operational_staff WHERE department_id = :dept_id"), {"dept_id": dept_id}).mappings().all()
+        snapshot["operational_staff"] = [dict(r) for r in staff_rows]
+        tables_dumped.append("operational_staff")
+
+        # 14. Staff leaves, credits, and transactions
+        staff_leave_rows = db.execute(text("""
+            SELECT * FROM staff_leave_requests
+            WHERE staff_id IN (SELECT id FROM operational_staff WHERE department_id = :dept_id)
+        """), {"dept_id": dept_id}).mappings().all()
+        snapshot["staff_leave_requests"] = [dict(r) for r in staff_leave_rows]
+        tables_dumped.append("staff_leave_requests")
+
+        staff_cred_rows = db.execute(text("""
+            SELECT * FROM staff_credits
+            WHERE staff_id IN (SELECT id FROM operational_staff WHERE department_id = :dept_id)
+        """), {"dept_id": dept_id}).mappings().all()
+        snapshot["staff_credits"] = [dict(r) for r in staff_cred_rows]
+        tables_dumped.append("staff_credits")
+
+        staff_tx_rows = db.execute(text("""
+            SELECT * FROM staff_credit_transactions
+            WHERE staff_id IN (SELECT id FROM operational_staff WHERE department_id = :dept_id)
+        """), {"dept_id": dept_id}).mappings().all()
+        snapshot["staff_credit_transactions"] = [dict(r) for r in staff_tx_rows]
+        tables_dumped.append("staff_credit_transactions")
+
+        # 15. Shared references
+        for shared_table in ["academic_years", "semesters", "calendar_days", "system_settings"]:
+            try:
+                rows = db.execute(text(f"SELECT * FROM {shared_table}")).mappings().all()
+                snapshot[shared_table] = [dict(r) for r in rows]
+                tables_dumped.append(shared_table)
+            except Exception as e:
+                logger.warning("backup_service: skipping shared table %s: %s", shared_table, e)
+                snapshot[shared_table] = []
 
     # Include metadata in the backup file itself for self-contained validation
     created_at_str = datetime.now(timezone.utc).isoformat()
+    scope_str = "department" if tenant_department_id is not None else "full"
     payload = {
         "_meta": {
             "backup_id": backup_id,
@@ -323,6 +480,9 @@ def create_backup(
             "tables": tables_dumped,
             "is_pre_restore": is_pre_restore,
             "pre_restore_ref": pre_restore_ref,
+            "department_id": tenant_department_id,
+            "department_name": tenant_department_name,
+            "backup_scope": scope_str,
         },
         "data": snapshot,
     }
@@ -345,6 +505,9 @@ def create_backup(
         file_size_bytes=file_size,
         checksum=checksum,
         is_pre_restore=is_pre_restore,
+        department_id=tenant_department_id,
+        department_name=tenant_department_name,
+        backup_scope=scope_str,
     )
 
     index = _load_index()
@@ -362,31 +525,41 @@ def create_backup(
             "filename": filename,
             "is_pre_restore": is_pre_restore,
             "file_size_bytes": file_size,
+            "department_id": tenant_department_id,
+            "backup_scope": scope_str,
         },
     )
     db.commit()
 
-    logger.info("backup_service: backup created → %s (%d bytes)", filename, file_size)
+    logger.info("backup_service: backup created → %s (%d bytes, scope: %s)", filename, file_size, scope_str)
     return meta
 
 
-def list_backups() -> list[dict]:
-    """Return all backup metadata entries, newest first."""
-    return _load_index()
+def list_backups(tenant_department_id: int | None = None) -> list[dict]:
+    """Return backup metadata entries. If tenant_department_id is passed, filters to that department."""
+    all_backups = _load_index()
+    if tenant_department_id is None:
+        return all_backups
+    return [
+        e for e in all_backups
+        if e.get("department_id") == tenant_department_id
+    ]
 
 
-def get_backup(backup_id: str) -> dict | None:
-    """Return a single backup's metadata, or None if not found."""
+def get_backup(backup_id: str, tenant_department_id: int | None = None) -> dict | None:
+    """Return a single backup's metadata, or None if not found or unauthorized."""
     index = _load_index()
     for entry in index:
         if entry["backup_id"] == backup_id:
+            if tenant_department_id is not None and entry.get("department_id") != tenant_department_id:
+                return None
             return entry
     return None
 
 
-def get_backup_summary() -> dict:
+def get_backup_summary(tenant_department_id: int | None = None) -> dict:
     """Return aggregate stats for the dashboard summary bar."""
-    index = _load_index()
+    index = list_backups(tenant_department_id)
     completed = [e for e in index if not e.get("is_pre_restore")]
     total_bytes = sum(
         e.get("file_size_bytes", 0) for e in completed
@@ -488,28 +661,22 @@ def restore_backup(
     backup_id: str,
     actor_user_id: int,
     actor_name: str,
+    tenant_department_id: int | None = None,
+    tenant_department_name: str | None = None,
 ) -> dict:
     """
     Safely restore a backup.
-
-    Steps:
-      1. Look up backup metadata.
-      2. Load and validate the backup file.
-      3. Auto-create a pre-restore safety backup.
-         → If this fails, ABORT and raise RuntimeError.
-      4. Delete all data in FK-safe order.
-      5. Re-insert all rows from the backup.
-      6. Commit.
-      7. Audit both the pre-restore backup and the restore action.
-
-    Raises:
-      ValueError: backup not found / file missing / invalid
-      RuntimeError: pre-restore safety backup failed / restore failed
+    If tenant_department_id is passed, verifies the backup belongs to that department,
+    cleans up and restores ONLY that department's records, leaving all other departments untouched.
     """
     index = _load_index()
     entry = next((e for e in index if e["backup_id"] == backup_id), None)
     if entry is None:
         raise ValueError(f"Backup '{backup_id}' not found")
+
+    if tenant_department_id is not None:
+        if entry.get("backup_scope") != "department" or entry.get("department_id") != tenant_department_id:
+            raise ValueError("Department Admins can only restore department-scoped backups created for their own department.")
 
     backup_dir = _backup_dir()
     file_path = backup_dir / entry["filename"]
@@ -529,8 +696,9 @@ def restore_backup(
 
     # ── Step 3: Pre-restore safety backup ────────────────────────────────────
     logger.warning(
-        "restore_backup: creating pre-restore safety backup before restoring %s",
+        "restore_backup: creating pre-restore safety backup before restoring %s (scope: %s)",
         backup_id,
+        "department" if tenant_department_id else "full",
     )
     try:
         pre_restore_meta = create_backup(
@@ -539,6 +707,8 @@ def restore_backup(
             actor_name=actor_name,
             is_pre_restore=True,
             pre_restore_ref=backup_id,
+            tenant_department_id=tenant_department_id,
+            tenant_department_name=tenant_department_name,
         )
         pre_restore_id = pre_restore_meta["backup_id"]
         logger.info(
@@ -552,13 +722,37 @@ def restore_backup(
 
     # ── Step 4 & 5: Delete then re-insert ────────────────────────────────────
     try:
-        # Disable FK checks temporarily for the delete/insert cycle (PostgreSQL approach)
-        # Note: We do FK-ordered deletion which is safer and works on both PG and SQLite.
-        for table in _RESTORE_DELETE_ORDER:
-            try:
-                db.execute(text(f"DELETE FROM {table}"))
-            except Exception as e:
-                logger.warning("restore: could not delete %s: %s", table, e)
+        if tenant_department_id is None:
+            # Full database wipe
+            for table in _RESTORE_DELETE_ORDER:
+                try:
+                    db.execute(text(f"DELETE FROM {table}"))
+                except Exception as e:
+                    logger.warning("restore: could not delete %s: %s", table, e)
+        else:
+            # Scoped department wipe in reverse FK order
+            dept_id = tenant_department_id
+            dept_delete_stmts = [
+                ("staff_credit_transactions", "DELETE FROM staff_credit_transactions WHERE staff_id IN (SELECT id FROM operational_staff WHERE department_id = :dept_id)"),
+                ("staff_credits", "DELETE FROM staff_credits WHERE staff_id IN (SELECT id FROM operational_staff WHERE department_id = :dept_id)"),
+                ("staff_leave_requests", "DELETE FROM staff_leave_requests WHERE staff_id IN (SELECT id FROM operational_staff WHERE department_id = :dept_id)"),
+                ("credit_transactions", "DELETE FROM credit_transactions WHERE teacher_id IN (SELECT id FROM users WHERE department_id = :dept_id)"),
+                ("teacher_credits", "DELETE FROM teacher_credits WHERE teacher_id IN (SELECT id FROM users WHERE department_id = :dept_id)"),
+                ("substitution_preferences", "DELETE FROM substitution_preferences WHERE teacher_id IN (SELECT id FROM users WHERE department_id = :dept_id)"),
+                ("alter_assignments", "DELETE FROM alter_assignments WHERE leave_request_id IN (SELECT id FROM leave_requests WHERE teacher_id IN (SELECT id FROM users WHERE department_id = :dept_id))"),
+                ("leave_requests", "DELETE FROM leave_requests WHERE teacher_id IN (SELECT id FROM users WHERE department_id = :dept_id)"),
+                ("timetable_slots", "DELETE FROM timetable_slots WHERE class_id IN (SELECT id FROM classes WHERE department_id = :dept_id) OR teacher_id IN (SELECT id FROM users WHERE department_id = :dept_id)"),
+                ("timetable_submissions", "DELETE FROM timetable_submissions WHERE teacher_id IN (SELECT id FROM users WHERE department_id = :dept_id) OR class_id IN (SELECT id FROM classes WHERE department_id = :dept_id)"),
+                ("operational_staff", "DELETE FROM operational_staff WHERE department_id = :dept_id"),
+                ("classes", "DELETE FROM classes WHERE department_id = :dept_id"),
+                ("subjects", "DELETE FROM subjects WHERE department_id = :dept_id"),
+                ("users", "DELETE FROM users WHERE department_id = :dept_id AND id != :actor_id"),
+            ]
+            for tbl, stmt in dept_delete_stmts:
+                try:
+                    db.execute(text(stmt), {"dept_id": dept_id, "actor_id": actor_user_id})
+                except Exception as e:
+                    logger.warning("restore: department delete for %s: %s", tbl, e)
 
         # Insert in parents-first order (reverse of delete order)
         insert_order = list(reversed(_RESTORE_DELETE_ORDER))
@@ -569,6 +763,29 @@ def restore_backup(
             for row in rows:
                 if not row:
                     continue
+
+                if tenant_department_id is not None:
+                    if table in ["academic_years", "semesters", "calendar_days", "system_settings"]:
+                        row_id = row.get("id")
+                        if row_id is not None:
+                            existing = db.execute(text(f'SELECT id FROM "{table}" WHERE id = :id'), {"id": row_id}).first()
+                            if existing:
+                                continue
+                    elif table == "departments":
+                        row_id = row.get("id")
+                        if row_id is not None:
+                            existing = db.execute(text('SELECT id FROM "departments" WHERE id = :id'), {"id": row_id}).first()
+                            if existing:
+                                continue
+                    elif table == "users" and row.get("id") == actor_user_id:
+                        continue
+                    elif table == "rooms":
+                        row_id = row.get("id")
+                        if row_id is not None:
+                            existing = db.execute(text('SELECT id FROM "rooms" WHERE id = :id'), {"id": row_id}).first()
+                            if existing:
+                                continue
+
                 # Adapt complex types (dict, list) to JSON strings for PostgreSQL / psycopg2
                 cleaned_row = {}
                 for k, v in row.items():
@@ -622,6 +839,7 @@ def restore_backup(
             "filename": entry["filename"],
             "pre_restore_backup_id": pre_restore_id,
             "pre_restore_filename": pre_restore_meta["filename"],
+            "department_id": tenant_department_id,
         },
     )
     db.commit()
@@ -638,7 +856,7 @@ def restore_backup(
         "pre_restore_backup_id": pre_restore_id,
         "pre_restore_filename": pre_restore_meta["filename"],
         "restored_at": _now_str(),
-        "message": "Restore completed successfully. The application has been restored to the selected backup state.",
+        "message": f"Restore completed successfully for {entry.get('department_name', 'department') if tenant_department_id else 'entire database'}.",
     }
 
 
@@ -646,15 +864,19 @@ def delete_backup(
     backup_id: str,
     db: Session,
     actor_user_id: int,
+    tenant_department_id: int | None = None,
 ) -> None:
     """
     Delete a backup file and remove it from the index.
-    Raises ValueError if not found.
+    Raises ValueError if not found or unauthorized.
     """
     index = _load_index()
     entry = next((e for e in index if e["backup_id"] == backup_id), None)
     if entry is None:
         raise ValueError(f"Backup '{backup_id}' not found")
+
+    if tenant_department_id is not None and entry.get("department_id") != tenant_department_id:
+        raise ValueError("Cannot delete a backup belonging to another department")
 
     backup_dir = _backup_dir()
     file_path = backup_dir / entry["filename"]
@@ -680,16 +902,18 @@ def delete_backup(
     logger.info("backup_service: deleted backup %s", entry["filename"])
 
 
-def get_backup_file_path(backup_id: str) -> Path:
+def get_backup_file_path(backup_id: str, tenant_department_id: int | None = None) -> Path:
     """
     Return the filesystem path for a backup file.
-    Raises ValueError if the backup doesn't exist in the index or on disk.
-    Never accepts a user-supplied path — only the server-generated filename from the index.
+    Raises ValueError if the backup doesn't exist in the index, on disk, or unauthorized.
     """
     index = _load_index()
     entry = next((e for e in index if e["backup_id"] == backup_id), None)
     if entry is None:
         raise ValueError(f"Backup '{backup_id}' not found")
+
+    if tenant_department_id is not None and entry.get("department_id") != tenant_department_id:
+        raise ValueError("Cannot access a backup belonging to another department")
 
     path = _backup_dir() / entry["filename"]
     if not path.exists():

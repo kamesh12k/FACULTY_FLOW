@@ -120,6 +120,7 @@ def teacher_assign_substitute(
     substitute_id: int,
     teacher_id: int,
     include_cross_department: bool = False,
+    override_substitution_limit: bool = False,
 ) -> AlterAssignment:
     check_teacher_self_management_allowed(db, teacher_id)
     
@@ -155,6 +156,7 @@ def teacher_assign_substitute(
         actor_id=teacher_id,
         tenant_department_id=leave.teacher.department_id,
         include_cross_department=include_cross_department or (substitute.department_id != leave.teacher.department_id),
+        override_substitution_limit=override_substitution_limit,
     )
 
 
@@ -164,6 +166,7 @@ def teacher_override_substitute(
     substitute_id: int,
     teacher_id: int,
     include_cross_department: bool = False,
+    override_substitution_limit: bool = False,
 ) -> AlterAssignment:
     check_teacher_self_management_allowed(db, teacher_id)
     
@@ -198,6 +201,7 @@ def teacher_override_substitute(
         db=db,
         tenant_department_id=leave.teacher.department_id,
         include_cross_department=include_cross_department or (substitute.department_id != leave.teacher.department_id),
+        override_substitution_limit=override_substitution_limit,
     )
 
 

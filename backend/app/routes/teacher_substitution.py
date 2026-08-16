@@ -67,12 +67,14 @@ def assign_substitute(
     leave_id: int,
     substitute_id: int,
     include_cross_department: bool = False,
+    override_substitution_limit: bool = False,
     current_user: User = Depends(require_teacher),
     db: Session = Depends(get_db)
 ):
     return service.teacher_assign_substitute(
         db, leave_id, substitute_id, current_user.id,
         include_cross_department=include_cross_department,
+        override_substitution_limit=override_substitution_limit,
     )
 
 @router.put("/leave/{leave_id}/override/{substitute_id}", response_model=AlterAssignmentOut)
@@ -80,12 +82,14 @@ def override_substitute(
     leave_id: int,
     substitute_id: int,
     include_cross_department: bool = False,
+    override_substitution_limit: bool = False,
     current_user: User = Depends(require_teacher),
     db: Session = Depends(get_db)
 ):
     return service.teacher_override_substitute(
         db, leave_id, substitute_id, current_user.id,
         include_cross_department=include_cross_department,
+        override_substitution_limit=override_substitution_limit,
     )
 
 @router.post("/leave/{leave_id}/undo-assignment", response_model=LeaveOut)

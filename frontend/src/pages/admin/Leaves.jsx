@@ -1,37 +1,139 @@
 import { useEffect, useState, useMemo } from 'react'
 import { leavesApi, adminApi, departmentsApi } from '../../api/services'
 import { Spinner, StatusBadge, Modal, EmptyState, AssignmentTypeBadge } from '../../components/ui'
-import { SwapIcon, LockIcon, UnlockIcon, UndoIcon, SparklesIcon, AlertTriangleIcon } from '../../components/icons'
+import {
+  SwapIcon,
+  LockIcon,
+  UnlockIcon,
+  UndoIcon,
+  SparklesIcon,
+  AlertTriangleIcon,
+  SearchIcon,
+  XMarkIcon,
+  CheckIcon,
+  FilterIcon,
+} from '../../components/icons'
 
 function ScoreBar({ score }) {
-  const color = score >= 75 ? 'bg-green-500' : score >= 45 ? 'bg-yellow-500' : 'bg-gray-400'
+  const color = score >= 75 ? 'bg-emerald-500' : score >= 45 ? 'bg-amber-500' : 'bg-slate-400'
   return (
-    <div className="w-20 h-1.5 rounded-full bg-gray-100 overflow-hidden shrink-0">
-      <div className={`h-full ${color}`} style={{ width: `${Math.min(score, 100)}%` }} />
+    <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden shrink-0">
+      <div className={`h-full ${color} rounded-full transition-all duration-300`} style={{ width: `${Math.min(score, 100)}%` }} />
     </div>
   )
 }
 
-function RecommendationRow({ rec, onAssign, disabled }) {
+function RecommendationRow({ rec, onAssign, disabled, isSwap = false }) {
+  const teacher = rec.teacher || {}
+  const initial = (teacher.name || 'T')[0].toUpperCase()
+  const todayLoad = rec.today_workload !== undefined ? rec.today_workload : teacher.today_workload
+  const projToday = rec.projected_today_workload !== undefined ? rec.projected_today_workload : (todayLoad !== undefined ? todayLoad + 1 : undefined)
+  const weekLoad = rec.week_workload !== undefined ? rec.week_workload : teacher.week_workload
+  const projWeek = rec.projected_week_workload !== undefined ? rec.projected_week_workload : (weekLoad !== undefined ? weekLoad + 1 : undefined)
+  const contLoad = rec.longest_continuous_periods
+  const projCont = rec.projected_longest_continuous_periods
+  const todayPeriods = rec.today_periods || teacher.today_periods || []
+
   return (
-    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg gap-3">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-medium text-gray-800 truncate">{rec.teacher.name}</p>
-          <span className="text-xs font-semibold text-gray-500 shrink-0">{rec.score}% match</span>
+    <div className="p-3.5 bg-white hover:bg-slate-50/90 border border-slate-200/90 rounded-2xl transition shadow-xs space-y-3">
+      {/* Top Header: Avatar, Name, Dept, Match %, Assign Button */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-800 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-xs">
+            {initial}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="text-sm font-bold text-slate-900 truncate">{teacher.name}</h4>
+              {teacher.department && (
+                <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md font-semibold shrink-0 border border-slate-200/70">
+                  {teacher.department}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <ScoreBar score={rec.score} />
+              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                {rec.score}% match
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2 mt-1">
-          <ScoreBar score={rec.score} />
-          <p className="text-xs text-gray-400 truncate">{rec.reasons.join(' · ') || 'No strong signals'}</p>
+
+        <button
+          onClick={() => onAssign(teacher.id, true)}
+          disabled={disabled}
+          className="text-xs font-bold px-4 py-2 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white rounded-xl transition shadow-xs disabled:opacity-40 disabled:cursor-not-allowed shrink-0 cursor-pointer"
+        >
+          {disabled ? '…' : isSwap ? 'Swap' : 'Assign'}
+        </button>
+      </div>
+
+      {/* Workload Simulation Metrics Grid */}
+      <div className="grid grid-cols-3 gap-2 bg-slate-50/90 border border-slate-200/80 rounded-xl p-2.5 text-center">
+        <div className="flex flex-col items-center justify-center">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Total Today</span>
+          <span className="text-xs font-black text-slate-800 mt-0.5">
+            {todayLoad === 0 ? 'Free (0 classes)' : `${todayLoad} → ${projToday} classes`}
+          </span>
+          {todayPeriods.length > 0 ? (
+            <span className="text-[9px] text-slate-500 font-medium mt-0.5 truncate max-w-full">
+              Periods: P{todayPeriods.sort((a, b) => a - b).join(', P')}
+            </span>
+          ) : todayLoad > 0 ? (
+            <span className="text-[9px] text-slate-400 mt-0.5">{todayLoad} periods total</span>
+          ) : (
+            <span className="text-[9px] text-emerald-600 font-medium mt-0.5">Free all day</span>
+          )}
+        </div>
+
+        <div className="flex flex-col items-center justify-center border-x border-slate-200/80 px-1">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Back-to-Back</span>
+          <span className={`text-xs font-black mt-0.5 ${projCont >= 4 ? 'text-amber-700 font-extrabold' : 'text-slate-800'}`}>
+            {contLoad === undefined ? '-' : `${contLoad} → ${projCont} in a row`}
+          </span>
+          <span className={`text-[9px] mt-0.5 ${projCont >= 4 ? 'text-amber-700 font-bold' : 'text-slate-400'}`}>
+            {projCont >= 4 ? `⚠️ ${projCont} in a row (no break)` : projCont > 1 ? 'Classes in a row' : 'No consecutive'}
+          </span>
+        </div>
+
+        <div className="flex flex-col items-center justify-center">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Weekly Total</span>
+          <span className="text-xs font-black text-slate-800 mt-0.5">
+            {weekLoad !== undefined ? `${weekLoad} → ${projWeek} classes` : '-'}
+          </span>
+          <span className="text-[9px] text-slate-400 mt-0.5">
+            {rec.substitutions_week !== undefined ? `${rec.substitutions_week} sub(s) this week` : 'Weekly total'}
+          </span>
         </div>
       </div>
-      <button
-        onClick={() => onAssign(rec.teacher.id)}
-        disabled={disabled}
-        className="text-xs px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 shrink-0"
-      >
-        {disabled ? '…' : 'Assign'}
-      </button>
+
+      {/* Distinct Context Badges */}
+      {rec.reasons?.length > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+          {rec.reasons.map((r, i) => {
+            const isWarn = r.includes('⚠') || r.includes('Fatigue') || r.includes('break')
+            const isSubject = r.includes('subject')
+            const isDept = r.includes('department')
+            return (
+              <span
+                key={i}
+                className={`text-[10px] px-2 py-0.5 rounded-md font-semibold tracking-tight ${
+                  isWarn
+                    ? 'bg-amber-50 text-amber-800 border border-amber-200 font-bold'
+                    : isSubject
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                    : isDept
+                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                    : 'bg-slate-100 text-slate-600 border border-slate-200/80'
+                }`}
+              >
+                {r}
+              </span>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -44,6 +146,7 @@ export default function AdminLeaves() {
   const [subModal, setSubModal] = useState(null) // { group, activeReq, recommendations, others }
   const [cancelModal, setCancelModal] = useState(null) // { group, impact }
   const [cancelReason, setCancelReason] = useState('')
+  const [limitWarning, setLimitWarning] = useState(null) // { payload, warningData }
   const [actionLoading, setActionLoading] = useState(null)
   const [candidateFilters, setCandidateFilters] = useState({ crossDepartment: false, handlesClass: false, department: '', search: '' })
 
@@ -275,15 +378,16 @@ export default function AdminLeaves() {
     } finally { setActionLoading(null) }
   }
 
-  const handleAssignSubstitute = async (teacherId, isRecommended) => {
+  const handleAssignSubstitute = async (teacherId, isRecommended, overrideLimit = false) => {
     if (!subModal) return
     setActionLoading('assign')
     try {
       if (isRecommended) {
-        await leavesApi.assignRecommended(subModal.activeReq.id, teacherId, { include_cross_department: candidateFilters.crossDepartment })
+        await leavesApi.assignRecommended(subModal.activeReq.id, teacherId, { include_cross_department: candidateFilters.crossDepartment }, overrideLimit)
       } else {
-        await leavesApi.assignSubstitute(subModal.activeReq.id, teacherId, { include_cross_department: candidateFilters.crossDepartment })
+        await leavesApi.assignSubstitute(subModal.activeReq.id, teacherId, { include_cross_department: candidateFilters.crossDepartment }, overrideLimit)
       }
+      setLimitWarning(null)
       const updatedList = await leavesApi.all().then(r => r.data)
       setLeaves(updatedList)
       
@@ -301,17 +405,26 @@ export default function AdminLeaves() {
         }
       }
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to assign substitute.')
+      if (err.response?.status === 409 && (err.response?.data?.detail?.code === 'LIMIT_ACKNOWLEDGEMENT_REQUIRED' || err.response?.data?.code === 'LIMIT_ACKNOWLEDGEMENT_REQUIRED')) {
+        const warningData = err.response?.data?.detail || err.response?.data
+        setLimitWarning({
+          payload: { teacherId, isRecommended, isOverride: false },
+          warningData,
+        })
+        return
+      }
+      alert(err.response?.data?.detail?.message || err.response?.data?.detail || 'Failed to assign substitute.')
     } finally {
       setActionLoading(null)
     }
   }
 
-  const handleOverride = async (teacherId) => {
+  const handleOverride = async (teacherId, overrideLimit = false) => {
     if (!subModal) return
     setActionLoading('override')
     try {
-      await leavesApi.overrideSubstitute(subModal.activeReq.id, teacherId, { include_cross_department: candidateFilters.crossDepartment })
+      await leavesApi.overrideSubstitute(subModal.activeReq.id, teacherId, { include_cross_department: candidateFilters.crossDepartment }, overrideLimit)
+      setLimitWarning(null)
       const updatedList = await leavesApi.all().then(r => r.data)
       setLeaves(updatedList)
       
@@ -334,7 +447,15 @@ export default function AdminLeaves() {
         }
       }
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to swap substitute.')
+      if (err.response?.status === 409 && (err.response?.data?.detail?.code === 'LIMIT_ACKNOWLEDGEMENT_REQUIRED' || err.response?.data?.code === 'LIMIT_ACKNOWLEDGEMENT_REQUIRED')) {
+        const warningData = err.response?.data?.detail || err.response?.data
+        setLimitWarning({
+          payload: { teacherId, isRecommended: false, isOverride: true },
+          warningData,
+        })
+        return
+      }
+      alert(err.response?.data?.detail?.message || err.response?.data?.detail || 'Failed to swap substitute.')
     } finally {
       setActionLoading(null)
     }
@@ -431,6 +552,22 @@ export default function AdminLeaves() {
     }
   }
 
+  const handleCrossDeptToggle = (crossDept) => {
+    applyCandidateFilters({
+      ...candidateFilters,
+      crossDepartment: crossDept,
+      department: !crossDept ? '' : candidateFilters.department,
+    })
+  }
+
+  const handleDepartmentChange = (dept) => {
+    setCandidateFilters(prev => ({
+      ...prev,
+      department: dept,
+      crossDepartment: dept ? true : prev.crossDepartment,
+    }))
+  }
+
   const candidateMatchesLocalFilters = (candidate) => {
     const teacher = candidate.teacher || candidate
     const department = teacher.department || ''
@@ -487,23 +624,22 @@ export default function AdminLeaves() {
         {loading ? (
           <div className="flex justify-center py-12"><Spinner /></div>
         ) : leaves.length === 0 ? <EmptyState message="No leave requests yet." /> : (
-          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-            <table className="w-full text-xs sm:text-sm" style={{ minWidth: '700px' }}>
-            <thead className="bg-slate-50 border-b border-slate-100">
+          <div className="w-full">
+            <table className="w-full text-xs text-left border-collapse">
+            <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 select-none">
               <tr>
-                <th className="px-2.5 py-3 w-8 text-center">
+                <th className="px-2 py-2 w-6 text-center">
                   {pendingGroupKeys.length > 0 && (
                     <input type="checkbox" checked={selected.size === pendingGroupKeys.length} onChange={toggleSelectAll} />
                   )}
                 </th>
-                <th className="px-2.5 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Teacher</th>
-                <th className="px-2.5 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
-                <th className="px-2.5 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Day Order</th>
-                <th className="px-2.5 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Period</th>
-                <th className="px-2.5 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Reason</th>
-                <th className="px-2.5 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                <th className="px-2.5 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Substitute</th>
-                <th className="px-2.5 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
+                <th className="px-2.5 py-2 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Teacher</th>
+                <th className="px-2.5 py-2 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Schedule</th>
+                <th className="px-2.5 py-2 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Periods</th>
+                <th className="px-2.5 py-2 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Reason</th>
+                <th className="px-2.5 py-2 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                <th className="px-2.5 py-2 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Substitute</th>
+                <th className="px-2.5 py-2 text-right text-[11px] font-bold text-slate-500 uppercase tracking-wider pr-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -515,57 +651,63 @@ export default function AdminLeaves() {
                 const hasUnassigned = approved.some(r => !r.alter_assignment)
 
                 return (
-                  <tr key={group.key} className="hover:bg-slate-50/60">
-                    <td className="px-2.5 py-2.5 text-center">
+                  <tr key={group.key} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="px-2 py-2 text-center">
                       {group.status === 'pending' && (
                         <input type="checkbox" checked={selected.has(group.key)} onChange={() => toggleSelect(group.key)} />
                       )}
                     </td>
-                    <td className="px-2.5 py-2.5 font-semibold text-slate-800 whitespace-nowrap">{group.teacher?.name}</td>
-                    <td className="px-2.5 py-2.5 text-slate-600 whitespace-nowrap text-xs">{group.date}</td>
-                    <td className="px-2.5 py-2.5 text-slate-600 whitespace-nowrap text-xs font-medium">DO {group.day_order}</td>
-                    <td className="px-2.5 py-2.5 text-slate-600 whitespace-nowrap text-xs">
+                    <td className="px-2.5 py-2 font-bold text-slate-900 truncate max-w-[160px]">
+                      {group.teacher?.name}
+                    </td>
+                    <td className="px-2.5 py-2 whitespace-nowrap">
+                      <span className="font-semibold text-slate-700 block text-[11px]">{group.date}</span>
+                      <span className="text-[10px] text-slate-400 font-medium">DO {group.day_order}</span>
+                    </td>
+                    <td className="px-2.5 py-2 text-slate-700 font-medium whitespace-nowrap text-[11px]">
                       P{group.requests.map(r => r.period_number).sort().join(', P')}
                     </td>
-                    <td className="px-2.5 py-2.5 text-slate-600 max-w-[140px] truncate text-xs" title={firstReq?.reason}>
+                    <td className="px-2.5 py-2 text-slate-600 max-w-[180px] truncate text-[11px] hidden lg:table-cell" title={firstReq?.reason}>
                       <div className="flex items-center gap-1 truncate">
-                        {group.is_emergency && <AlertTriangleIcon className="w-3.5 h-3.5 text-red-500 shrink-0" />}
-                        <span className="truncate">{firstReq?.reason}</span>
+                        {group.is_emergency && <AlertTriangleIcon className="w-3.5 h-3.5 text-rose-500 shrink-0" />}
+                        <span className="truncate">{firstReq?.reason || '—'}</span>
                       </div>
                     </td>
-                    <td className="px-2.5 py-2.5 whitespace-nowrap"><StatusBadge status={group.status} /></td>
-                    <td className="px-2.5 py-2.5">
+                    <td className="px-2.5 py-2 whitespace-nowrap">
+                      <StatusBadge status={group.status} />
+                    </td>
+                    <td className="px-2.5 py-2">
                       {approved.length > 0 ? (
                         covered.length === approved.length ? (
                           <div className="space-y-0.5">
-                            <p className="text-xs font-medium text-slate-800 truncate max-w-[130px]" title={subsNames.join(', ')}>{subsNames.join(', ')}</p>
+                            <p className="text-[11px] font-medium text-slate-800 truncate max-w-[140px]" title={subsNames.join(', ')}>{subsNames.join(', ')}</p>
                             <div className="flex items-center gap-1">
                               <AssignmentTypeBadge type={covered[0]?.alter_assignment.assignment_type} small />
                               {covered.some(r => r.alter_assignment.is_locked) && <LockIcon className="w-3.5 h-3.5 text-slate-400" />}
                             </div>
                           </div>
                         ) : (
-                          <span className="text-xs text-amber-600 font-semibold whitespace-nowrap">Needs sub ({covered.length}/{approved.length})</span>
+                          <span className="text-[11px] text-amber-600 font-semibold whitespace-nowrap">Needs sub ({covered.length}/{approved.length})</span>
                         )
                       ) : (
-                        <span className="text-xs text-slate-300">—</span>
+                        <span className="text-[11px] text-slate-300">—</span>
                       )}
                     </td>
-                    <td className="px-2.5 py-2.5 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
+                    <td className="px-2.5 py-2 text-right whitespace-nowrap pr-3">
+                      <div className="flex items-center justify-end gap-1">
                         {group.status === 'pending' && (
                           <>
                             <button
                               onClick={() => handleApproveGroup(group)}
                               disabled={!!actionLoading}
-                              className="text-xs px-2 py-1 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                              className="text-xs px-2 py-0.5 bg-emerald-600 text-white font-medium rounded hover:bg-emerald-700 transition-colors disabled:opacity-50 cursor-pointer"
                             >
                               {actionLoading === group.key + '_approve' ? '…' : 'Approve'}
                             </button>
                             <button
                               onClick={() => handleRejectGroup(group)}
                               disabled={!!actionLoading}
-                              className="text-xs px-2 py-1 bg-rose-600 text-white font-medium rounded-lg hover:bg-rose-700 transition-colors disabled:opacity-50"
+                              className="text-xs px-2 py-0.5 bg-rose-600 text-white font-medium rounded hover:bg-rose-700 transition-colors disabled:opacity-50 cursor-pointer"
                             >
                               {actionLoading === group.key + '_reject' ? '…' : 'Reject'}
                             </button>
@@ -574,7 +716,7 @@ export default function AdminLeaves() {
                         {group.status === 'approved' && hasUnassigned && (
                           <button
                             onClick={() => openSubModal(group)}
-                            className="text-xs px-2.5 py-1 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors"
+                            className="text-xs px-2 py-0.5 bg-primary-600 text-white font-medium rounded hover:bg-primary-700 transition-colors cursor-pointer"
                           >
                             Assign Sub
                           </button>
@@ -583,7 +725,7 @@ export default function AdminLeaves() {
                           <button
                             onClick={() => openSubModal(group)}
                             title="Swap substitute"
-                            className="p-1 rounded-lg border border-slate-200 text-slate-500 hover:text-primary-600 hover:border-primary-300"
+                            className="p-1 rounded border border-slate-200 text-slate-500 hover:text-primary-600 hover:border-primary-300 cursor-pointer"
                           >
                             <SwapIcon className="w-3.5 h-3.5" />
                           </button>
@@ -593,7 +735,7 @@ export default function AdminLeaves() {
                             onClick={() => openCancelModal(group)}
                             disabled={!!actionLoading}
                             title="Cancel leaves"
-                            className="text-xs px-2 py-1 border border-rose-200 text-rose-600 rounded-lg hover:bg-rose-50 hover:text-rose-700 transition-colors disabled:opacity-30 font-medium"
+                            className="text-xs px-2 py-0.5 border border-rose-200 text-rose-600 rounded hover:bg-rose-50 hover:text-rose-700 transition-colors disabled:opacity-30 font-medium cursor-pointer"
                           >
                             {actionLoading === group.key + '_cancel_open' ? '...' : 'Cancel'}
                           </button>
@@ -604,129 +746,289 @@ export default function AdminLeaves() {
                 )
               })}
             </tbody>
-          </table>
+            </table>
           </div>
         )}
       </div>
 
       {/* substitution modal with period selector */}
-      <Modal open={!!subModal} onClose={() => setSubModal(null)} title="Manage Substitutions">
+      <Modal
+        open={!!subModal}
+        onClose={() => setSubModal(null)}
+        title={
+          <div className="flex items-center gap-2 flex-wrap">
+            <span>Manage Substitutions</span>
+            {subModal?.activeReq && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full bg-primary-50 text-primary-700 border border-primary-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary-600 animate-pulse" />
+                Hour / Period P{subModal.activeReq.period_number}
+              </span>
+            )}
+          </div>
+        }
+        size="lg"
+      >
         {subModal && (
           <div className="space-y-4">
-            <div className="bg-gray-50 rounded-lg p-3 text-sm">
-              <p className="font-semibold text-gray-700">{subModal.group.teacher?.name}</p>
-              <p className="text-gray-500 text-xs mt-0.5">{subModal.group.date} · Day Order {subModal.group.day_order}</p>
+            {/* Header Absent Faculty Card */}
+            <div className="bg-slate-50/90 border border-slate-200/80 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-indigo-800 text-white font-black text-sm flex items-center justify-center shadow-xs shrink-0">
+                  {(subModal.group.teacher?.name || 'T')[0].toUpperCase()}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-bold text-slate-900 text-sm">{subModal.group.teacher?.name}</p>
+                    {subModal.group.teacher?.department && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 bg-indigo-50 text-indigo-700 border border-indigo-200/60 rounded">
+                        {subModal.group.teacher.department}
+                      </span>
+                    )}
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-primary-100 text-primary-800 rounded-md border border-primary-200">
+                      Active: Hour P{subModal.activeReq.period_number}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5 font-medium flex-wrap">
+                    <span>{subModal.group.date}</span>
+                    <span className="text-slate-300">•</span>
+                    <span>Day Order {subModal.group.day_order}</span>
+                    <span className="text-slate-300">•</span>
+                    <span className="text-slate-700 font-semibold">
+                      {subModal.group.requests.length} leave period(s)
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {subModal.group.is_emergency && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-rose-50 border border-rose-200 text-rose-700 shrink-0 self-start sm:self-auto">
+                  <AlertTriangleIcon className="w-3.5 h-3.5 text-rose-600" />
+                  Emergency Leave
+                </span>
+              )}
             </div>
 
             {/* Select Slot to substitute */}
             {subModal.group.requests.filter(r => r.status === 'approved').length > 1 && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Select Period Slot to Configure:</p>
-                <div className="flex gap-1.5">
-                  {subModal.group.requests.filter(r => r.status === 'approved').map(r => (
-                    <button
-                      key={r.id}
-                      onClick={() => switchSubModalPeriod(r)}
-                      disabled={actionLoading === 'switch_sub_period'}
-                      className={`text-xs px-2.5 py-1.5 rounded-lg border transition ${
-                        subModal.activeReq.id === r.id
-                          ? 'bg-primary-600 text-white border-primary-750 shadow-sm'
-                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      Period P{r.period_number}
-                    </button>
-                  ))}
+              <div className="space-y-1.5 bg-white border border-slate-200/80 rounded-xl p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Select Period Slot to Configure:</p>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {subModal.group.requests.filter(r => r.alter_assignment).length}/{subModal.group.requests.filter(r => r.status === 'approved').length} assigned
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {subModal.group.requests.filter(r => r.status === 'approved').map(r => {
+                    const isAssigned = !!r.alter_assignment
+                    const isSelected = subModal.activeReq.id === r.id
+                    return (
+                      <button
+                        key={r.id}
+                        onClick={() => switchSubModalPeriod(r)}
+                        disabled={actionLoading === 'switch_sub_period'}
+                        className={`text-xs px-3 py-1.5 rounded-lg border transition-all font-semibold flex items-center gap-1.5 cursor-pointer ${
+                          isSelected
+                            ? 'bg-primary-600 text-white border-primary-700 shadow-xs ring-2 ring-primary-500/20'
+                            : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        <span>Period P{r.period_number}</span>
+                        {isAssigned ? (
+                          <span className={`text-[10px] font-bold px-1 rounded ${isSelected ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700'}`}>
+                            ✓
+                          </span>
+                        ) : (
+                          <span className={`text-[10px] font-bold px-1 rounded ${isSelected ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'}`}>
+                            Needs sub
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             )}
 
-            <div className="border-t border-gray-100 pt-3">
-              <p className="text-xs font-bold text-gray-400 uppercase">Selected Slot Details:</p>
-              <p className="text-sm font-semibold text-gray-800 mt-1">Period P{subModal.activeReq.period_number}</p>
-            </div>
-
-            <div className="rounded-lg border border-gray-200 bg-white p-3 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Candidate filters</p>
-                <div className="flex items-center gap-2">
-                  {actionLoading === 'filter_candidates' && <span className="text-xs text-primary-600">Updating…</span>}
-                  {(candidateFilters.crossDepartment || candidateFilters.handlesClass || candidateFilters.department || candidateFilters.search) && (
-                    <button
-                      type="button"
-                      onClick={() => applyCandidateFilters({ crossDepartment: false, handlesClass: false, department: '', search: '' })}
-                      className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition"
-                    >
-                      Clear All
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-3 items-center">
-                <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={candidateFilters.crossDepartment}
-                    onChange={e => applyCandidateFilters({ ...candidateFilters, crossDepartment: e.target.checked, department: !e.target.checked ? '' : candidateFilters.department })}
-                  />
-                  Include other departments
-                </label>
-                <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer">
-                  <input type="checkbox" checked={candidateFilters.handlesClass} onChange={e => applyCandidateFilters({ ...candidateFilters, handlesClass: e.target.checked })} />
-                  Only teachers handling this class
-                </label>
-                <select className="tt-input text-xs py-1.5" value={candidateFilters.department} onChange={e => setCandidateFilters({ ...candidateFilters, department: e.target.value })}>
-                  <option value="">All departments</option>
-                  {candidateDepartments.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-                <input className="tt-input text-xs py-1.5 min-w-[160px]" placeholder="Search teacher…" value={candidateFilters.search} onChange={e => setCandidateFilters({ ...candidateFilters, search: e.target.value })} />
-                <button
-                  type="button"
-                  onClick={() => applyCandidateFilters({ crossDepartment: false, handlesClass: false, department: '', search: '' })}
-                  disabled={!candidateFilters.crossDepartment && !candidateFilters.handlesClass && !candidateFilters.department && !candidateFilters.search}
-                  className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition shrink-0 ml-auto sm:ml-0"
-                >
-                  Clear All
-                </button>
-              </div>
-            </div>
-
+            {/* Current Assignment Status Banner */}
             {subModal.activeReq.alter_assignment ? (
-              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs space-y-2">
-                <div className="flex justify-between items-center">
-                  <p className="font-semibold text-blue-900">
-                    Assigned Substitute: <span className="font-bold">{subModal.activeReq.alter_assignment.substitute?.name}</span>
-                  </p>
-                  <AssignmentTypeBadge type={subModal.activeReq.alter_assignment.assignment_type} small />
+              <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-xl p-3.5 text-xs space-y-2.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-indigo-900">Period P{subModal.activeReq.period_number} Substitute:</span>
+                    <span className="font-extrabold text-slate-900 text-sm">{subModal.activeReq.alter_assignment.substitute?.name}</span>
+                    {subModal.activeReq.alter_assignment.substitute?.department && (
+                      <span className="text-[10px] px-1.5 py-0.2 bg-indigo-100 text-indigo-800 rounded font-semibold">
+                        {subModal.activeReq.alter_assignment.substitute.department}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <AssignmentTypeBadge type={subModal.activeReq.alter_assignment.assignment_type} small />
+                    {subModal.activeReq.alter_assignment.is_locked && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
+                        <LockIcon className="w-3 h-3 text-slate-500" /> Locked
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex items-center gap-3 pt-1 border-t border-indigo-200/60">
                   <button
                     onClick={() => handleToggleLock(subModal.activeReq)}
                     disabled={actionLoading === subModal.activeReq.id + '_lock'}
-                    className="text-[11px] font-semibold text-gray-600 hover:text-primary-600 transition flex items-center gap-1"
+                    className="text-[11px] font-bold text-slate-700 hover:text-primary-700 transition flex items-center gap-1 cursor-pointer"
                   >
                     {subModal.activeReq.alter_assignment.is_locked ? <><UnlockIcon className="w-3 h-3" /> Unlock</> : <><LockIcon className="w-3 h-3" /> Lock (protect)</>}
                   </button>
+                  <span className="text-indigo-200">•</span>
                   <button
                     onClick={() => handleUndo(subModal.activeReq.id)}
                     disabled={subModal.activeReq.alter_assignment.is_locked || actionLoading === subModal.activeReq.id + '_undo'}
-                    className="text-[11px] font-semibold text-red-600 hover:text-red-700 transition disabled:opacity-30"
+                    className="text-[11px] font-bold text-rose-600 hover:text-rose-800 transition disabled:opacity-30 cursor-pointer"
                   >
                     Undo Assignment
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 text-xs text-amber-800">
-                Needs substitute candidate assignment
+              <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-3 text-xs text-amber-900 flex items-center gap-2">
+                <AlertTriangleIcon className="w-4 h-4 text-amber-600 shrink-0" />
+                <span className="font-semibold">Period P{subModal.activeReq.period_number} requires a substitute candidate. Select a candidate below.</span>
               </div>
             )}
 
+            {/* Smart Candidate Filters Card */}
+            <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-3 shadow-xs">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <FilterIcon className="w-3.5 h-3.5 text-slate-500" />
+                  <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Candidate Filters</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {actionLoading === 'filter_candidates' && <span className="text-xs text-primary-600 font-semibold">Updating…</span>}
+                  {(candidateFilters.crossDepartment || candidateFilters.handlesClass || candidateFilters.department || candidateFilters.search) && (
+                    <button
+                      type="button"
+                      onClick={() => applyCandidateFilters({ crossDepartment: false, handlesClass: false, department: '', search: '' })}
+                      className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Search & Department row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="relative">
+                  <input
+                    type="text"
+                    className="w-full pl-8 pr-8 py-2 text-xs bg-slate-50/80 hover:bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition font-medium placeholder:text-slate-400"
+                    placeholder="Search candidate name or dept…"
+                    value={candidateFilters.search}
+                    onChange={e => setCandidateFilters({ ...candidateFilters, search: e.target.value })}
+                  />
+                  <SearchIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5 pointer-events-none" />
+                  {candidateFilters.search && (
+                    <button
+                      type="button"
+                      onClick={() => setCandidateFilters({ ...candidateFilters, search: '' })}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 p-0.5 rounded-md cursor-pointer"
+                    >
+                      <XMarkIcon className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div>
+                  <select
+                    className="w-full px-3 py-2 text-xs bg-slate-50/80 hover:bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition font-medium text-slate-700 cursor-pointer"
+                    value={candidateFilters.department}
+                    onChange={e => handleDepartmentChange(e.target.value)}
+                  >
+                    <option value="">All Departments</option>
+                    {candidateDepartments.map(d => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Interactive Toggle Switch Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => handleCrossDeptToggle(!candidateFilters.crossDepartment)}
+                  disabled={actionLoading === 'filter_candidates'}
+                  className={`flex items-center justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    candidateFilters.crossDepartment
+                      ? 'bg-indigo-50/80 border-indigo-200 text-indigo-950 shadow-xs ring-1 ring-indigo-500/10'
+                      : 'bg-slate-50/60 hover:bg-slate-50 border-slate-200/90 text-slate-700'
+                  }`}
+                >
+                  <div className="min-w-0 pr-2">
+                    <p className="text-xs font-bold truncate">Other Departments</p>
+                    <p className="text-[11px] text-slate-500 truncate">Search across campus</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                      candidateFilters.crossDepartment ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {candidateFilters.crossDepartment ? 'ON' : 'OFF'}
+                    </span>
+                    <span className={`w-8 h-4 flex items-center rounded-full p-0.5 transition-colors ${
+                      candidateFilters.crossDepartment ? 'bg-indigo-600' : 'bg-slate-300'
+                    }`}>
+                      <span className={`bg-white w-3 h-3 rounded-full shadow transform transition-transform ${
+                        candidateFilters.crossDepartment ? 'translate-x-4' : 'translate-x-0'
+                      }`} />
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => applyCandidateFilters({ ...candidateFilters, handlesClass: !candidateFilters.handlesClass })}
+                  disabled={actionLoading === 'filter_candidates'}
+                  className={`flex items-center justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    candidateFilters.handlesClass
+                      ? 'bg-amber-50/80 border-amber-200 text-amber-950 shadow-xs ring-1 ring-amber-500/10'
+                      : 'bg-slate-50/60 hover:bg-slate-50 border-slate-200/90 text-slate-700'
+                  }`}
+                >
+                  <div className="min-w-0 pr-2">
+                    <p className="text-xs font-bold truncate">Class Faculty Only</p>
+                    <p className="text-[11px] text-slate-500 truncate">Teachers of this class</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                      candidateFilters.handlesClass ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {candidateFilters.handlesClass ? 'ON' : 'OFF'}
+                    </span>
+                    <span className={`w-8 h-4 flex items-center rounded-full p-0.5 transition-colors ${
+                      candidateFilters.handlesClass ? 'bg-amber-600' : 'bg-slate-300'
+                    }`}>
+                      <span className={`bg-white w-3 h-3 rounded-full shadow transform transition-transform ${
+                        candidateFilters.handlesClass ? 'translate-x-4' : 'translate-x-0'
+                      }`} />
+                    </span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Recommended Candidates */}
             {subModal.recommendations.filter(candidateMatchesLocalFilters).length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4 flex items-center gap-1.5">
-                  <SparklesIcon className="w-3.5 h-3.5 text-primary-500" /> Recommended for Period P{subModal.activeReq.period_number}
-                </p>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <SparklesIcon className="w-3.5 h-3.5 text-primary-500" />
+                    Recommended Candidates ({subModal.recommendations.filter(candidateMatchesLocalFilters).length})
+                  </p>
+                  <span className="text-[10px] text-slate-400 font-medium">Ranked by score & workload</span>
+                </div>
                 <div className="space-y-2">
                   {subModal.recommendations.filter(candidateMatchesLocalFilters).map(rec => (
                     <RecommendationRow
@@ -734,60 +1036,78 @@ export default function AdminLeaves() {
                       rec={rec}
                       onAssign={handleAssignSubstitute}
                       disabled={actionLoading === 'assign' || (subModal.activeReq.alter_assignment && subModal.activeReq.alter_assignment.is_locked)}
+                      isSwap={!!subModal.activeReq.alter_assignment}
                     />
                   ))}
                 </div>
               </div>
             )}
 
+            {/* Other Available Teachers */}
             {subModal.others.filter(candidateMatchesLocalFilters).length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4">
-                  Other available teachers ({subModal.others.filter(candidateMatchesLocalFilters).length})
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Other Available Teachers ({subModal.others.filter(candidateMatchesLocalFilters).length})
                 </p>
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                  {subModal.others.filter(candidateMatchesLocalFilters).map(t => (
-                    <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">{t.name}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <p className="text-xs text-gray-400">{t.department || 'No dept'}</p>
-                          <span className="text-xs text-gray-300">·</span>
-                          <p className="text-xs text-gray-500">
-                            {t.today_workload ?? 0} {t.today_workload === 1 ? 'period' : 'periods'} today
-                            {t.today_periods && t.today_periods.length > 0 && (
-                              <span className="text-gray-400"> (P{t.today_periods.sort((a, b) => a - b).join(', P')})</span>
-                            )}
-                          </p>
+                <div className="space-y-2">
+                  {subModal.others.filter(candidateMatchesLocalFilters).map(t => {
+                    const initial = (t.name || 'T')[0].toUpperCase()
+                    return (
+                      <div key={t.id} className="flex items-center justify-between p-3 bg-white hover:bg-slate-50 border border-slate-200/70 rounded-xl gap-3 transition">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0">
+                            {initial}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-xs font-bold text-slate-900 truncate">{t.name}</p>
+                              {t.department && (
+                                <span className="text-[10px] px-1.5 py-0.2 bg-slate-100 text-slate-600 rounded font-semibold border border-slate-200/60">
+                                  {t.department}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                              {t.today_workload === 0 ? 'Free all day today' : `${t.today_workload} period(s) today`}
+                              {t.today_periods && t.today_periods.length > 0 && (
+                                <span className="text-slate-400"> (P{t.today_periods.sort((a, b) => a - b).join(', P')})</span>
+                              )}
+                              {t.week_workload !== undefined && ` · ${t.week_workload} period(s) this week`}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      {subModal.activeReq.alter_assignment ? (
-                        subModal.activeReq.alter_assignment.substitute_teacher_id !== t.id && (
+
+                        {subModal.activeReq.alter_assignment ? (
+                          subModal.activeReq.alter_assignment.substitute_teacher_id !== t.id && (
+                            <button
+                              onClick={() => handleOverride(t.id)}
+                              disabled={actionLoading === 'override' || subModal.activeReq.alter_assignment.is_locked}
+                              className="text-xs font-semibold px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg hover:border-primary-400 hover:text-primary-700 transition-colors disabled:opacity-40 shrink-0 cursor-pointer"
+                            >
+                              Swap
+                            </button>
+                          )
+                        ) : (
                           <button
-                            onClick={() => handleOverride(t.id)}
-                            disabled={actionLoading === 'override' || subModal.activeReq.alter_assignment.is_locked}
-                            className="text-xs px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg hover:border-primary-300 transition-colors disabled:opacity-50"
+                            onClick={() => handleAssignSubstitute(t.id, false)}
+                            disabled={actionLoading === 'assign'}
+                            className="text-xs font-semibold px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg hover:border-primary-400 hover:text-primary-700 transition-colors disabled:opacity-40 shrink-0 cursor-pointer"
                           >
-                            Swap
+                            Assign
                           </button>
-                        )
-                      ) : (
-                        <button
-                          onClick={() => handleAssignSubstitute(t.id, false)}
-                          disabled={actionLoading === 'assign'}
-                          className="text-xs px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg hover:border-primary-300 transition-colors disabled:opacity-50"
-                        >
-                          Assign
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
 
             {subModal.recommendations.filter(candidateMatchesLocalFilters).length === 0 && subModal.others.filter(candidateMatchesLocalFilters).length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-4">No eligible teachers for this period.</p>
+              <div className="text-center py-8 text-slate-400 space-y-1.5">
+                <p className="text-xs font-bold text-slate-700">No eligible teachers found</p>
+                <p className="text-[11px] text-slate-500">Try adjusting candidate filters or including other departments.</p>
+              </div>
             )}
           </div>
         )}
@@ -842,6 +1162,83 @@ export default function AdminLeaves() {
           </div>
         )}
       </Modal>
+
+      {/* 7-Day Substitution Limit Warning Modal */}
+      {limitWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl border border-amber-200 max-w-lg w-full overflow-hidden">
+            {/* Header */}
+            <div className="bg-amber-50 px-6 py-4 border-b border-amber-100 flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 text-xl font-bold shadow-xs">
+                ⚠️
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 tracking-tight">Substitution Allocation Limit Reached</h3>
+                <p className="text-xs text-slate-600 mt-0.5">Explicit authorization required to proceed with this assignment</p>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4 text-sm text-slate-700">
+              <p>
+                <span className="font-bold text-slate-900">{limitWarning.warningData.teacher_name || 'The selected teacher'}</span> has reached the maximum number of substitution allocations allowed within the current 7-day window.
+              </p>
+
+              {/* Allocation Metrics Box */}
+              <div className="grid grid-cols-2 gap-3 bg-slate-50 border border-slate-200/80 rounded-xl p-4">
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Current 7-Day Total</span>
+                  <span className="text-xl font-black text-slate-800 mt-0.5">
+                    {limitWarning.warningData.current_allocations} / {limitWarning.warningData.max_allocations}
+                  </span>
+                  <span className="text-[10px] text-slate-500 mt-0.5">Allocations in past 7 days</span>
+                </div>
+
+                <div className="flex flex-col border-l border-slate-200 pl-3">
+                  <span className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">After Assignment</span>
+                  <span className="text-xl font-black text-amber-600 mt-0.5">
+                    {limitWarning.warningData.projected_allocations} / {limitWarning.warningData.max_allocations}
+                  </span>
+                  <span className="text-[10px] text-amber-700/80 mt-0.5">Exceeds 7-day window limit</span>
+                </div>
+              </div>
+
+              <div className="bg-amber-50/70 border border-amber-200/60 rounded-xl p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
+                <span className="text-base leading-none">ℹ️</span>
+                <p className="leading-relaxed">
+                  This assignment will exceed the configured 7-day substitution allocation limit. Please confirm that you understand and want to authorize this assignment.
+                </p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setLimitWarning(null)}
+                disabled={actionLoading === 'assign' || actionLoading === 'override'}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-200/60 rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (limitWarning.payload.isOverride) {
+                    handleOverride(limitWarning.payload.teacherId, true)
+                  } else {
+                    handleAssignSubstitute(limitWarning.payload.teacherId, limitWarning.payload.isRecommended, true)
+                  }
+                }}
+                disabled={actionLoading === 'assign' || actionLoading === 'override'}
+                className="px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 active:bg-amber-800 rounded-lg shadow-xs transition flex items-center gap-2"
+              >
+                {actionLoading === 'assign' || actionLoading === 'override' ? 'Assigning…' : 'I Understand & Assign'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

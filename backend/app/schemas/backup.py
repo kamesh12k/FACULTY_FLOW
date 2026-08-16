@@ -25,6 +25,9 @@ class BackupMetaOut(BaseModel):
     restored_at: str | None
     table_count: int
     validation_errors: list[str] | None = None
+    department_id: int | None = None
+    department_name: str | None = None
+    backup_scope: str | None = "full"
 
 
 class BackupSummaryOut(BaseModel):

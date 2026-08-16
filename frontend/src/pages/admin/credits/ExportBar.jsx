@@ -1,23 +1,38 @@
+import { useState } from 'react'
 import { exportToCSV } from './utils'
+import { generateCreditPdfReport } from './pdfReportGenerator'
+import { useAuth } from '../../../context/AuthContext'
 
-function ExportButton({ icon, label, desc, onClick }) {
+function ExportButton({ icon, label, desc, onClick, loading }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="flex items-center gap-3 p-3.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-all duration-150 hover:border-slate-300 text-left min-w-[200px] shadow-2xs hover:shadow-xs active:scale-95"
+      disabled={loading}
+      className="flex items-center gap-3 p-3.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-all hover:border-slate-300 text-left min-w-[200px] flex-1 shadow-2xs cursor-pointer disabled:opacity-60"
     >
-      <div className="text-indigo-600 shrink-0">
-        {icon}
+      <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center shrink-0 border border-primary-100">
+        {loading ? (
+          <svg className="w-4 h-4 animate-spin text-primary-600" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+        ) : (
+          icon
+        )}
       </div>
       <div>
         <div className="text-xs font-bold text-slate-900">{label}</div>
-        <div className="text-[10px] font-medium text-slate-500 mt-0.5">{desc}</div>
+        <div className="text-[11px] text-slate-500 mt-0.5">{desc}</div>
       </div>
     </button>
   )
 }
 
-export default function ExportBar({ report, transactions }) {
+export default function ExportBar({ report, transactions, allTeachers = [] }) {
+  const { user } = useAuth()
+  const [generatingPdf, setGeneratingPdf] = useState(false)
+  const [feedback, setFeedback] = useState(null)
 
   function handleExportBalanceExcel() {
     const headers = ['Teacher Name', 'Department', 'Current Balance', 'Health Status']
@@ -55,107 +70,84 @@ export default function ExportBar({ report, transactions }) {
     exportToCSV(`institutional-credit-audit-ledger-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows)
   }
 
-  function handlePrintReport() {
-    const printWindow = window.open('', '_blank')
-    const now = new Date()
-    const dateStr = now.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+  async function handleGeneratePdf() {
+    setGeneratingPdf(true)
+    setFeedback(null)
+    try {
+      const res = await generateCreditPdfReport({
+        report,
+        transactions,
+        allTeachers,
+        filterScope: {},
+        currentUser: user || {},
+      })
 
-    let rowsHtml = ''
-    const sorted = [...report].sort((a, b) => b.balance - a.balance)
-    sorted.forEach((r, idx) => {
-      let status = 'Neutral'
-      let statusColor = '#6b7280'
-      if (r.balance >= 10) { status = 'Excellent'; statusColor = '#059669' }
-      else if (r.balance >= 5) { status = 'Good'; statusColor = '#10b981' }
-      else if (r.balance >= 1) { status = 'Average'; statusColor = '#3b82f6' }
-      else if (r.balance >= -3) { status = 'Needs Attention'; statusColor = '#f59e0b' }
-      else if (r.balance < -3) { status = 'Critical'; statusColor = '#dc2626' }
-
-      rowsHtml += `
-        <tr style="border-bottom: 1px solid #f3f4f6;">
-          <td style="padding: 10px 12px; font-family: monospace; color: #6b7280;">#${idx + 1}</td>
-          <td style="padding: 10px 12px; font-weight: 600; color: #111827;">${r.name}</td>
-          <td style="padding: 10px 12px; color: #4b5563;">${r.department || 'Faculty'}</td>
-          <td style="padding: 10px 12px; font-family: monospace; font-weight: 700; color: ${r.balance >= 0 ? '#059669' : '#dc2626'};">${r.balance >= 0 ? '+' : ''}${r.balance}</td>
-          <td style="padding: 10px 12px;"><span style="font-size: 11px; font-weight: 700; color: ${statusColor};">${status}</span></td>
-        </tr>
-      `
-    })
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Institutional Faculty Credit Accounting Audit - ${dateStr}</title>
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; color: #333; line-height: 1.5; }
-            h1 { color: #111827; font-size: 22px; font-weight: 800; margin-bottom: 4px; }
-            .subtitle { color: #6b7280; font-size: 12px; margin-top: 0; margin-bottom: 24px; font-weight: 500; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
-            th { text-align: left; padding: 10px 12px; background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 700; }
-            .summary { background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; gap: 40px; margin-bottom: 24px; font-size: 12px; }
-            .summary-item { display: flex; flex-direction: column; }
-            .summary-label { color: #64748b; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
-            .summary-val { color: #0f172a; font-weight: 800; font-size: 18px; margin-top: 2px; }
-          </style>
-        </head>
-        <body>
-          <h1>Institutional Faculty Credit Accounting Audit</h1>
-          <div class="subtitle">Generated on ${dateStr}</div>
-          <div class="summary">
-            <div class="summary-item">
-              <span class="summary-label">Total Faculty</span>
-              <span class="summary-val">${report.length}</span>
-            </div>
-            <div class="summary-item">
-              <span class="summary-label">Negative Balances</span>
-              <span class="summary-val">${report.filter(r => r.balance < 0).length}</span>
-            </div>
-            <div class="summary-item">
-              <span class="summary-label">Audited Records</span>
-              <span class="summary-val">${transactions.length}</span>
-            </div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 60px;">Rank</th>
-                <th>Teacher</th>
-                <th>Department</th>
-                <th>Balance</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rowsHtml}
-            </tbody>
-          </table>
-          <script>
-            window.onload = function() {
-              window.print();
-              window.onafterprint = function() { window.close(); };
-            }
-          </script>
-        </body>
-      </html>
-    `)
-    printWindow.document.close()
+      if (!res.success && res.reason === 'NO_DATA') {
+        setFeedback({
+          type: 'error',
+          message: 'No credit data available. There are no credit records matching the current report.',
+        })
+      } else {
+        setFeedback({
+          type: 'success',
+          message: `Official credit PDF report "${res.fileName}" generated successfully.`,
+        })
+      }
+    } catch (err) {
+      console.error('PDF generation error:', err)
+      setFeedback({
+        type: 'error',
+        message: 'Failed to generate PDF report. Please try again.',
+      })
+    } finally {
+      setGeneratingPdf(false)
+      setTimeout(() => setFeedback(null), 6000)
+    }
   }
 
   return (
-    <div className="card p-5 bg-white border border-slate-200/80 rounded-2xl">
+    <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
       <div className="mb-4">
-        <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-          <span>📊</span> Accounting Reports & Audit Exports
-        </h2>
-        <p className="text-xs text-slate-500 font-medium mt-0.5">
-          Generate official institutional credit ledgers, transaction audit logs, and printable accounting statements
+        <h3 className="text-sm font-bold text-slate-900">
+          Accounting Reports & Exports
+        </h3>
+        <p className="text-xs text-slate-500 mt-0.5">
+          Generate official institutional credit ledgers, transaction audit logs, and publication-grade PDF statements.
         </p>
       </div>
+
+      {feedback && (
+        <div className={`mb-4 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center justify-between border ${
+          feedback.type === 'success'
+            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+            : 'bg-rose-50 text-rose-800 border-rose-200'
+        }`}>
+          <span>{feedback.message}</span>
+          <button
+            type="button"
+            onClick={() => setFeedback(null)}
+            className="text-slate-400 hover:text-slate-700 ml-2"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-3">
         <ExportButton
           icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          }
+          label="Generate Official PDF"
+          desc="Print-ready institution report"
+          onClick={handleGeneratePdf}
+          loading={generatingPdf}
+        />
+        <ExportButton
+          icon={
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           }
@@ -165,23 +157,13 @@ export default function ExportBar({ report, transactions }) {
         />
         <ExportButton
           icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
             </svg>
           }
           label="Faculty Balances CSV"
           desc="Current balance snapshot"
           onClick={handleExportBalanceExcel}
-        />
-        <ExportButton
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-3a2 2 0 00-2-2H9a2 2 0 00-2 2v3a2 2 0 002 2zm5-17v2m0 0v2m0-2h2m-2 0H9" />
-            </svg>
-          }
-          label="Print Audit Ledger"
-          desc="Print-ready admin summary"
-          onClick={handlePrintReport}
         />
       </div>
     </div>

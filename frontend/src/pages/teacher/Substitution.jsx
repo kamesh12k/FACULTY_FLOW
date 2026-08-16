@@ -13,30 +13,116 @@ function ScoreBar({ score }) {
 }
 
 function RecommendationRow({ rec, onAssign, disabled, isOverride }) {
+  const teacher = rec.teacher || {}
+  const initial = (teacher.name || 'T')[0].toUpperCase()
+  const todayLoad = rec.today_workload !== undefined ? rec.today_workload : teacher.today_workload
+  const projToday = rec.projected_today_workload !== undefined ? rec.projected_today_workload : (todayLoad !== undefined ? todayLoad + 1 : undefined)
+  const weekLoad = rec.week_workload !== undefined ? rec.week_workload : teacher.week_workload
+  const projWeek = rec.projected_week_workload !== undefined ? rec.projected_week_workload : (weekLoad !== undefined ? weekLoad + 1 : undefined)
+  const contLoad = rec.longest_continuous_periods
+  const projCont = rec.projected_longest_continuous_periods
+  const todayPeriods = rec.today_periods || teacher.today_periods || []
+
   return (
-    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg gap-3">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-medium text-gray-800 truncate">{rec.teacher.name}</p>
-          {rec.teacher.department && (
-            <span className="text-[10px] px-1.5 py-0.5 bg-gray-200 text-gray-700 rounded font-semibold shrink-0">
-              {rec.teacher.department}
-            </span>
-          )}
-          <span className="text-xs font-semibold text-gray-500 shrink-0">{rec.score}% match</span>
+    <div className="p-3.5 bg-white hover:bg-slate-50/90 border border-slate-200/90 rounded-2xl transition shadow-xs space-y-3 text-left">
+      {/* Top Header: Avatar, Name, Dept, Match %, Assign Button */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-800 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-xs">
+            {initial}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="text-sm font-bold text-slate-900 truncate">{teacher.name}</h4>
+              {teacher.department && (
+                <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md font-semibold shrink-0 border border-slate-200/70">
+                  {teacher.department}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <ScoreBar score={rec.score} />
+              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                {rec.score}% match
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2 mt-1">
-          <ScoreBar score={rec.score} />
-          <p className="text-xs text-gray-400 truncate">{rec.reasons.join(' · ') || 'No strong signals'}</p>
+
+        <button
+          onClick={() => onAssign(teacher.id)}
+          disabled={disabled}
+          className="text-xs font-bold px-4 py-2 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white rounded-xl transition shadow-xs disabled:opacity-40 disabled:cursor-not-allowed shrink-0 cursor-pointer"
+        >
+          {disabled ? '…' : isOverride ? 'Reassign' : 'Assign'}
+        </button>
+      </div>
+
+      {/* Workload Simulation Metrics Grid */}
+      <div className="grid grid-cols-3 gap-2 bg-slate-50/90 border border-slate-200/80 rounded-xl p-2.5 text-center">
+        <div className="flex flex-col items-center justify-center">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Total Today</span>
+          <span className="text-xs font-black text-slate-800 mt-0.5">
+            {todayLoad === 0 ? 'Free (0 classes)' : `${todayLoad} → ${projToday} classes`}
+          </span>
+          {todayPeriods.length > 0 ? (
+            <span className="text-[9px] text-slate-500 font-medium mt-0.5 truncate max-w-full">
+              Periods: P{todayPeriods.sort((a, b) => a - b).join(', P')}
+            </span>
+          ) : todayLoad > 0 ? (
+            <span className="text-[9px] text-slate-400 mt-0.5">{todayLoad} periods total</span>
+          ) : (
+            <span className="text-[9px] text-emerald-600 font-medium mt-0.5">Free all day</span>
+          )}
+        </div>
+
+        <div className="flex flex-col items-center justify-center border-x border-slate-200/80 px-1">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Back-to-Back</span>
+          <span className={`text-xs font-black mt-0.5 ${projCont >= 4 ? 'text-amber-700 font-extrabold' : 'text-slate-800'}`}>
+            {contLoad === undefined ? '-' : `${contLoad} → ${projCont} in a row`}
+          </span>
+          <span className={`text-[9px] mt-0.5 ${projCont >= 4 ? 'text-amber-700 font-bold' : 'text-slate-400'}`}>
+            {projCont >= 4 ? `⚠️ ${projCont} in a row (no break)` : projCont > 1 ? 'Classes in a row' : 'No consecutive'}
+          </span>
+        </div>
+
+        <div className="flex flex-col items-center justify-center">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Weekly Total</span>
+          <span className="text-xs font-black text-slate-800 mt-0.5">
+            {weekLoad !== undefined ? `${weekLoad} → ${projWeek} classes` : '-'}
+          </span>
+          <span className="text-[9px] text-slate-400 mt-0.5">
+            {rec.substitutions_week !== undefined ? `${rec.substitutions_week} sub(s) this week` : 'Weekly total'}
+          </span>
         </div>
       </div>
-      <button
-        onClick={() => onAssign(rec.teacher.id)}
-        disabled={disabled}
-        className="text-xs px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 shrink-0 font-medium"
-      >
-        {disabled ? '…' : isOverride ? 'Reassign' : 'Assign'}
-      </button>
+
+      {/* Distinct Context Badges */}
+      {rec.reasons?.length > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+          {rec.reasons.map((r, i) => {
+            const isWarn = r.includes('⚠') || r.includes('Fatigue') || r.includes('break')
+            const isSubject = r.includes('subject')
+            const isDept = r.includes('department')
+            return (
+              <span
+                key={i}
+                className={`text-[10px] px-2 py-0.5 rounded-md font-semibold tracking-tight ${
+                  isWarn
+                    ? 'bg-amber-50 text-amber-800 border border-amber-200 font-bold'
+                    : isSubject
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                    : isDept
+                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                    : 'bg-slate-100 text-slate-600 border border-slate-200/80'
+                }`}
+              >
+                {r}
+              </span>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -51,6 +137,7 @@ export default function TeacherSubstitution() {
   const [assignModal, setAssignModal] = useState(null) // { leave, recommendations, others, isOverride }
   const [confirmClearOpen, setConfirmClearOpen] = useState(false)
   const [confirmResetOpen, setConfirmResetOpen] = useState(false)
+  const [limitWarning, setLimitWarning] = useState(null)
   const [actionLoading, setActionLoading] = useState(null)
   const [error, setError] = useState('')
   const [filterError, setFilterError] = useState('')
@@ -177,20 +264,33 @@ export default function TeacherSubstitution() {
     return [...new Set(names.filter(Boolean))].sort()
   }, [allDepartments, assignModal, candidateFilters.crossDepartment])
 
-  const handleAssignSubstitute = async (substituteId) => {
-    const leaveId = assignModal.leave.id
+  const handleAssignSubstitute = async (substituteId, overrideLimit = false) => {
+    const leaveId = assignModal?.leave?.id || limitWarning?.leaveId
+    if (!leaveId) return
+    const isOverride = assignModal ? assignModal.isOverride : limitWarning?.isOverride
     setActionLoading('assign')
     try {
       const params = { include_cross_department: candidateFilters.crossDepartment }
-      if (assignModal.isOverride) {
-        await teacherSubstitutionApi.override(leaveId, substituteId, params)
+      if (isOverride) {
+        await teacherSubstitutionApi.override(leaveId, substituteId, params, overrideLimit)
       } else {
-        await teacherSubstitutionApi.assign(leaveId, substituteId, params)
+        await teacherSubstitutionApi.assign(leaveId, substituteId, params, overrideLimit)
       }
+      setLimitWarning(null)
       setAssignModal(null)
       await loadData()
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to assign substitute.')
+      if (err.response?.status === 409 && (err.response?.data?.detail?.code === 'LIMIT_ACKNOWLEDGEMENT_REQUIRED' || err.response?.data?.code === 'LIMIT_ACKNOWLEDGEMENT_REQUIRED')) {
+        const warningData = err.response?.data?.detail || err.response?.data
+        setLimitWarning({
+          leaveId,
+          substituteId,
+          isOverride,
+          warningData,
+        })
+        return
+      }
+      setError(err.response?.data?.detail?.message || err.response?.data?.detail || 'Failed to assign substitute.')
     } finally {
       setActionLoading(null)
     }
@@ -696,6 +796,77 @@ export default function TeacherSubstitution() {
           </div>
         </div>
       </Modal>
+
+      {/* 7-Day Substitution Limit Warning Modal */}
+      {limitWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl border border-amber-200 max-w-lg w-full overflow-hidden text-left">
+            {/* Header */}
+            <div className="bg-amber-50 px-6 py-4 border-b border-amber-100 flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 text-xl font-bold shadow-xs">
+                ⚠️
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 tracking-tight">Substitution Allocation Limit Reached</h3>
+                <p className="text-xs text-slate-600 mt-0.5">Explicit authorization required to proceed with this assignment</p>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4 text-sm text-slate-700">
+              <p>
+                <span className="font-bold text-slate-900">{limitWarning.warningData.teacher_name || 'The selected teacher'}</span> has reached the maximum number of substitution allocations allowed within the current 7-day window.
+              </p>
+
+              {/* Allocation Metrics Box */}
+              <div className="grid grid-cols-2 gap-3 bg-slate-50 border border-slate-200/80 rounded-xl p-4">
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Current 7-Day Total</span>
+                  <span className="text-xl font-black text-slate-800 mt-0.5">
+                    {limitWarning.warningData.current_allocations} / {limitWarning.warningData.max_allocations}
+                  </span>
+                  <span className="text-[10px] text-slate-500 mt-0.5">Allocations in past 7 days</span>
+                </div>
+
+                <div className="flex flex-col border-l border-slate-200 pl-3">
+                  <span className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">After Assignment</span>
+                  <span className="text-xl font-black text-amber-600 mt-0.5">
+                    {limitWarning.warningData.projected_allocations} / {limitWarning.warningData.max_allocations}
+                  </span>
+                  <span className="text-[10px] text-amber-700/80 mt-0.5">Exceeds 7-day window limit</span>
+                </div>
+              </div>
+
+              <div className="bg-amber-50/70 border border-amber-200/60 rounded-xl p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
+                <span className="text-base leading-none">ℹ️</span>
+                <p className="leading-relaxed">
+                  This assignment will exceed the configured 7-day substitution allocation limit. Please confirm that you understand and want to authorize this assignment.
+                </p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setLimitWarning(null)}
+                disabled={actionLoading === 'assign'}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-200/60 rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAssignSubstitute(limitWarning.substituteId, true)}
+                disabled={actionLoading === 'assign'}
+                className="px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 active:bg-amber-800 rounded-lg shadow-xs transition flex items-center gap-2"
+              >
+                {actionLoading === 'assign' ? 'Assigning…' : 'I Understand & Assign'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

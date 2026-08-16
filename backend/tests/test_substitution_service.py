@@ -132,7 +132,6 @@ class TestMarkEmergency:
 
 class TestScoring:
     def _setup_leave_and_candidate(self, db_session):
-        from app.models.user import Role
         from app.models.subject import Subject
         from app.models.department import Department
         from app.models.class_ import Class
@@ -160,11 +159,12 @@ class TestScoring:
         res = score_candidate(db_session, candidate, leave, None, None)
         assert res.score == 100.0
         assert res.today_workload == 0
+        assert res.projected_today_workload == 1
         assert res.week_workload == 0
-        assert "Free all day today" in res.reasons
-        assert "0 periods this week" in res.reasons
+        assert res.projected_week_workload == 1
+        assert "0 substitutions this week" in res.reasons
 
-    def test_five_periods_today_scores_zero_today_component(self, db_session):
+    def test_five_periods_today_scores_heavy_penalty(self, db_session):
         candidate, leave, dept, _ = self._setup_leave_and_candidate(db_session)
         
         # Create 5 periods today
@@ -176,30 +176,8 @@ class TestScoring:
         res = score_candidate(db_session, candidate, leave, None, None)
         assert res.today_workload == 5
         assert res.week_workload == 5
-        # today component is 0; week component is 40 * (1 - 5/30) = 40 * 25/30 = 33.333
-        # total score is round(33.333) = 33.3
-        assert res.score == 33.3
-
-    def test_subject_and_department_match_no_effect(self, db_session):
-        candidate1, leave, dept_cs, _ = self._setup_leave_and_candidate(db_session)
-        
-        # Candidate 2 (different department)
-        candidate2 = _make_user(db_session, email="candidate2@test.com", department="IT")
-        
-        # Create same workload for both
-        subj_cs = create_subject(db_session, department_id=dept_cs.id)
-        cls_cs1 = create_class(db_session, name="CSE-A", section="A", department_id=dept_cs.id)
-        cls_cs2 = create_class(db_session, name="CSE-B", section="B", department_id=dept_cs.id)
-        create_timetable_slot(db_session, candidate1.id, subj_cs.id, cls_cs1.id, day_order=2, period_number=1)
-        create_timetable_slot(db_session, candidate2.id, subj_cs.id, cls_cs2.id, day_order=2, period_number=1)
-        
-        # Candidate 1 is same dept CS, teaches subject subj_cs
-        # Candidate 2 is IT, different dept
-        res1 = score_candidate(db_session, candidate1, leave, subj_cs, "CS")
-        res2 = score_candidate(db_session, candidate2, leave, subj_cs, "CS")
-        
-        # Scores must be identical because only workload is checked
-        assert res1.score == res2.score
+        # Today score is 0, continuous score is 0 (>=5 continuous periods), weekly score is reduced
+        assert res.score < 35.0
 
     def test_preference_toggles_no_effect(self, db_session):
         candidate, leave, _, _ = self._setup_leave_and_candidate(db_session)
@@ -214,8 +192,121 @@ class TestScoring:
         
         # Compute score
         res = score_candidate(db_session, candidate, leave, None, None)
-        # Should still be 100 because preferences don't add bonuses anymore
+        # Should still be 100 because preferences don't add arbitrary bonuses
         assert res.score == 100.0
+
+    def test_consecutive_block_penalty_vs_distributed(self, db_session):
+        """Test 3 & 4: Teacher with contiguous block (P1, P2, P3) proposed P4 vs Teacher with distributed workload (P1, P2, P4, P5)"""
+        dept = create_department(db_session, name="CS_DEPT", code="CSD")
+        subj = create_subject(db_session, department_id=dept.id)
+        cls_a = create_class(db_session, name="CS-A", section="A", department_id=dept.id)
+        cls_b = create_class(db_session, name="CS-B", section="B", department_id=dept.id)
+        
+        leaver = _make_user(db_session, email="leaver_block@test.com", department="CSD")
+        # Leave for P4 on Day Order 1
+        leave = LeaveRequest(
+            teacher_id=leaver.id,
+            date=date(2026, 7, 1),
+            day_order=1,
+            period_number=4,
+            status=LeaveStatus.approved,
+        )
+        
+        # Teacher A: Distributed workload (P1, P2, P5) -> 3 periods, longest block 2. After P4: longest block is 2 (P1,P2) and (P4,P5)
+        teacher_a = _make_user(db_session, email="teacher_a@test.com", department="CSD")
+        create_timetable_slot(db_session, teacher_a.id, subj.id, cls_a.id, day_order=1, period_number=1)
+        create_timetable_slot(db_session, teacher_a.id, subj.id, cls_a.id, day_order=1, period_number=2)
+        create_timetable_slot(db_session, teacher_a.id, subj.id, cls_a.id, day_order=1, period_number=5)
+        
+        # Teacher B: Contiguous block (P1, P2, P3) -> 3 periods, longest block 3. After P4: longest block is 4 (P1,P2,P3,P4)!
+        teacher_b = _make_user(db_session, email="teacher_b@test.com", department="CSD")
+        create_timetable_slot(db_session, teacher_b.id, subj.id, cls_b.id, day_order=1, period_number=1)
+        create_timetable_slot(db_session, teacher_b.id, subj.id, cls_b.id, day_order=1, period_number=2)
+        create_timetable_slot(db_session, teacher_b.id, subj.id, cls_b.id, day_order=1, period_number=3)
+        
+        res_a = score_candidate(db_session, teacher_a, leave, None, None)
+        res_b = score_candidate(db_session, teacher_b, leave, None, None)
+        
+        # Both have 3 periods before, 4 after, but Teacher A's longest continuous block is 2, while Teacher B's is 4!
+        assert res_a.projected_longest_continuous_periods == 2
+        assert res_b.projected_longest_continuous_periods == 4
+        assert res_a.score > res_b.score
+        assert any("back-to-back" in r for r in res_b.reasons)
+
+    def test_weekly_workload_ranking(self, db_session):
+        """Test 5: Teacher A (11->12) vs Teacher B (18->19) with identical daily workload"""
+        dept = create_department(db_session, name="CS_DEPT2", code="CSD2")
+        subj = create_subject(db_session, department_id=dept.id)
+        cls_a = create_class(db_session, name="CS-WKA", section="A", department_id=dept.id)
+        cls_b = create_class(db_session, name="CS-WKB", section="B", department_id=dept.id)
+        
+        leaver = _make_user(db_session, email="leaver_wk@test.com", department="CSD2")
+        leave = LeaveRequest(
+            teacher_id=leaver.id,
+            date=date(2026, 7, 1),
+            day_order=1,
+            period_number=1,
+            status=LeaveStatus.approved,
+        )
+        
+        # Teacher A: 11 periods on other day orders
+        teacher_a = _make_user(db_session, email="teacher_wk_a@test.com", department="CSD2")
+        for p in range(1, 6):
+            create_timetable_slot(db_session, teacher_a.id, subj.id, cls_a.id, day_order=2, period_number=p)
+            create_timetable_slot(db_session, teacher_a.id, subj.id, cls_a.id, day_order=3, period_number=p)
+        create_timetable_slot(db_session, teacher_a.id, subj.id, cls_a.id, day_order=4, period_number=1)  # 11 total
+        
+        # Teacher B: 18 periods on other day orders
+        teacher_b = _make_user(db_session, email="teacher_wk_b@test.com", department="CSD2")
+        for do in range(2, 5):
+            for p in range(1, 6):
+                create_timetable_slot(db_session, teacher_b.id, subj.id, cls_b.id, day_order=do, period_number=p)  # 15
+        create_timetable_slot(db_session, teacher_b.id, subj.id, cls_b.id, day_order=5, period_number=1)
+        create_timetable_slot(db_session, teacher_b.id, subj.id, cls_b.id, day_order=5, period_number=2)
+        create_timetable_slot(db_session, teacher_b.id, subj.id, cls_b.id, day_order=5, period_number=3)  # 18 total
+        
+        res_a = score_candidate(db_session, teacher_a, leave, None, None)
+        res_b = score_candidate(db_session, teacher_b, leave, None, None)
+        
+        assert res_a.week_workload == 11
+        assert res_b.week_workload == 18
+        assert res_a.score > res_b.score
+
+    def test_fairness_ranking(self, db_session):
+        """Test 6: Teacher A (0 subs this week) vs Teacher B (4 subs this week)"""
+        dept = create_department(db_session, name="CS_DEPT3", code="CSD3")
+        leaver = _make_user(db_session, email="leaver_fair@test.com", department="CSD3")
+        leave = LeaveRequest(
+            teacher_id=leaver.id,
+            date=date(2026, 7, 1),
+            day_order=1,
+            period_number=1,
+            status=LeaveStatus.approved,
+        )
+        
+        teacher_a = _make_user(db_session, email="teacher_fair_a@test.com", department="CSD3")
+        teacher_b = _make_user(db_session, email="teacher_fair_b@test.com", department="CSD3")
+        
+        # Assign 4 substitutions to Teacher B in the 7-day window prior to leave.date
+        for i in range(1, 5):
+            other_leave = LeaveRequest(
+                teacher_id=leaver.id,
+                date=date(2026, 6, 26) + timedelta(days=i),
+                day_order=i,
+                period_number=2,
+                status=LeaveStatus.approved,
+                reason="Sub",
+            )
+            db_session.add(other_leave)
+            db_session.flush()
+            create_assignment(db_session, other_leave, teacher_b, AssignmentType.admin_assigned, 100.0, None)
+        
+        res_a = score_candidate(db_session, teacher_a, leave, None, None)
+        res_b = score_candidate(db_session, teacher_b, leave, None, None)
+        
+        assert res_a.substitutions_week == 0
+        assert res_b.substitutions_week == 4
+        assert res_a.score > res_b.score
 
 
 class TestCampusModeOverride:
@@ -298,3 +389,30 @@ class TestDryRunSimulation:
         assert res["simulated_assignments"][0]["status"] == "success"
         assert res["simulated_assignments"][1]["status"] == "failed"
         assert res["simulated_assignments"][1]["reason"] == "No eligible candidates"
+
+
+class TestAutonomousSafety:
+    def test_autonomous_skips_unsafe_heavy_candidate(self, db_session, test_super_admin):
+        from app.services.substitution_service import set_mode, auto_process_approved_leave
+        dept = create_department(db_session, name="Dept Safety", code="DS")
+        set_mode(db_session, "autonomous", test_super_admin, tenant_department_id=dept.id)
+        
+        leaver = _make_user(db_session, email="leaver_safe@test.com", role="teacher", department="DS")
+        candidate = _make_user(db_session, email="cand_unsafe@test.com", role="teacher", department="DS")
+        
+        # Candidate already teaches 4 consecutive periods (P1, P2, P3, P4)
+        subj = create_subject(db_session, department_id=dept.id)
+        cls = create_class(db_session, department_id=dept.id)
+        for p in range(1, 5):
+            create_timetable_slot(db_session, candidate.id, subj.id, cls.id, day_order=1, period_number=p)
+            
+        # Leave is for P5 on Day Order 1 -> assigning would result in 5 continuous periods and 5 daily periods (unsafe!)
+        leave = create_leave_request(
+            db_session, leaver.id, the_date=date(2026, 7, 20),
+            day_order=1, period_number=5, status=LeaveStatus.approved, reason="Emergency",
+        )
+        
+        # Auto-process should decline auto-assignment because candidate exceeds continuous threshold (>=5)
+        assignment = auto_process_approved_leave(db_session, leave)
+        assert assignment is None
+

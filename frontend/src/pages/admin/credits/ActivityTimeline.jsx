@@ -1,275 +1,248 @@
 import { useState, useMemo } from 'react'
-import { groupTransactionsByDate, getCategoryConfig, formatRelativeTime } from './utils'
+import { getCategoryConfig, formatRelativeTime, formatTransactionReason } from './utils'
+import TransactionModal from './TransactionModal'
 
-function parseReasonDetails(reasonText) {
-  const result = {
-    classText: null,
-    dayOrder: null,
-    period: null
-  }
-  if (!reasonText) return result
-  
-  // Extract Day Order
-  const doMatch = reasonText.match(/Day Order\s+(\d+)/i) || reasonText.match(/DO\s*(\d+)/i)
-  if (doMatch) {
-    result.dayOrder = `Day Order ${doMatch[1]}`
-  }
-  
-  // Extract Period
-  const pMatch = reasonText.match(/period\s+(\d+)/i) || reasonText.match(/P\s*(\d+)/i)
-  if (pMatch) {
-    result.period = `Period ${pMatch[1]}`
-  }
-  
-  // Extract Class (e.g. "III BCA", "II B.Sc CS A")
+function parseReasonContext(reasonText) {
+  if (!reasonText) return '—'
+  const details = []
+
   const classMatch = reasonText.match(/in\s+([I|V|X\d\s\w\.\-]+?)(?:\s+Period|\s+Day|\s+DO|$)/i) ||
                      reasonText.match(/for\s+([I|V|X\d\s\w\.\-]+?)(?:\s+Period|\s+Day|\s+DO|$)/i)
   if (classMatch && !classMatch[1].toLowerCase().includes('teacher') && !classMatch[1].toLowerCase().includes('leave')) {
-    result.classText = classMatch[1].trim()
+    details.push(`Class: ${classMatch[1].trim()}`)
   }
-  
-  return result
+
+  const doMatch = reasonText.match(/Day Order\s+(\d+)/i) || reasonText.match(/DO\s*(\d+)/i)
+  if (doMatch) details.push(`DO: ${doMatch[1]}`)
+
+  const pMatch = reasonText.match(/period\s+(\d+)/i) || reasonText.match(/P\s*(\d+)/i)
+  if (pMatch) details.push(`P: ${pMatch[1]}`)
+
+  return details.length > 0 ? details.join(' · ') : reasonText
 }
 
 function CreditChangePill({ value }) {
   if (value > 0) return (
-    <span className="font-mono font-extrabold text-xs text-emerald-700 bg-emerald-100 border border-emerald-200/80 px-2.5 py-1 rounded-lg shadow-2xs">
-      +{value} Credit{value > 1 ? 's' : ''}
+    <span className="font-mono font-bold text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+      +{value}
     </span>
   )
   return (
-    <span className="font-mono font-extrabold text-xs text-rose-700 bg-rose-100 border border-rose-200/80 px-2.5 py-1 rounded-lg shadow-2xs">
-      {value} Credit{Math.abs(value) > 1 ? 's' : ''}
+    <span className="font-mono font-bold text-xs text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+      {value}
     </span>
-  )
-}
-
-function AuditRecordCard({ tx, teacherName }) {
-  const cat = getCategoryConfig(tx)
-  const details = parseReasonDetails(tx.reason)
-
-  return (
-    <div className="p-4 bg-white border border-slate-200/80 rounded-2xl hover:border-indigo-200 hover:shadow-sm transition-all duration-150 group">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        
-        {/* Left: Icon, Category Pill, Teacher & Details */}
-        <div className="flex items-start gap-3.5 min-w-0">
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${cat.bgClass} shadow-2xs text-lg`}>
-            {cat.icon}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${cat.pillClass}`}>
-                {cat.label}
-              </span>
-              <CreditChangePill value={tx.change} />
-              {tx.related_leave_id && (
-                <span className="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80 px-2 py-0.5 rounded-md">
-                  Ref: Leave Request #{tx.related_leave_id}
-                </span>
-              )}
-            </div>
-
-            <p className="text-sm font-extrabold text-slate-900 leading-snug truncate">
-              {teacherName}
-            </p>
-
-            {tx.reason && (
-              <p className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">
-                {tx.reason}
-              </p>
-            )}
-
-            {/* Context Pills (Class, Day Order, Period) */}
-            {(details.classText || details.dayOrder || details.period) && (
-              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                {details.classText && (
-                  <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold border border-slate-200/60">
-                    Class: {details.classText}
-                  </span>
-                )}
-                {details.dayOrder && (
-                  <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-bold border border-indigo-100">
-                    {details.dayOrder}
-                  </span>
-                )}
-                {details.period && (
-                  <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded font-bold border border-purple-100">
-                    {details.period}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right: Timestamp & Ref ID */}
-        <div className="text-left sm:text-right shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-          <div className="text-xs font-semibold text-slate-500">{formatRelativeTime(tx.created_at)}</div>
-          <div className="text-[10px] font-mono text-slate-400 font-medium mt-0.5">Record ID #TX-{tx.id}</div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function GroupSection({ title, items, teacherMap, showBadge }) {
-  if (items.length === 0) return null
-  return (
-    <div className="mb-6 last:mb-0">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-xs font-extrabold text-slate-500 uppercase tracking-widest px-1 flex items-center gap-1.5">
-          {showBadge && (
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          )}
-          {title}
-          <span className="font-bold text-slate-400 font-mono text-[11px]">({items.length} records)</span>
-        </span>
-        <div className="h-px flex-1 bg-slate-200/80" />
-      </div>
-      <div className="space-y-2.5">
-        {items.map(tx => (
-          <AuditRecordCard key={tx.id} tx={tx} teacherName={teacherMap[tx.teacher_id] || `Teacher #${tx.teacher_id}`} />
-        ))}
-      </div>
-    </div>
   )
 }
 
 const ALL_FILTER_TABS = [
-  { id: 'all', label: 'All Records', icon: '📋' },
-  { id: 'substitute_class', label: '🔄 Substitutions', icon: '🔄' },
-  { id: 'leave_deduction', label: '🏖️ Leaves Taken', icon: '🏖️' },
-  { id: 'exam_duty', label: '📝 Exam Duties', icon: '📝' },
-  { id: 'department_duty', label: '🏛️ Dept. Duties', icon: '🏛️' },
-  { id: 'manual_adjustment', label: '⚙️ Admin Adjustments', icon: '⚙️' },
-  { id: 'penalty', label: '📉 Penalties', icon: '📉' },
+  { id: 'all', label: 'All Activities' },
+  { id: 'substitute_class', label: 'Substitutions' },
+  { id: 'leave_deduction', label: 'Leave Deductions' },
+  { id: 'exam_duty', label: 'Exam Duties' },
+  { id: 'department_duty', label: 'Dept. Duties' },
+  { id: 'manual_adjustment', label: 'Adjustments' },
+  { id: 'penalty', label: 'Penalties' },
 ]
 
-export default function ActivityTimeline({ transactions, report }) {
+export default function ActivityTimeline({
+  transactions = [],
+  report = [],
+  allTeachers = [],
+}) {
   const [activeFilter, setActiveFilter] = useState('all')
-  const [showCount, setShowCount] = useState(50)
+  const [search, setSearch] = useState('')
+  const [showCount, setShowCount] = useState(30)
+  const [selectedTx, setSelectedTx] = useState(null)
 
   const teacherMap = useMemo(() => {
     const m = {}
-    for (const r of report) m[r.teacher_id] = r.name
+    for (const t of allTeachers) m[t.id] = t
+    for (const r of report) if (!m[r.teacher_id]) m[r.teacher_id] = { id: r.teacher_id, name: r.name, department: r.department }
     return m
-  }, [report])
-
-  // Compute accounting metrics across all transactions
-  const ledgerMetrics = useMemo(() => {
-    let creditsEarned = 0
-    let creditsDeducted = 0
-    for (const tx of transactions) {
-      if (tx.change > 0) creditsEarned += tx.change
-      else creditsDeducted += Math.abs(tx.change)
-    }
-    const netBalance = creditsEarned - creditsDeducted
-    return { creditsEarned, creditsDeducted, netBalance }
-  }, [transactions])
+  }, [report, allTeachers])
 
   const filtered = useMemo(() => {
-    if (activeFilter === 'all') return transactions
-    return transactions.filter(tx => {
-      const cat = getCategoryConfig(tx)
-      if (activeFilter === 'substitute_class') return cat.label.includes('Substitution')
-      if (activeFilter === 'leave_deduction') return cat.label.includes('Leave')
-      if (activeFilter === 'exam_duty') return cat.label.includes('Exam')
-      if (activeFilter === 'department_duty') return cat.label.includes('Department')
-      if (activeFilter === 'manual_adjustment') return cat.label.includes('Admin')
-      if (activeFilter === 'penalty') return cat.label.includes('Penalty')
-      return tx.category === activeFilter
-    })
-  }, [transactions, activeFilter])
+    let out = transactions
 
-  const visible = filtered.slice(0, showCount)
-  const groups = groupTransactionsByDate(visible)
+    if (activeFilter !== 'all') {
+      out = out.filter(tx => {
+        const cat = getCategoryConfig(tx)
+        if (activeFilter === 'substitute_class') return cat.label.includes('Substitution')
+        if (activeFilter === 'leave_deduction') return cat.label.includes('Leave')
+        if (activeFilter === 'exam_duty') return cat.label.includes('Exam')
+        if (activeFilter === 'department_duty') return cat.label.includes('Department')
+        if (activeFilter === 'manual_adjustment') return cat.label.includes('Admin')
+        if (activeFilter === 'penalty') return cat.label.includes('Penalty')
+        return tx.category === activeFilter
+      })
+    }
 
-  const earlierItems = useMemo(() => {
-    return [...(groups.thisWeek || []), ...(groups.earlier || [])]
-  }, [groups])
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      out = out.filter(tx => {
+        const tName = (teacherMap[tx.teacher_id]?.name || '').toLowerCase()
+        const reason = (tx.reason || '').toLowerCase()
+        return tName.includes(q) || reason.includes(q) || String(tx.id).includes(q)
+      })
+    }
+
+    return out
+  }, [transactions, activeFilter, search, teacherMap])
+
+  const visibleTransactions = filtered.slice(0, showCount)
 
   return (
-    <div className="space-y-6">
-
-      {/* ── Institutional Ledger Accounting Summary ── */}
-      <div className="card p-5 bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 text-white rounded-2xl shadow-md border border-slate-800">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      {/* Header & Controls */}
+      <div className="p-3.5 sm:p-4 border-b border-slate-100 bg-slate-50/50">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div>
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-indigo-400 bg-indigo-950/80 px-2.5 py-1 rounded-md border border-indigo-800/50">
-              Institutional Accounting Ledger
-            </span>
-            <h2 className="text-lg font-extrabold tracking-tight mt-2 text-white flex items-center gap-2">
-              <span>🧾</span> Transaction Audit Stream
-            </h2>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">
-              Audited transaction records for payroll accounting and leave reconciliation
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-900">Recent Credit Activity & Audit Stream</h3>
+              <span className="text-xs font-semibold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-md">
+                {filtered.length} Records
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Click any transaction row to inspect full class, day order, period, and audit references.
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 shrink-0 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
-            <div className="text-center px-2">
-              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Issued (+)</span>
-              <span className="block text-base font-extrabold font-mono text-emerald-400 mt-0.5">+{ledgerMetrics.creditsEarned}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Search */}
+            <div className="relative min-w-[170px]">
+              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search audit trail..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition"
+              />
             </div>
-            <div className="text-center px-2 border-x border-slate-800">
-              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Deducted (-)</span>
-              <span className="block text-base font-extrabold font-mono text-rose-400 mt-0.5">-{ledgerMetrics.creditsDeducted}</span>
-            </div>
-            <div className="text-center px-2">
-              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Net Circ.</span>
-              <span className={`block text-base font-extrabold font-mono mt-0.5 ${ledgerMetrics.netBalance >= 0 ? 'text-indigo-300' : 'text-rose-400'}`}>
-                {ledgerMetrics.netBalance >= 0 ? `+${ledgerMetrics.netBalance}` : ledgerMetrics.netBalance}
-              </span>
-            </div>
-          </div>
-        </div>
 
-        {/* Filter Pills */}
-        <div className="mt-5 pt-4 border-t border-slate-800 flex items-center gap-1.5 flex-wrap">
-          {ALL_FILTER_TABS.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => { setActiveFilter(tab.id); setShowCount(50) }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                activeFilter === tab.id
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Transaction Records List ── */}
-      <div className="space-y-4">
-        {filtered.length === 0 ? (
-          <div className="card p-12 text-center text-slate-400 bg-white rounded-2xl border border-slate-200">
-            <p className="text-sm font-extrabold text-slate-700">No accounting records found</p>
-            <p className="text-xs text-slate-400 mt-1">There are no transaction entries matching the selected filter.</p>
-          </div>
-        ) : (
-          <div>
-            <GroupSection title="Today's Audit Trail" items={groups.today} teacherMap={teacherMap} showBadge />
-            <GroupSection title="Yesterday's Audit Trail" items={groups.yesterday} teacherMap={teacherMap} />
-            <GroupSection title="Historical Audit Records" items={earlierItems} teacherMap={teacherMap} />
-
-            {filtered.length > showCount && (
-              <div className="text-center pt-4">
+            {/* Filter Pills */}
+            <div className="flex flex-wrap rounded-xl border border-slate-200 bg-slate-100/80 p-0.5 text-xs font-semibold">
+              {ALL_FILTER_TABS.map(tab => (
                 <button
-                  onClick={() => setShowCount(c => c + 50)}
-                  className="px-6 py-2.5 text-xs font-extrabold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-all shadow-xs"
+                  key={tab.id}
+                  type="button"
+                  onClick={() => { setActiveFilter(tab.id); setShowCount(30) }}
+                  className={`px-2.5 py-1 rounded-lg text-xs transition-all cursor-pointer ${
+                    activeFilter === tab.id
+                      ? 'bg-white text-slate-900 font-bold shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
                 >
-                  Load more accounting records ({filtered.length - showCount} remaining)
+                  {tab.label}
                 </button>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
-        )}
+        </div>
       </div>
+
+      {/* Compact Activity Table — No horizontal sliders */}
+      {filtered.length === 0 ? (
+        <div className="py-8 text-center text-slate-400 space-y-1">
+          <p className="text-xs font-bold text-slate-700">No transaction records found</p>
+          <p className="text-[11px] text-slate-500">No activity entries match the selected filter or search.</p>
+        </div>
+      ) : (
+        <div className="w-full">
+          <table className="w-full text-xs text-left border-collapse">
+            <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 select-none">
+              <tr>
+                <th className="px-3 py-2 w-14 text-center text-[11px] font-bold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Ref</th>
+                <th className="px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider pl-4">Faculty & Activity</th>
+                <th className="px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider hidden md:table-cell">Details / Context</th>
+                <th className="px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center">Credit</th>
+                <th className="px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-right pr-4">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {visibleTransactions.map(tx => {
+                const teacher = teacherMap[tx.teacher_id] || {}
+                const cat = getCategoryConfig(tx)
+                const formattedReason = formatTransactionReason(tx.reason, teacherMap)
+                const contextStr = parseReasonContext(formattedReason)
+
+                return (
+                  <tr
+                    key={tx.id}
+                    onClick={() => setSelectedTx(tx)}
+                    className="hover:bg-slate-50/70 transition-colors cursor-pointer"
+                  >
+                    <td className="px-3 py-2 text-center font-mono font-bold text-slate-400 text-[11px] hidden sm:table-cell">
+                      #TX-{tx.id}
+                    </td>
+                    <td className="px-3 py-2 pl-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm shrink-0">{cat.icon}</span>
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-900 text-xs truncate leading-tight">
+                            {teacher.name || `Teacher #${tx.teacher_id}`}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className={`text-[9px] font-bold uppercase px-1 py-0.2 rounded border ${cat.pillClass}`}>
+                              {cat.label}
+                            </span>
+                            <span className="text-slate-300 text-[10px]">•</span>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {formatRelativeTime(tx.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-slate-700 text-[11px] max-w-[280px] truncate hidden md:table-cell">
+                      {contextStr}
+                    </td>
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
+                      <CreditChangePill value={tx.change} />
+                    </td>
+                    <td className="px-3 py-2 text-right pr-4 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setSelectedTx(tx) }}
+                        className="text-[11px] font-semibold text-primary-600 hover:text-primary-800 hover:underline cursor-pointer"
+                      >
+                        Inspect
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Pagination / Load more */}
+      {filtered.length > showCount && (
+        <div className="p-3 border-t border-slate-100 bg-slate-50/40 text-center">
+          <button
+            type="button"
+            onClick={() => setShowCount(c => c + 30)}
+            className="text-xs font-bold text-primary-700 hover:text-primary-800 bg-white hover:bg-slate-50 border border-slate-200 px-4 py-1.5 rounded-xl transition shadow-2xs cursor-pointer"
+          >
+            Load More Records ({filtered.length - showCount} remaining)
+          </button>
+        </div>
+      )}
+
+      {/* Transaction Modal Popover */}
+      {selectedTx && (
+        <TransactionModal
+          tx={selectedTx}
+          teacher={teacherMap[selectedTx.teacher_id]}
+          teacherMap={teacherMap}
+          open={!!selectedTx}
+          onClose={() => setSelectedTx(null)}
+        />
+      )}
     </div>
   )
 }

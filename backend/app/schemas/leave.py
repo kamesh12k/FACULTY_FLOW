@@ -37,6 +37,7 @@ class LeaveBatchCreate(BaseModel):
 
 class AlterAssignmentCreate(BaseModel):
     substitute_teacher_id: int
+    override_substitution_limit: bool = False
 
 
 class AlterAssignmentOut(BaseModel):
@@ -83,6 +84,7 @@ class BulkLeaveAction(BaseModel):
 
 class OverrideSubstituteRequest(BaseModel):
     new_substitute_teacher_id: int
+    override_substitution_limit: bool = False
 
 
 class LockAssignmentRequest(BaseModel):

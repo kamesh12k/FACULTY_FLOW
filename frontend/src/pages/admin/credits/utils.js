@@ -115,6 +115,14 @@ export const CATEGORY_CONFIG = {
   },
 }
 
+export function formatTransactionReason(reason, teacherMap = {}) {
+  if (!reason) return ''
+  return reason.replace(/(?:teacher\s+#?(\d+))/gi, (match, id) => {
+    const t = teacherMap[id] || teacherMap[Number(id)]
+    return t ? `${t.name}` : match
+  })
+}
+
 export function getCategoryConfig(categoryOrTx) {
   let category = typeof categoryOrTx === 'string' ? categoryOrTx : categoryOrTx?.category
   const reason = typeof categoryOrTx === 'object' ? (categoryOrTx?.reason || '').toLowerCase() : ''

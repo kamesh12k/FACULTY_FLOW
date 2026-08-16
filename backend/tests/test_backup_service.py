@@ -360,10 +360,14 @@ class TestBackupRouteAuthorization:
         assert "backup_id" in data
         assert data["status"] == "completed"
 
-    def test_create_backup_dept_admin_forbidden(self, client, auth_headers_admin):
-        """Department Admin (role=admin) must receive 403."""
-        resp = client.post("/admin/backups", headers=auth_headers_admin)
-        assert resp.status_code == 403
+    def test_create_backup_dept_admin_allowed(self, client, auth_headers_admin, tmp_path):
+        """Department Admin (role=admin) can create backups."""
+        from app.services import backup_service
+
+        with patch.object(backup_service, "_backup_dir", return_value=tmp_path):
+            resp = client.post("/admin/backups", headers=auth_headers_admin)
+        assert resp.status_code == 201
+        assert "backup_id" in resp.json()
 
     def test_create_backup_teacher_forbidden(self, client, auth_headers_teacher):
         """Teacher must receive 403."""
@@ -375,10 +379,16 @@ class TestBackupRouteAuthorization:
         resp = client.get("/admin/backups")
         assert resp.status_code in (401, 403)
 
-    def test_delete_backup_admin_forbidden(self, client, auth_headers_admin):
-        """Dept Admin cannot delete backups."""
-        resp = client.delete(f"/admin/backups/{uuid.uuid4()}", headers=auth_headers_admin)
-        assert resp.status_code == 403
+    def test_delete_backup_admin_allowed(self, client, auth_headers_admin, tmp_path):
+        """Dept Admin can delete backups."""
+        from app.services import backup_service
+
+        with patch.object(backup_service, "_backup_dir", return_value=tmp_path):
+            create_resp = client.post("/admin/backups", headers=auth_headers_admin)
+            assert create_resp.status_code == 201
+            backup_id = create_resp.json()["backup_id"]
+            resp = client.delete(f"/admin/backups/{backup_id}", headers=auth_headers_admin)
+        assert resp.status_code == 204
 
     def test_download_backup_teacher_forbidden(self, client, auth_headers_teacher):
         """Teacher cannot download backups."""
@@ -498,3 +508,35 @@ class TestBackupRouteAuthorization:
             )
 
         assert resp.status_code == 400
+
+    def test_dept_admin_backup_is_department_scoped(self, client, auth_headers_admin, tmp_path):
+        """Department Admin backup is tagged with their department and scope."""
+        from app.services import backup_service
+
+        with patch.object(backup_service, "_backup_dir", return_value=tmp_path):
+            resp = client.post("/admin/backups", headers=auth_headers_admin)
+
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["backup_scope"] == "department"
+        assert data["department_id"] is not None
+        assert "dept_" in data["filename"]
+
+    def test_dept_admin_cannot_restore_other_department_or_full_backup(self, client, auth_headers_system_admin, auth_headers_admin, tmp_path):
+        """Department Admin cannot restore full system backup."""
+        from app.services import backup_service
+
+        # 1. System admin creates full backup
+        with patch.object(backup_service, "_backup_dir", return_value=tmp_path):
+            sys_resp = client.post("/admin/backups", headers=auth_headers_system_admin)
+            assert sys_resp.status_code == 201
+            full_backup_id = sys_resp.json()["backup_id"]
+
+            # 2. Dept admin attempts to restore full backup
+            resp = client.post(
+                f"/admin/backups/{full_backup_id}/restore",
+                json={"confirmation_text": "I understand that the current data will be replaced"},
+                headers=auth_headers_admin,
+            )
+        assert resp.status_code == 400
+        assert "Department Admins can only restore" in resp.json()["detail"]
