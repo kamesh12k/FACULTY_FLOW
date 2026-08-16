@@ -17,7 +17,8 @@ frontend/.env
 
 # OS / editor
 .DS_Store
-.vscode/
+.vscode/*
+!.vscode/settings.json
 .idea/
 package-lock.json
 
