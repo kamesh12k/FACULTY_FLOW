@@ -109,12 +109,39 @@ setlocal disabledelayedexpansion
 set /p PGPASSWORD="Enter PostgreSQL 'postgres' user password: "
 endlocal & set "PGPASSWORD=%PGPASSWORD%"
 
-psql -h localhost -U postgres -c "CREATE DATABASE credits_db;" 2>nul
-psql -h localhost -U postgres -d credits_db -f "!ROOT_DIR!\database\schema.sql"
-if errorlevel 1 (
-    echo %RED%ERROR: Database setup failed. Ensure PostgreSQL is running on port 5432.%RESET%
-    pause
-    exit /b 1
+set "PSQL_EXEC="
+where psql >nul 2>&1
+if !errorlevel! equ 0 (
+    for /f "delims=" %%i in ('where psql') do (
+        set "PSQL_EXEC=%%i"
+        goto :deploy_psql_found
+    )
+)
+for /d %%d in ("%ProgramFiles%\PostgreSQL\*" "%ProgramFiles(x86)%\PostgreSQL\*") do (
+    if exist "%%d\bin\psql.exe" (
+        set "PSQL_EXEC=%%d\bin\psql.exe"
+        set "PATH=%%d\bin;!PATH!"
+        goto :deploy_psql_found
+    )
+)
+:deploy_psql_found
+
+if defined PSQL_EXEC (
+    "!PSQL_EXEC!" -h localhost -U postgres -c "CREATE DATABASE credits_db;" 2>nul
+    "!PSQL_EXEC!" -h localhost -U postgres -d credits_db -f "!ROOT_DIR!\database\schema.sql"
+    if errorlevel 1 (
+        echo %RED%ERROR: Database setup failed. Ensure PostgreSQL is running on port 5432.%RESET%
+        pause
+        exit /b 1
+    )
+) else (
+    psql -h localhost -U postgres -c "CREATE DATABASE credits_db;" 2>nul
+    psql -h localhost -U postgres -d credits_db -f "!ROOT_DIR!\database\schema.sql"
+    if errorlevel 1 (
+        echo %RED%ERROR: Database setup failed. Ensure PostgreSQL is running on port 5432.%RESET%
+        pause
+        exit /b 1
+    )
 )
 echo   Database initialization: %GREEN%OK%RESET%
 

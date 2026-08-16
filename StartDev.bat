@@ -143,6 +143,29 @@ if not defined NODE_EXEC (
 :: Auto Error Correction: PostgreSQL Service Check & Auto-Start
 powershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-NetTCPConnection -LocalPort 5432 -State Listen -ErrorAction SilentlyContinue)) { Write-Host '  - Starting PostgreSQL service...' -ForegroundColor Yellow; Get-Service -Name '*postgres*' -ErrorAction SilentlyContinue | Start-Service -ErrorAction SilentlyContinue } else { Write-Host '  - PostgreSQL: Found (Listening on port 5432)' -ForegroundColor Green }; exit 0"
 
+:: Auto-Discover psql.exe and inject into PATH
+set "PSQL_EXEC="
+where psql >nul 2>&1
+if !errorlevel! equ 0 (
+    for /f "delims=" %%i in ('where psql') do (
+        set "PSQL_EXEC=%%i"
+        goto :psql_found
+    )
+)
+for /d %%d in ("%ProgramFiles%\PostgreSQL\*" "%ProgramFiles(x86)%\PostgreSQL\*") do (
+    if exist "%%d\bin\psql.exe" (
+        set "PSQL_EXEC=%%d\bin\psql.exe"
+        set "PATH=%%d\bin;!PATH!"
+        goto :psql_found
+    )
+)
+:psql_found
+if defined PSQL_EXEC (
+    echo   - PostgreSQL CLI: %GREEN%Found%RESET% [!PSQL_EXEC!]
+) else (
+    echo   - PostgreSQL CLI: %YELLOW%Not in PATH%RESET%
+)
+
 if !MISSING_PREREQ! equ 1 (
     echo.
     echo %RED%ERROR: Please install missing prerequisites and add them to your PATH.%RESET%
@@ -306,19 +329,31 @@ set /p PGPASSWORD="Enter PostgreSQL 'postgres' user password: "
 endlocal & set "PGPASSWORD=%PGPASSWORD%"
 
 echo   - Creating database 'credits_db' if not exists...
-psql -h localhost -U postgres -c "CREATE DATABASE credits_db;" 2>nul
-
-echo   - Importing base schema...
-psql -h localhost -U postgres -d credits_db -f "%ROOT_DIR%\database\schema.sql"
-if !errorlevel! neq 0 (
-    echo %RED%ERROR: Schema import failed. Verify PostgreSQL is running on port 5432.%RESET%
-    pause
-    exit /b 1
+if defined PSQL_EXEC (
+    "!PSQL_EXEC!" -h localhost -U postgres -c "CREATE DATABASE credits_db;" 2>nul
+    echo   - Importing base schema...
+    "!PSQL_EXEC!" -h localhost -U postgres -d credits_db -f "%ROOT_DIR%\database\schema.sql"
+    if !errorlevel! neq 0 (
+        echo %RED%ERROR: Schema import failed. Verify PostgreSQL is running on port 5432.%RESET%
+        pause
+        exit /b 1
+    )
+    echo   - Seeding development data...
+    "!PSQL_EXEC!" -h localhost -U postgres -d credits_db -f "%ROOT_DIR%\database\seed.sql" >nul 2>&1
+    echo %GREEN%Database initialized successfully with seed data.%RESET%
+) else (
+    psql -h localhost -U postgres -c "CREATE DATABASE credits_db;" 2>nul
+    echo   - Importing base schema...
+    psql -h localhost -U postgres -d credits_db -f "%ROOT_DIR%\database\schema.sql"
+    if !errorlevel! neq 0 (
+        echo %RED%ERROR: Schema import failed. Verify PostgreSQL is running on port 5432.%RESET%
+        pause
+        exit /b 1
+    )
+    echo   - Seeding development data...
+    psql -h localhost -U postgres -d credits_db -f "%ROOT_DIR%\database\seed.sql" >nul 2>&1
+    echo %GREEN%Database initialized successfully with seed data.%RESET%
 )
-
-echo   - Seeding development data...
-psql -h localhost -U postgres -d credits_db -f "%ROOT_DIR%\database\seed.sql" >nul 2>&1
-echo %GREEN%Database initialized successfully with seed data.%RESET%
 
 :db_done
 echo.
