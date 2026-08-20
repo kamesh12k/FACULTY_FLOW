@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     # ---------- Customization: deployment ----------
     FRONTEND_ORIGIN: List[str] = ["http://localhost:5173"]
     MAX_SECONDARY_ADMINS: int = 3
+    TIMEZONE: str = "Asia/Kolkata"
 
     # ---------- Database Connection Pool ----------
     DB_POOL_SIZE: int = 50

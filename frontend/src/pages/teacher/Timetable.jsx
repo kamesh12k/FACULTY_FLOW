@@ -133,6 +133,8 @@ export default function MyTimetable() {
   const [selectedSubjectId, setSelectedSubjectId] = useState('')
   const [selectedRoomId, setSelectedRoomId] = useState('')
   const [quickRoomId, setQuickRoomId] = useState('')
+  const [combineClassMode, setCombineClassMode] = useState(false)
+
 
   // ── Mobile-only state ─────────────────────────────────────────────────────
   const [mobileSelectedDay, setMobileSelectedDay] = useState(1)
@@ -140,6 +142,8 @@ export default function MyTimetable() {
   const [mobileClassId, setMobileClassId] = useState('')
   const [mobileSubjectId, setMobileSubjectId] = useState('')
   const [mobileRoomId, setMobileRoomId] = useState('')
+  const [mobileDeptFilter, setMobileDeptFilter] = useState('')
+  const [mobileClassSearch, setMobileClassSearch] = useState('')
   const [mobileEditRoomSlot, setMobileEditRoomSlot] = useState(null)
   const [mobileNewRoomId, setMobileNewRoomId] = useState('')
 
@@ -257,6 +261,7 @@ export default function MyTimetable() {
           room_id: roomId ? Number(roomId) : null,
           day_order: day,
           period_number: period,
+          allow_combined_class: combineClassMode,
         })
       } catch (err1) {
         if (err1.response?.status === 409) throw err1
@@ -266,8 +271,10 @@ export default function MyTimetable() {
           room_id: roomId ? Number(roomId) : null,
           day_order: day,
           period_number: period,
+          allow_combined_class: combineClassMode,
         })
       }
+
       const enriched = enrich(res.data, subjects, classes, rooms)
       dispatch({ type: 'SET', payload: [...slots, enriched] })
       popCell(day, period)
@@ -349,14 +356,29 @@ export default function MyTimetable() {
     if (!selectedCell || !selectedClassId || !selectedTeacherId) return
     setSaving(true)
     try {
-      const res = await timetableApi.createSlot({
-        teacher_id: Number(selectedTeacherId),
-        subject_id: selectedSubjectId ? Number(selectedSubjectId) : null,
-        class_id: Number(selectedClassId),
-        room_id: selectedRoomId ? Number(selectedRoomId) : null,
-        day_order: selectedCell.day_order,
-        period_number: selectedCell.period_number,
-      })
+      let res
+      try {
+        res = await timetableApi.createSlot({
+          teacher_id: Number(selectedTeacherId),
+          subject_id: selectedSubjectId ? Number(selectedSubjectId) : null,
+          class_id: Number(selectedClassId),
+          room_id: selectedRoomId ? Number(selectedRoomId) : null,
+          day_order: selectedCell.day_order,
+          period_number: selectedCell.period_number,
+          allow_combined_class: combineClassMode,
+        })
+      } catch (err1) {
+
+        if (err1.response?.status === 409) throw err1
+        res = await timetableApi.submitMyEntry({
+          class_id: Number(selectedClassId),
+          subject_id: selectedSubjectId ? Number(selectedSubjectId) : null,
+          room_id: selectedRoomId ? Number(selectedRoomId) : null,
+          day_order: selectedCell.day_order,
+          period_number: selectedCell.period_number,
+          allow_combined_class: combineClassMode,
+        })
+      }
       const enrichedSlot = enrich(res.data, subjects, classes, rooms)
       dispatch({ type: 'SET', payload: [...slots, enrichedSlot] })
       popCell(selectedCell.day_order, selectedCell.period_number)
@@ -401,6 +423,7 @@ export default function MyTimetable() {
           room_id: mobileRoomId ? Number(mobileRoomId) : null,
           day_order: mobileAssignCell.day_order,
           period_number: mobileAssignCell.period_number,
+          allow_combined_class: combineClassMode,
         })
       } catch (err1) {
         if (err1.response?.status === 409) throw err1
@@ -410,6 +433,7 @@ export default function MyTimetable() {
           room_id: mobileRoomId ? Number(mobileRoomId) : null,
           day_order: mobileAssignCell.day_order,
           period_number: mobileAssignCell.period_number,
+          allow_combined_class: combineClassMode,
         })
       }
       const enrichedSlot = enrich(res.data, subjects, classes, rooms)
@@ -420,12 +444,47 @@ export default function MyTimetable() {
       setMobileSubjectId('')
       setMobileRoomId('')
     } catch (err) {
-      const detail = err.response?.data?.detail || 'Failed to assign slot'
+      const rawDetail = err.response?.data?.detail || 'Failed to assign slot'
+      let detail = rawDetail
+      if (typeof rawDetail === 'string') {
+        const cls = classes.find(c => c.id === Number(mobileClassId))
+        const subj = subjects.find(s => s.id === Number(mobileSubjectId))
+        const rm = rooms.find(r => r.id === Number(mobileRoomId))
+        detail = {
+          title: 'Class already scheduled',
+          conflict_type: 'class',
+          reason: rawDetail,
+          resolution: 'Tap "Combine Class & Assign" below to assign as co-staff or joint class.',
+          requested: {
+            teacher_id: Number(selectedTeacherId),
+            teacher_name: user?.name || 'You',
+            class_id: Number(mobileClassId),
+            class_name: cls ? `${cls.name}-${cls.section}` : `Class #${mobileClassId}`,
+            subject_id: mobileSubjectId ? Number(mobileSubjectId) : null,
+            subject_name: subj?.name || '',
+            room_id: mobileRoomId ? Number(mobileRoomId) : null,
+            room_name: rm?.room_number || '',
+            day_order: mobileAssignCell.day_order,
+            period_number: mobileAssignCell.period_number,
+          }
+        }
+      } else if (detail && typeof detail === 'object' && !detail.requested) {
+        detail.requested = {
+          teacher_id: Number(selectedTeacherId),
+          teacher_name: user?.name || 'You',
+          class_id: Number(mobileClassId),
+          subject_id: mobileSubjectId ? Number(mobileSubjectId) : null,
+          room_id: mobileRoomId ? Number(mobileRoomId) : null,
+          day_order: mobileAssignCell.day_order,
+          period_number: mobileAssignCell.period_number,
+        }
+      }
       toast(typeof detail === 'string' ? detail : (detail.title || 'Timetable conflict'), 'error')
       showConflict(detail, mobileAssignCell.day_order, mobileAssignCell.period_number)
     } finally {
       setSaving(false)
     }
+
   }
 
   // ── Mobile Update Room Handler ────────────────────────────────────────────
@@ -475,7 +534,7 @@ export default function MyTimetable() {
       {/* ═════════════════════════════════════════════════════════════════════ */}
       {/* ── MOBILE-ONLY PRESENTATION (Visible < 1024px) ──────────────────── */}
       {/* ═════════════════════════════════════════════════════════════════════ */}
-      <div className="block lg:hidden space-y-4 pb-24">
+      <div className="tt-mobile-view block lg:hidden space-y-4 pb-24">
         {/* Mobile Header Card */}
         <div className="card p-4 border border-slate-200 bg-white rounded-2xl shadow-xs">
           <div className="flex items-center justify-between gap-2">
@@ -527,7 +586,43 @@ export default function MyTimetable() {
           </div>
         </div>
 
+        {/* Mobile Combine Class Switch Card */}
+        <div className="card p-3 border border-purple-200 bg-purple-50/70 rounded-2xl flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+              👥
+            </div>
+            <div>
+              <p className="text-xs font-black text-purple-950 leading-tight">Combine Class / Multi-Staff</p>
+              <p className="text-[10px] font-semibold text-purple-700">Assign 2+ staff or merge sections</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setCombineClassMode(m => {
+                const next = !m
+                toast(
+                  next
+                    ? '👥 Combine Class ON: You can now assign multiple staff or sections'
+                    : 'Combine Class OFF',
+                  'info'
+                )
+                return next
+              })
+            }}
+            className={`px-3.5 py-1.5 rounded-xl font-black text-xs transition-all shadow-xs min-h-[36px] ${
+              combineClassMode
+                ? 'bg-purple-600 text-white shadow-purple-500/25 ring-2 ring-purple-600 ring-offset-1'
+                : 'bg-white border border-purple-300 text-purple-700 hover:bg-purple-100'
+            }`}
+          >
+            {combineClassMode ? 'ON 🟢' : 'OFF ⚪'}
+          </button>
+        </div>
+
         {/* Day Order Selector (Segmented Grid) */}
+
         <div>
           <div className="flex items-center justify-between mb-1.5 px-0.5">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Select Day Order</span>
@@ -660,6 +755,8 @@ export default function MyTimetable() {
                           setMobileClassId('')
                           setMobileSubjectId('')
                           setMobileRoomId(quickRoomId || '')
+                          setMobileDeptFilter('')
+                          setMobileClassSearch('')
                         }}
                         className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-primary-500/20 min-h-[44px]"
                       >
@@ -702,7 +799,7 @@ export default function MyTimetable() {
       {/* ═════════════════════════════════════════════════════════════════════ */}
       {/* ── DESKTOP-ONLY PRESENTATION (Visible >= 1024px) ────────────────── */}
       {/* ═════════════════════════════════════════════════════════════════════ */}
-      <div className="hidden lg:flex tt-root">
+      <div className="tt-desktop-view hidden lg:flex tt-root">
         {/* ── Header ── */}
         <header className="tt-header">
           <div className="tt-brand">
@@ -732,6 +829,27 @@ export default function MyTimetable() {
                 <IconPaint />
                 Paint {paintMode ? 'on' : 'off'}
               </button>
+
+              <button
+                type="button"
+                className={`tt-btn ${combineClassMode ? 'tt-btn--combine-on' : 'tt-btn--combine-off'}`}
+                onClick={() => {
+                  setCombineClassMode(m => {
+                    const next = !m
+                    toast(
+                      next
+                        ? '👥 Combine Class ON: You can now assign multiple staff to one class/period'
+                        : 'Combine Class OFF',
+                      'info'
+                    )
+                    return next
+                  })
+                }}
+                title="Toggle Combine Class mode to assign two or more staff to one class"
+              >
+                👥 Combine Class {combineClassMode ? 'ON' : 'OFF'}
+              </button>
+
 
               <div className="tt-btn-group">
                 <button
@@ -1141,68 +1259,162 @@ export default function MyTimetable() {
         onClose={() => setMobileAssignCell(null)}
         title={mobileAssignCell ? `Assign Class — ${DAY_SHORT[mobileAssignCell.day_order]} P${mobileAssignCell.period_number}` : 'Assign Class'}
       >
-        {mobileAssignCell && (
-          <div className="space-y-4">
-            <div className="p-3 bg-primary-50 rounded-xl border border-primary-150 text-xs text-primary-900 font-semibold flex items-center justify-between">
-              <span>{DAY_FULL[mobileAssignCell.day_order]}</span>
-              <span className="font-mono">Period {mobileAssignCell.period_number} ({PERIOD_TIMES[mobileAssignCell.period_number]})</span>
-            </div>
+        {mobileAssignCell && (() => {
+          const filteredMobileClasses = classes.filter(c =>
+            (!mobileDeptFilter || String(c.department_id) === mobileDeptFilter) &&
+            (!mobileClassSearch || c.name.toLowerCase().includes(mobileClassSearch.toLowerCase()) || (c.section || '').toLowerCase().includes(mobileClassSearch.toLowerCase()))
+          )
+          const availableMobileSubjects = mobileClassId
+            ? subjects.filter(s => s.class_id === Number(mobileClassId))
+            : subjects
 
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Select Class <span className="text-rose-500">*</span></label>
-              <select
-                className="input text-xs w-full min-h-[44px]"
-                value={mobileClassId}
-                onChange={e => setMobileClassId(e.target.value)}
-              >
-                <option value="">Choose class…</option>
-                {classes.map(c => <option key={c.id} value={c.id}>{c.name} - {c.section}</option>)}
-              </select>
-            </div>
+          return (
+            <div className="space-y-4">
+              <div className="p-3 bg-primary-50 rounded-xl border border-primary-150 text-xs text-primary-900 font-semibold flex items-center justify-between">
+                <span>{DAY_FULL[mobileAssignCell.day_order]}</span>
+                <span className="font-mono">Period {mobileAssignCell.period_number} ({PERIOD_TIMES[mobileAssignCell.period_number]})</span>
+              </div>
 
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Select Subject (Optional)</label>
-              <select
-                className="input text-xs w-full min-h-[44px]"
-                value={mobileSubjectId}
-                onChange={e => setMobileSubjectId(e.target.value)}
-              >
-                <option value="">Choose subject…</option>
-                {subjects.map(s => <option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}
-              </select>
-            </div>
+              {/* Class Selection & Filters */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-700">Select Class <span className="text-rose-500">*</span></label>
+                  <span className="text-[10px] font-bold text-slate-400">{filteredMobileClasses.length} available</span>
+                </div>
 
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Select Room (Optional)</label>
-              <select
-                className="input text-xs w-full min-h-[44px]"
-                value={mobileRoomId}
-                onChange={e => setMobileRoomId(e.target.value)}
-              >
-                <option value="">No room assigned (Theory)</option>
-                {rooms.map(r => <option key={r.id} value={r.id}>{r.room_number} ({r.room_type === 'lab' ? 'Lab' : 'Classroom'})</option>)}
-              </select>
-            </div>
+                <div className="space-y-2 mb-2">
+                  <select
+                    className="input text-xs w-full min-h-[40px]"
+                    value={mobileDeptFilter}
+                    onChange={e => setMobileDeptFilter(e.target.value)}
+                  >
+                    <option value="">All departments</option>
+                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setMobileAssignCell(null)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold min-h-[44px]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={!mobileClassId || saving}
-                onClick={handleMobileAssign}
-                className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold min-h-[44px]"
-              >
-                {saving ? 'Assigning…' : 'Assign Slot'}
-              </button>
+                  <input
+                    type="text"
+                    className="input text-xs w-full min-h-[40px]"
+                    placeholder="Filter classes by name or section…"
+                    value={mobileClassSearch}
+                    onChange={e => setMobileClassSearch(e.target.value)}
+                  />
+                </div>
+
+                <select
+                  className="input text-xs w-full min-h-[44px] font-semibold"
+                  value={mobileClassId}
+                  onChange={e => {
+                    setMobileClassId(e.target.value)
+                    setMobileSubjectId('')
+                  }}
+                >
+                  <option value="">Choose class…</option>
+                  {filteredMobileClasses.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} - {c.section}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Subject Selection */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Select Subject (Optional)</label>
+                <select
+                  className="input text-xs w-full min-h-[44px]"
+                  value={mobileSubjectId}
+                  onChange={e => setMobileSubjectId(e.target.value)}
+                >
+                  <option value="">Choose subject…</option>
+                  {availableMobileSubjects.map(s => <option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}
+                </select>
+              </div>
+
+              {/* Room Selection with Quick Chips */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1.5">Assign as Room / Lab</label>
+                <div className="flex flex-wrap gap-1.5 mb-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setMobileRoomId('')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                      !mobileRoomId
+                        ? 'bg-primary-600 border-primary-600 text-white shadow-sm'
+                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    Theory (No Room)
+                  </button>
+                  {rooms.filter(isLabRoom).map(r => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setMobileRoomId(String(r.id))}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                        mobileRoomId === String(r.id)
+                          ? 'bg-amber-600 border-amber-600 text-white shadow-sm'
+                          : 'bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100'
+                      }`}
+                    >
+                      {r.room_number} (Lab)
+                    </button>
+                  ))}
+                </div>
+
+                <select
+                  className="input text-xs w-full min-h-[44px]"
+                  value={mobileRoomId}
+                  onChange={e => setMobileRoomId(e.target.value)}
+                >
+                  <option value="">No room assigned (Theory)</option>
+                  {rooms.map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.room_number} ({r.room_type === 'lab' ? 'Lab' : 'Classroom'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Combine Class Checkbox */}
+              <label className="flex items-center gap-2.5 p-3 bg-purple-50 border border-purple-200 rounded-xl cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={combineClassMode}
+                  onChange={e => setCombineClassMode(e.target.checked)}
+                  className="w-4 h-4 accent-purple-600 rounded cursor-pointer"
+                />
+                <div className="flex flex-col">
+                  <span className="text-xs font-black text-purple-950">
+                    👥 Combine Class / Multi-Staff
+                  </span>
+                  <span className="text-[10px] font-semibold text-purple-700">
+                    Allow 2+ staff on this class or joint section
+                  </span>
+                </div>
+              </label>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+
+                <button
+                  type="button"
+                  onClick={() => setMobileAssignCell(null)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold min-h-[44px]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!mobileClassId || saving}
+                  onClick={handleMobileAssign}
+                  className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold min-h-[44px]"
+                >
+                  {saving ? 'Assigning…' : 'Assign Slot'}
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
       </Modal>
 
       {/* ── Mobile Edit Room Modal ── */}
@@ -1301,10 +1513,74 @@ export default function MyTimetable() {
               <p><span>Room</span>{conflictDetail?.existing?.room_name || 'No room selected'}</p>
             </section>
           </div>
-          <div className="conflict-resolution"><strong>How to fix it</strong><p>{conflictDetail?.resolution || 'Choose a different class, room, day order, or period.'}</p></div>
-          <button type="button" className="tt-btn tt-btn--primary min-h-[44px]" onClick={() => setConflictDetail(null)} style={{ width: '100%', justifyContent: 'center' }}>I understand — adjust timetable</button>
+          <div className="conflict-resolution">
+            <strong>How to fix it</strong>
+            <p>{conflictDetail?.resolution || 'Choose a different class, room, day order, or period, or combine class.'}</p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', marginTop: '14px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="tt-btn"
+              onClick={() => setConflictDetail(null)}
+              style={{ flex: 1, minWidth: '100px', justifyContent: 'center' }}
+            >
+              Close / Adjust
+            </button>
+            <button
+              type="button"
+              className="tt-btn tt-btn--combine-on min-h-[44px]"
+              onClick={async () => {
+                if (!conflictRequested) return
+                setSaving(true)
+                try {
+                  let res
+                  try {
+                    res = await timetableApi.createSlot({
+                      teacher_id: Number(conflictRequested.teacher_id || selectedTeacherId),
+                      subject_id: conflictRequested.subject_id ? Number(conflictRequested.subject_id) : null,
+                      class_id: Number(conflictRequested.class_id),
+                      room_id: conflictRequested.room_id ? Number(conflictRequested.room_id) : null,
+                      day_order: conflictRequested.day_order,
+                      period_number: conflictRequested.period_number,
+                      allow_combined_class: true,
+                    })
+                  } catch (err1) {
+                    if (err1.response?.status === 409) throw err1
+                    res = await timetableApi.submitMyEntry({
+                      class_id: Number(conflictRequested.class_id),
+                      subject_id: conflictRequested.subject_id ? Number(conflictRequested.subject_id) : null,
+                      room_id: conflictRequested.room_id ? Number(conflictRequested.room_id) : null,
+                      day_order: conflictRequested.day_order,
+                      period_number: conflictRequested.period_number,
+                      allow_combined_class: true,
+                    })
+                  }
+                  const enrichedSlot = enrich(res.data, subjects, classes, rooms)
+                  dispatch({ type: 'SET', payload: [...slots, enrichedSlot] })
+                  popCell(conflictRequested.day_order, conflictRequested.period_number)
+                  setConflicts(c => { const n = { ...c }; delete n[`${conflictRequested.day_order}-${conflictRequested.period_number}`]; return n })
+                  setConflictDetail(null)
+                  setMobileAssignCell(null)
+                  setCombineClassMode(true)
+                  toast('👥 Combined Class assigned / submitted successfully with co-staff!', 'success')
+                } catch (err) {
+                  toast(err.response?.data?.detail || 'Failed to combine class', 'error')
+                } finally {
+                  setSaving(false)
+                }
+              }}
+              disabled={saving}
+              style={{ flex: 1.5, minWidth: '160px', justifyContent: 'center', background: '#7C3AED', color: '#fff', border: '1px solid #6D28D9' }}
+            >
+              {saving ? 'Combining…' : '👥 Combine Class & Assign'}
+            </button>
+          </div>
         </div>
       </Modal>
+
+
+
 
       <style>{CSS}</style>
     </div>
@@ -2137,6 +2413,62 @@ const CSS = `
 .conflict-comparison p span { color: #6B7280; font-weight: 500; }
 .conflict-resolution { margin: 12px 0; padding: 10px 12px; border-left: 3px solid #2563EB; background: #EFF6FF; border-radius: 0 8px 8px 0; color: #1E3A8A; }
 @media (max-width: 560px) { .conflict-comparison { grid-template-columns: 1fr; } }
+
+/* ─── Responsive display controls ─── */
+@media (max-width: 1023px) {
+  .tt-root,
+  .tt-desktop-view {
+    display: none !important;
+  }
+  .tt-mobile-view {
+    display: block !important;
+  }
+  .tt-body {
+    flex-direction: column;
+    overflow: visible;
+    height: auto;
+    padding: 10px;
+    gap: 12px;
+  }
+  .tt-left {
+    width: 100%;
+    max-height: 250px;
+    padding-right: 0;
+    border-bottom: 1px solid #E4E7EC;
+    padding-bottom: 10px;
+  }
+  .tt-subject-list {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 8px;
+    padding-bottom: 8px;
+  }
+  .tt-subject-card {
+    flex: 0 0 150px;
+  }
+  .tt-center {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #E4E7EC;
+    border-radius: 12px;
+    background: #fff;
+    padding: 8px;
+  }
+  .tt-right {
+    width: 100%;
+    padding-left: 0;
+    overflow-y: visible;
+  }
+}
+
+@media (min-width: 1024px) {
+  .tt-mobile-view {
+    display: none !important;
+  }
+  .tt-desktop-view {
+    display: flex !important;
+  }
+}
 `
 
 

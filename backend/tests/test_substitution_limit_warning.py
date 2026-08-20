@@ -19,7 +19,9 @@ from tests.conftest import (
 )
 
 
-def _make_leave(db: Session, teacher: User, leave_date: date = date(2026, 7, 10), period: int = 3, day_order: int = 1) -> LeaveRequest:
+def _make_leave(db: Session, teacher: User, leave_date: date = None, period: int = 3, day_order: int = 1) -> LeaveRequest:
+    if leave_date is None:
+        leave_date = date.today() + timedelta(days=5)
     create_calendar_day(db, leave_date, DayType.working, day_order=day_order)
     leave = LeaveRequest(
         teacher_id=teacher.id,
@@ -40,7 +42,8 @@ class TestSubstitutionLimitWarning:
         leaver = _make_user(db_session, name="Leaver", email="leaver1@test.com")
         sub = _make_user(db_session, name="Sub", email="sub1@test.com")
         admin = _make_user(db_session, name="Admin", email="admin1@test.com", role=Role.admin)
-        leave = _make_leave(db_session, leaver, leave_date=date(2026, 7, 10), period=2)
+        target_date = date.today() + timedelta(days=5)
+        leave = _make_leave(db_session, leaver, leave_date=target_date, period=2)
 
         # Set max_weekly_substitutions = 3
         update_preferences(db_session, sub.id, max_weekly_substitutions=3)
@@ -49,7 +52,7 @@ class TestSubstitutionLimitWarning:
         for i in [1, 2]:
             other_leave = _make_leave(
                 db_session, leaver,
-                leave_date=date(2026, 7, 10) - timedelta(days=i),
+                leave_date=target_date - timedelta(days=i),
                 period=1, day_order=i,
             )
             leave_service.assign_substitute(other_leave.id, sub.id, db_session, actor_id=admin.id)
@@ -65,7 +68,8 @@ class TestSubstitutionLimitWarning:
         leaver = _make_user(db_session, name="Leaver2", email="leaver2@test.com")
         sub = _make_user(db_session, name="Sub2", email="sub2@test.com")
         admin = _make_user(db_session, name="Admin2", email="admin2@test.com", role=Role.admin)
-        leave = _make_leave(db_session, leaver, leave_date=date(2026, 7, 10), period=3)
+        target_date = date.today() + timedelta(days=5)
+        leave = _make_leave(db_session, leaver, leave_date=target_date, period=3)
 
         update_preferences(db_session, sub.id, max_weekly_substitutions=3)
 
@@ -73,7 +77,7 @@ class TestSubstitutionLimitWarning:
         for i in [1, 2, 3]:
             other_leave = _make_leave(
                 db_session, leaver,
-                leave_date=date(2026, 7, 10) - timedelta(days=i),
+                leave_date=target_date - timedelta(days=i),
                 period=1, day_order=i,
             )
             leave_service.assign_substitute(other_leave.id, sub.id, db_session, actor_id=admin.id)
@@ -97,14 +101,15 @@ class TestSubstitutionLimitWarning:
         leaver = _make_user(db_session, name="Leaver3", email="leaver3@test.com")
         sub = _make_user(db_session, name="Sub3", email="sub3@test.com")
         admin = _make_user(db_session, name="Admin3", email="admin3@test.com", role=Role.admin)
-        leave = _make_leave(db_session, leaver, leave_date=date(2026, 7, 10), period=4)
+        target_date = date.today() + timedelta(days=5)
+        leave = _make_leave(db_session, leaver, leave_date=target_date, period=4)
 
         update_preferences(db_session, sub.id, max_weekly_substitutions=3)
 
         for i in [1, 2, 3]:
             other_leave = _make_leave(
                 db_session, leaver,
-                leave_date=date(2026, 7, 10) - timedelta(days=i),
+                leave_date=target_date - timedelta(days=i),
                 period=1, day_order=i,
             )
             leave_service.assign_substitute(other_leave.id, sub.id, db_session, actor_id=admin.id)
@@ -135,7 +140,8 @@ class TestSubstitutionLimitWarning:
         sub_initial = _make_user(db_session, name="Sub4Init", email="sub4_init@test.com")
         sub_new = _make_user(db_session, name="Sub4New", email="sub4_new@test.com")
         admin = _make_user(db_session, name="Admin4", email="admin4@test.com", role=Role.admin)
-        leave = _make_leave(db_session, leaver, leave_date=date(2026, 7, 10), period=2)
+        target_date = date.today() + timedelta(days=5)
+        leave = _make_leave(db_session, leaver, leave_date=target_date, period=2)
 
         # Initial assignment
         leave_service.assign_substitute(leave.id, sub_initial.id, db_session, actor_id=admin.id)
@@ -145,7 +151,7 @@ class TestSubstitutionLimitWarning:
         for i in [1, 2]:
             other_leave = _make_leave(
                 db_session, leaver,
-                leave_date=date(2026, 7, 10) - timedelta(days=i),
+                leave_date=target_date - timedelta(days=i),
                 period=1, day_order=i,
             )
             leave_service.assign_substitute(other_leave.id, sub_new.id, db_session, actor_id=admin.id)
@@ -171,7 +177,8 @@ class TestSubstitutionLimitWarning:
         leaver = _make_user(db_session, name="Leaver5", email="leaver5@test.com")
         sub = _make_user(db_session, name="Sub5", email="sub5@test.com")
         admin = _make_user(db_session, name="Admin5", email="admin5@test.com", role=Role.admin)
-        leave = _make_leave(db_session, leaver, leave_date=date(2026, 7, 10), period=3, day_order=1)
+        target_date = date.today() + timedelta(days=5)
+        leave = _make_leave(db_session, leaver, leave_date=target_date, period=3, day_order=1)
 
         cls = create_class(db_session, name="CSE-A")
         subj = create_subject(db_session, name="DSA", code="CS201")
@@ -198,13 +205,14 @@ class TestSubstitutionLimitWarning:
         leaver = _make_user(db_session, name="Leaver6", email="leaver6@test.com")
         sub = _make_user(db_session, name="Sub6", email="sub6@test.com")
         admin = _make_user(db_session, name="Admin6", email="admin6@test.com", role=Role.admin)
-        leave = _make_leave(db_session, leaver, leave_date=date(2026, 7, 10), period=2)
+        target_date = date.today() + timedelta(days=5)
+        leave = _make_leave(db_session, leaver, leave_date=target_date, period=2)
 
         update_preferences(db_session, sub.id, max_weekly_substitutions=2)
         for i in [1, 2]:
             other_leave = _make_leave(
                 db_session, leaver,
-                leave_date=date(2026, 7, 10) - timedelta(days=i),
+                leave_date=target_date - timedelta(days=i),
                 period=1, day_order=i,
             )
             leave_service.assign_substitute(other_leave.id, sub.id, db_session, actor_id=admin.id)
@@ -222,13 +230,14 @@ class TestSubstitutionLimitWarning:
         leaver = _make_user(db_session, name="TeacherLeaver", email="tleaver@test.com")
         sub = _make_user(db_session, name="TeacherSub", email="tsub@test.com")
         admin = _make_user(db_session, name="AdminT", email="admint@test.com", role=Role.admin)
-        leave = _make_leave(db_session, leaver, leave_date=date(2026, 7, 10), period=2)
+        target_date = date.today() + timedelta(days=5)
+        leave = _make_leave(db_session, leaver, leave_date=target_date, period=2)
 
         update_preferences(db_session, sub.id, max_weekly_substitutions=2)
         for i in [1, 2]:
             other_leave = _make_leave(
                 db_session, leaver,
-                leave_date=date(2026, 7, 10) - timedelta(days=i),
+                leave_date=target_date - timedelta(days=i),
                 period=1, day_order=i,
             )
             leave_service.assign_substitute(other_leave.id, sub.id, db_session, actor_id=admin.id)
@@ -256,13 +265,14 @@ class TestSubstitutionLimitWarning:
         leaver = _make_user(db_session, name="AutoLeaver", email="autoleaver@test.com")
         sub = _make_user(db_session, name="AutoSub", email="autosub@test.com")
         admin = _make_user(db_session, name="AutoAdmin", email="autoadmin@test.com", role=Role.admin)
-        leave = _make_leave(db_session, leaver, leave_date=date(2026, 7, 10), period=2)
+        target_date = date.today() + timedelta(days=5)
+        leave = _make_leave(db_session, leaver, leave_date=target_date, period=2)
 
         update_preferences(db_session, sub.id, max_weekly_substitutions=2, accept_auto_assignments=True)
         for i in [1, 2]:
             other_leave = _make_leave(
                 db_session, leaver,
-                leave_date=date(2026, 7, 10) - timedelta(days=i),
+                leave_date=target_date - timedelta(days=i),
                 period=1, day_order=i,
             )
             leave_service.assign_substitute(other_leave.id, sub.id, db_session, actor_id=admin.id)

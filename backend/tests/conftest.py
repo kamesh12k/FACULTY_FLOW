@@ -269,12 +269,19 @@ def create_class(db: Session, name: str = "CSE-A", section: str = "A",
     return cls
 
 
-def create_room(db: Session, room_number: str = "R101", capacity: int = 60) -> Room:
-    room = Room(room_number=room_number, room_type=RoomType.classroom, capacity=capacity)
+def create_room(
+    db: Session,
+    room_number: str = "R101",
+    capacity: int = 60,
+    department_id: int | None = None,
+    room_type: RoomType = RoomType.classroom,
+) -> Room:
+    room = Room(room_number=room_number, room_type=room_type, capacity=capacity, department_id=department_id)
     db.add(room)
     db.commit()
     db.refresh(room)
     return room
+
 
 
 def create_timetable_slot(

@@ -76,9 +76,16 @@ export default function ClassFacultyDirectory() {
               className={`w-full text-left p-4 hover:bg-gray-50 transition-colors ${selected?.id === c.id ? 'bg-primary-50' : ''}`}
             >
               <p className="font-semibold text-gray-800">{c.name} – {c.section}</p>
-              <p className="text-xs text-gray-500 mt-1">
-                Semester {c.semester} · {c.faculty_count} faculty · {c.subject_count} subjects
-              </p>
+              <div className="flex items-center gap-2 flex-wrap mt-1">
+                <span className="text-xs text-gray-500">
+                  Semester {c.semester} · {c.faculty_count} faculty · {c.subject_count} subjects
+                </span>
+                {c.default_room_number && (
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    🏢 {c.default_room_number}
+                  </span>
+                )}
+              </div>
             </button>
           )) : <EmptyState message="No classes found." />}
         </div>
@@ -92,8 +99,15 @@ export default function ClassFacultyDirectory() {
             <>
               <div className="p-5 border-b flex items-center justify-between">
                 <div>
-                  <h2 className="font-bold text-gray-900">{detail.name} – {detail.section}</h2>
-                  <p className="text-sm text-gray-500">Semester {detail.semester}</p>
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="font-bold text-gray-900">{detail.name} – {detail.section}</h2>
+                    {detail.default_room_number && (
+                      <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        🏢 Base Room: {detail.default_room_number} {detail.default_room_type ? `(${detail.default_room_type})` : ''}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-0.5">Semester {detail.semester}</p>
                 </div>
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary-50 text-primary-700 border border-primary-200">
                   {groupedFaculty.length} Staff Member{groupedFaculty.length === 1 ? '' : 's'}

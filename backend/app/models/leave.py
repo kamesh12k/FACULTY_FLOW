@@ -25,6 +25,8 @@ class AssignmentType(str, enum.Enum):
     overridden = "overridden"                     # Admin replaced an existing (often auto) assignment
     emergency = "emergency"                       # Leave submitted inside the emergency window
     teacher_assigned = "teacher_assigned"         # Teacher self-assigned substitute in teacher_mode
+    combined_class = "combined_class"             # Class combined/merged with another parallel active class
+
 
 
 class LeaveRequest(Base):

@@ -28,7 +28,8 @@ def create_subject(
     db: Session = Depends(get_db),
     tenant_department_id: int | None = Depends(get_tenant_department_id),
 ):
-    return subject_service.create_subject(data, db, tenant_department_id)
+    effective_tenant = None if _admin.is_system_admin else tenant_department_id
+    return subject_service.create_subject(data, db, effective_tenant)
 
 
 @router.patch("/{subject_id}", response_model=SubjectOut)
@@ -39,7 +40,8 @@ def update_subject(
     db: Session = Depends(get_db),
     tenant_department_id: int | None = Depends(get_tenant_department_id),
 ):
-    return subject_service.update_subject(subject_id, data, db, tenant_department_id)
+    effective_tenant = None if _admin.is_system_admin else tenant_department_id
+    return subject_service.update_subject(subject_id, data, db, effective_tenant)
 
 
 @router.patch("/{subject_id}/archive", response_model=SubjectOut)
@@ -49,7 +51,8 @@ def archive_subject(
     db: Session = Depends(get_db),
     tenant_department_id: int | None = Depends(get_tenant_department_id),
 ):
-    return subject_service.set_archived(subject_id, True, db, tenant_department_id)
+    effective_tenant = None if _admin.is_system_admin else tenant_department_id
+    return subject_service.set_archived(subject_id, True, db, effective_tenant)
 
 
 @router.patch("/{subject_id}/unarchive", response_model=SubjectOut)
@@ -59,4 +62,18 @@ def unarchive_subject(
     db: Session = Depends(get_db),
     tenant_department_id: int | None = Depends(get_tenant_department_id),
 ):
-    return subject_service.set_archived(subject_id, False, db, tenant_department_id)
+    effective_tenant = None if _admin.is_system_admin else tenant_department_id
+    return subject_service.set_archived(subject_id, False, db, effective_tenant)
+
+
+@router.delete("/{subject_id}", status_code=204)
+def delete_subject(
+    subject_id: int,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    tenant_department_id: int | None = Depends(get_tenant_department_id),
+):
+    effective_tenant = None if _admin.is_system_admin else tenant_department_id
+    subject_service.delete_subject(subject_id, db, effective_tenant)
+
+

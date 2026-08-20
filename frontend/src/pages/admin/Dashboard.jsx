@@ -157,17 +157,18 @@ export default function AdminDashboard() {
         key: 'sub',
         tone: 'amber',
         icon: SwapIcon,
-        text: `${needingSub.length} period${needingSub.length === 1 ? '' : 's'} still need${needingSub.length === 1 ? 's' : ''} a substitute today`,
-        cta: 'Assign now',
+        text: `${needingSub.length} Period${needingSub.length === 1 ? '' : 's'} Still Need${needingSub.length === 1 ? 's' : ''} a Substitute Today`,
+        cta: 'Assign Now',
         to: '/admin/today-substitutions',
       })
     }
-    if (summary.pending_leave_count > 0) {
+    const pendingFaculty = summary.pending_faculty_count ?? summary.pending_leave_count ?? 0
+    if (pendingFaculty > 0) {
       items.push({
         key: 'leave',
         tone: 'yellow',
         icon: DocIcon,
-        text: `${summary.pending_leave_count} pending leave request${summary.pending_leave_count === 1 ? '' : 's'} awaiting approval`,
+        text: `${pendingFaculty} Faculty Member${pendingFaculty === 1 ? '' : 's'} Awaiting Leave Approval`,
         cta: 'Review',
         to: '/admin/leaves',
       })
@@ -469,10 +470,10 @@ export default function AdminDashboard() {
             <div>
               <p className="text-sm font-extrabold text-slate-800">Working Calendar Day</p>
               <p className="text-xs text-slate-500 mt-1 font-semibold">
-                Day Order {summary?.day_order} · {groupedOnLeave.length} teacher{groupedOnLeave.length === 1 ? '' : 's'} on leave
+                Day Order {summary?.day_order} · {groupedOnLeave.length} Faculty on Leave
                 {teachersOnLeave.length > 0 && (
                   <span className={needingSub.length > 0 ? 'text-amber-600 font-bold' : 'text-emerald-600 font-bold'}>
-                    {' '}· {teachersOnLeave.length - needingSub.length}/{teachersOnLeave.length} periods covered
+                    {' '}· {teachersOnLeave.length - needingSub.length}/{teachersOnLeave.length} Periods Covered
                   </span>
                 )}
               </p>
@@ -500,7 +501,7 @@ export default function AdminDashboard() {
             <DocIcon className="w-5 h-5 sm:w-6 sm:h-6" />
           </span>
           <div>
-            <span className="block text-lg sm:text-xl font-extrabold text-slate-800 leading-none">{summary?.pending_leave_count || 0}</span>
+            <span className="block text-lg sm:text-xl font-extrabold text-slate-800 leading-none">{summary?.pending_faculty_count ?? summary?.pending_leave_count ?? 0}</span>
             <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1 sm:mt-1.5">Pending</span>
           </div>
         </Link>

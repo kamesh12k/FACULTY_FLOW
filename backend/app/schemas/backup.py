@@ -61,3 +61,26 @@ class RestoreResultOut(BaseModel):
     pre_restore_filename: str
     restored_at: str
     message: str
+
+
+class BackupScheduleSettingsIn(BaseModel):
+    """Payload to customize automatic backup interval and toggle status."""
+    enabled: bool = True
+    interval_days: int = 7
+
+    @field_validator("interval_days")
+    @classmethod
+    def validate_interval(cls, v: int) -> int:
+        if v < 1 or v > 365:
+            raise ValueError("Backup interval must be between 1 and 365 days.")
+        return v
+
+
+class BackupScheduleSettingsOut(BaseModel):
+    """Response shape for automatic backup schedule configuration."""
+    enabled: bool = True
+    interval_days: int = 7
+    last_auto_backup_at: str | None = None
+    next_scheduled_at: str | None = None
+    message: str | None = None
+

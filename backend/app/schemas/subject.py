@@ -7,16 +7,16 @@ class SubjectCreate(BaseModel):
     code: str
     name: str
     subject_type: SubjectType = SubjectType.theory
-    credits: int
+    credits: int = 1
     department_id: int
     semester: int
 
     @field_validator("credits")
     @classmethod
     def validate_credits(cls, v: int) -> int:
-        if v <= 0:
+        if v is not None and v <= 0:
             raise ValueError("credits must be positive")
-        return v
+        return v or 1
 
     @field_validator("semester")
     @classmethod

@@ -6,7 +6,7 @@
 -- ============================================================
 
 -- ---------- ENUM TYPES ----------
-CREATE TYPE user_role AS ENUM ('admin', 'teacher', 'system_admin', 'principal', 'manager', 'lab_staff', 'non_teaching_staff');
+CREATE TYPE user_role AS ENUM ('admin', 'teacher', 'system_admin', 'principal', 'manager', 'lab_staff', 'non_teaching_staff', 'governance');
 CREATE TYPE admin_level AS ENUM ('super_admin', 'secondary_admin');
 CREATE TYPE leave_status AS ENUM ('pending', 'approved', 'rejected', 'cancelled');
 CREATE TYPE subject_type AS ENUM ('theory', 'lab');
@@ -30,7 +30,7 @@ CREATE TABLE users (
     username                VARCHAR(50) UNIQUE,
     password_hash           VARCHAR(255) NOT NULL,
     role                    user_role NOT NULL DEFAULT 'teacher',
-    admin_level             admin_level,                  -- NULL for teachers/system_admin/principal
+    admin_level             admin_level,                  -- NULL for teachers/system_admin/principal/governance
     department              VARCHAR(100),                 -- legacy/backfill
     department_id           INTEGER REFERENCES departments(id) ON DELETE RESTRICT,
     must_change_credentials BOOLEAN NOT NULL DEFAULT false,
@@ -40,17 +40,19 @@ CREATE TABLE users (
 
     CONSTRAINT chk_user_identity CHECK (
         (role = 'teacher' AND email IS NOT NULL) OR
-        (role IN ('admin', 'system_admin', 'principal') AND username IS NOT NULL)
+        (role IN ('admin', 'system_admin', 'principal', 'manager', 'lab_staff', 'non_teaching_staff', 'governance') AND username IS NOT NULL)
     ),
     CONSTRAINT chk_admin_level CHECK (
         (role = 'admin' AND admin_level IS NOT NULL) OR
-        (role IN ('teacher', 'system_admin', 'principal') AND admin_level IS NULL)
+        (role IN ('teacher', 'system_admin', 'principal', 'manager', 'lab_staff', 'non_teaching_staff', 'governance') AND admin_level IS NULL)
     ),
     CONSTRAINT chk_user_department_role CHECK (
-        (role IN ('system_admin', 'principal') AND department_id IS NULL) OR
-        (role IN ('admin', 'teacher') AND department_id IS NOT NULL)
+        (role IN ('admin', 'teacher') AND department_id IS NOT NULL) OR
+        (role IN ('manager', 'lab_staff', 'non_teaching_staff')) OR
+        (role IN ('system_admin', 'principal', 'governance') AND department_id IS NULL)
     )
 );
+
 
 CREATE INDEX idx_users_admin_level ON users(admin_level);
 
@@ -87,12 +89,14 @@ CREATE TABLE classes (
     section         VARCHAR(10) NOT NULL,
     department_id   INTEGER NOT NULL REFERENCES departments(id) ON DELETE RESTRICT,
     semester        INTEGER NOT NULL CHECK (semester BETWEEN 1 AND 8),
+    default_room_id INTEGER REFERENCES rooms(id) ON DELETE SET NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-    CONSTRAINT uq_class_name_section UNIQUE (department_id, name, section)
+    CONSTRAINT uq_global_class_name_section UNIQUE (name, section)
 );
 
 CREATE INDEX idx_classes_department ON classes(department_id);
+CREATE INDEX idx_classes_default_room ON classes(default_room_id);
 
 -- ---------- ROOMS (classrooms and labs) ----------
 CREATE TABLE rooms (
@@ -192,11 +196,10 @@ CREATE TABLE timetable_slots (
     day_order       INTEGER NOT NULL CHECK (day_order BETWEEN 1 AND 6),
     period_number   INTEGER NOT NULL CHECK (period_number BETWEEN 1 AND 5),  -- 5 periods/day
 
-    CONSTRAINT uq_teacher_day_period UNIQUE (teacher_id, day_order, period_number),
-    CONSTRAINT uq_class_day_period UNIQUE (class_id, day_order, period_number),
-    CONSTRAINT uq_room_day_period UNIQUE (room_id, day_order, period_number)
+    CONSTRAINT uq_teacher_class_day_period UNIQUE (teacher_id, class_id, day_order, period_number)
 );
 
+CREATE INDEX idx_timetable_slots_teacher   ON timetable_slots(teacher_id);
 CREATE INDEX idx_timetable_slots_room      ON timetable_slots(room_id);
 CREATE INDEX idx_timetable_slots_class     ON timetable_slots(class_id);
 CREATE INDEX idx_timetable_slots_subject   ON timetable_slots(subject_id);
@@ -233,8 +236,9 @@ CREATE INDEX idx_leave_requests_batch_id ON leave_requests(batch_id);
 -- ---------- ALTER (SUBSTITUTE) ASSIGNMENTS ----------
 CREATE TYPE assignment_type AS ENUM (
     'auto_assigned', 'faculty_recommended', 'admin_assigned',
-    'auto_swapped', 'overridden', 'emergency', 'teacher_assigned'
+    'auto_swapped', 'overridden', 'emergency', 'teacher_assigned', 'combined_class'
 );
+
 
 CREATE TABLE alter_assignments (
     id                      SERIAL PRIMARY KEY,
@@ -385,7 +389,11 @@ INSERT INTO system_settings (key, value, department_id) VALUES
     ('periods_per_day', '5', NULL),
     ('day_order_max', '6', NULL),
     ('campus_operations_mode', 'assisted', NULL),
-    ('emergency_window_hours', '2', NULL);
+    ('emergency_window_hours', '2', NULL),
+    ('cross_department_substitutions_enabled', 'false', NULL),
+    ('teacher_self_management_enabled', 'true', NULL),
+    ('max_weekly_substitutions', '3', NULL);
+
 
 -- ---------- OPERATIONAL STAFF ----------
 CREATE TABLE operational_staff (
@@ -485,3 +493,17 @@ CREATE TABLE timetable_submissions (
 
 CREATE INDEX idx_timetable_submissions_teacher ON timetable_submissions(teacher_id);
 CREATE INDEX idx_timetable_submissions_status  ON timetable_submissions(status);
+
+-- ---------- DATA RETENTION & PURGE POLICIES ----------
+CREATE TABLE data_retention_policies (
+    id                                  SERIAL PRIMARY KEY,
+    retention_audit_logs_days           INTEGER NOT NULL DEFAULT 90,
+    retention_notifications_days        INTEGER NOT NULL DEFAULT 60,
+    retention_substitution_days         INTEGER NOT NULL DEFAULT 180,
+    retention_timetable_submissions_days INTEGER NOT NULL DEFAULT 180,
+    retention_academic_calendar_days    INTEGER NOT NULL DEFAULT 365,
+    auto_cleanup_enabled                BOOLEAN NOT NULL DEFAULT false,
+    auto_cleanup_schedule               VARCHAR(50) NOT NULL DEFAULT 'daily_midnight',
+    last_auto_cleanup_at                TIMESTAMPTZ,
+    updated_at                          TIMESTAMPTZ NOT NULL DEFAULT now()
+);

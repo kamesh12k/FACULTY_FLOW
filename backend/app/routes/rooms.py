@@ -77,3 +77,23 @@ def check_availability(
 ):
     is_available = room_service.check_room_availability(room_id, day_order, period_number, db)
     return {"room_id": room_id, "day_order": day_order, "period_number": period_number, "is_available": is_available}
+
+
+@router.get("/occupancy/matrix")
+@router.get("/occupancy")
+def get_classroom_occupancy(
+    day_order: int | None = Query(default=None),
+    period_number: int | None = Query(default=None),
+    department_id: int | None = Query(default=None),
+    room_type: str | None = Query(default=None),
+    _user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return room_service.get_classroom_occupancy(
+        db,
+        day_order=day_order,
+        period_number=period_number,
+        department_id=department_id,
+        room_type=room_type,
+    )
+

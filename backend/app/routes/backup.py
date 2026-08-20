@@ -30,6 +30,8 @@ from app.schemas.backup import (
     BackupSummaryOut,
     RestoreConfirmRequest,
     RestoreResultOut,
+    BackupScheduleSettingsIn,
+    BackupScheduleSettingsOut,
 )
 from app.services import backup_service
 
@@ -43,6 +45,51 @@ def _get_dept_scope(admin: User) -> tuple[int | None, str | None]:
     if admin.role == Role.system_admin:
         return None, None
     return admin.department_id, admin.department
+
+
+@router.get("/schedule", response_model=BackupScheduleSettingsOut)
+def get_backup_schedule(
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Retrieve automatic backup configuration and schedule interval (default: 7 days)."""
+    # Trigger auto check in case it is due
+    try:
+        backup_service.check_and_run_auto_backup(db)
+    except Exception as e:
+        logger.debug("Auto backup check skipped: %s", e)
+    return backup_service.get_backup_schedule_settings(db)
+
+
+@router.put("/schedule", response_model=BackupScheduleSettingsOut)
+def update_backup_schedule(
+    body: BackupScheduleSettingsIn,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Update automatic backup schedule interval (default: 7 days) and enabled toggle."""
+    return backup_service.update_backup_schedule_settings(
+        db=db,
+        enabled=body.enabled,
+        interval_days=body.interval_days,
+        actor_user_id=admin.id,
+        actor_name=admin.username or admin.name,
+    )
+
+
+@router.post("/schedule/run-now", response_model=BackupMetaOut)
+def run_auto_backup_now(
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Force execution of an automatic scheduled backup immediately."""
+    res = backup_service.check_and_run_auto_backup(db, force=True)
+    if not res:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to run immediate automatic backup."
+        )
+    return res
 
 
 @router.post("/import", response_model=BackupMetaOut, status_code=201)
@@ -103,8 +150,13 @@ def create_backup(
 @router.get("/summary", response_model=BackupSummaryOut)
 def get_summary(
     admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
 ):
     """Return aggregate backup statistics for the current department (or system)."""
+    try:
+        backup_service.check_and_run_auto_backup(db)
+    except Exception:
+        pass
     dept_id, _ = _get_dept_scope(admin)
     return backup_service.get_backup_summary(tenant_department_id=dept_id)
 
@@ -112,10 +164,16 @@ def get_summary(
 @router.get("", response_model=list[BackupMetaOut])
 def list_backups(
     admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
 ):
     """List backups (newest first). Filtered to department for Department HODs."""
+    try:
+        backup_service.check_and_run_auto_backup(db)
+    except Exception:
+        pass
     dept_id, _ = _get_dept_scope(admin)
     return backup_service.list_backups(tenant_department_id=dept_id)
+
 
 
 @router.get("/{backup_id}", response_model=BackupMetaOut)

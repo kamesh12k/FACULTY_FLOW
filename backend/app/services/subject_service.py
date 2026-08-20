@@ -58,3 +58,21 @@ def set_archived(subject_id: int, archived: bool, db: Session, tenant_department
     db.commit()
     db.refresh(subject)
     return subject
+
+
+def delete_subject(subject_id: int, db: Session, tenant_department_id: int | None = None) -> None:
+    subject = db.query(Subject).filter(Subject.id == subject_id).first()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    if tenant_department_id is not None and subject.department_id != tenant_department_id:
+        raise HTTPException(status_code=403, detail="You can only delete subjects belonging to your own department")
+        
+    from app.models.timetable import TimetableSlot
+    from app.models.timetable_submission import TimetableSubmission
+    
+    # Nullify subject references in timetable slots and submissions to preserve slot continuity
+    db.query(TimetableSlot).filter(TimetableSlot.subject_id == subject_id).update({TimetableSlot.subject_id: None}, synchronize_session=False)
+    db.query(TimetableSubmission).filter(TimetableSubmission.subject_id == subject_id).update({TimetableSubmission.subject_id: None}, synchronize_session=False)
+    
+    db.delete(subject)
+    db.commit()

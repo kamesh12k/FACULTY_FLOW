@@ -1,16 +1,18 @@
 import { useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { ADMIN_NAV, TEACHER_NAV, SYSTEM_ADMIN_NAV, PRINCIPAL_NAV, MANAGER_NAV, STAFF_NAV } from './navConfig'
+import { ADMIN_NAV, TEACHER_NAV, SYSTEM_ADMIN_NAV, PRINCIPAL_NAV, MANAGER_NAV, STAFF_NAV, GOVERNANCE_NAV } from './navConfig'
 import { SettingsIcon, LogoutIcon, CloseIcon } from '../icons'
 
 export default function MobileDrawer({ open, onClose }) {
-  const { user, isAdmin, isSystemAdmin, isPrincipal, isManager, isStaff, logout } = useAuth()
+  const { user, isAdmin, isSystemAdmin, isPrincipal, isGovernance, isManager, isStaff, logout } = useAuth()
   const navigate = useNavigate()
 
   
   let nav = TEACHER_NAV
-  if (isSystemAdmin) {
+  if (isGovernance) {
+    nav = GOVERNANCE_NAV
+  } else if (isSystemAdmin) {
     nav = SYSTEM_ADMIN_NAV
   } else if (isPrincipal) {
     nav = PRINCIPAL_NAV
@@ -70,7 +72,7 @@ export default function MobileDrawer({ open, onClose }) {
           {nav.map((group, i) => (
             <div key={i}>
               {group.section && (
-                <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-primary-100/40">
+                <p className="px-3 mb-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-200/90">
                   {group.section}
                 </p>
               )}

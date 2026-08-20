@@ -29,10 +29,11 @@ def check_enabled(
 
 @router.get("/my-leaves", response_model=list[LeaveOut])
 def get_my_leaves(
+    include_expired: bool = False,
     current_user: User = Depends(require_teacher),
     db: Session = Depends(get_db)
 ):
-    return service.teacher_get_leave_requests(db, current_user.id)
+    return service.teacher_get_leave_requests(db, current_user.id, include_expired=include_expired)
 
 @router.get("/leave/{leave_id}/candidates", response_model=list[RecommendationOut])
 def get_candidates(

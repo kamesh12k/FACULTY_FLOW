@@ -1,3 +1,4 @@
+from datetime import datetime, date, time
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.models.leave import LeaveRequest, LeaveStatus, AlterAssignment, AssignmentType
@@ -6,8 +7,17 @@ from app.models.substitution_preference import SubstitutionPreference
 from app.services.system_setting_service import get_setting
 from app.services.substitution_service import get_mode as get_campus_mode
 from app.services import leave_service, substitution_service
+from app.services.substitution_service import (
+    calculate_leave_recovery,
+    LEAVE_RECOVERY_LOOKBACK_DAYS,
+    MAX_LEAVE_RECOVERY_BONUS,
+    _calculate_leave_duration_bonus,
+    _calculate_leave_recency_factor,
+)
 from app.services.admin_service import log_audit_event
 from app.services.credit_service import apply_credit_change
+from app.core.timezone import is_substitution_expired, CUTOFF_HOUR
+
 
 # ---------- Permission Helpers ----------
 
@@ -31,10 +41,10 @@ def check_teacher_self_management_allowed(db: Session, teacher_id: int | None = 
 
 # ---------- Teacher Actions ----------
 
-def teacher_get_leave_requests(db: Session, teacher_id: int) -> list[LeaveRequest]:
+def teacher_get_leave_requests(db: Session, teacher_id: int, include_expired: bool = False) -> list[LeaveRequest]:
     check_teacher_self_management_allowed(db, teacher_id)
     # Returns approved leaves needing substitutes (no alter_assignment) belonging to teacher
-    return (
+    leaves = (
         db.query(LeaveRequest)
         .outerjoin(AlterAssignment)
         .filter(
@@ -45,6 +55,9 @@ def teacher_get_leave_requests(db: Session, teacher_id: int) -> list[LeaveReques
         .order_by(LeaveRequest.date.desc(), LeaveRequest.period_number)
         .all()
     )
+    if include_expired:
+        return leaves
+    return [l for l in leaves if not is_substitution_expired(l.date)]
 
 def teacher_get_candidates(
     db: Session,
@@ -63,6 +76,8 @@ def teacher_get_candidates(
         raise HTTPException(status_code=404, detail="Leave request not found or does not belong to you")
     if leave.status != LeaveStatus.approved:
         raise HTTPException(status_code=400, detail="Leave request is not approved yet")
+    if is_substitution_expired(leave.date):
+        raise HTTPException(status_code=400, detail="Cannot find candidates for an expired substitution (cutoff is 5:00 PM on the substitution date)")
     
     allow_cross = include_cross_department and substitution_service.cross_department_substitutions_enabled(db, leave.teacher.department_id)
     return substitution_service.get_ranked_recommendations(
@@ -91,6 +106,8 @@ def teacher_get_free_teachers(
         raise HTTPException(status_code=404, detail="Leave request not found or does not belong to you")
     if leave.status != LeaveStatus.approved:
         raise HTTPException(status_code=400, detail="Leave request is not approved yet")
+    if is_substitution_expired(leave.date):
+        raise HTTPException(status_code=400, detail="Cannot find free teachers for an expired substitution (cutoff is 5:00 PM on the substitution date)")
 
     if include_cross_department:
         if not substitution_service.cross_department_substitutions_enabled(db, leave.teacher.department_id):
@@ -130,6 +147,8 @@ def teacher_assign_substitute(
     ).first()
     if not leave:
         raise HTTPException(status_code=404, detail="Leave request not found or does not belong to you")
+    if is_substitution_expired(leave.date):
+        raise HTTPException(status_code=400, detail="Cannot assign substitute for an expired substitution (cutoff is 5:00 PM on the substitution date)")
     
     substitute = db.query(User).filter(
         User.id == substitute_id,
@@ -176,6 +195,8 @@ def teacher_override_substitute(
     ).first()
     if not leave:
         raise HTTPException(status_code=404, detail="Leave request not found or does not belong to you")
+    if is_substitution_expired(leave.date):
+        raise HTTPException(status_code=400, detail="Cannot change substitute for an expired substitution (cutoff is 5:00 PM on the substitution date)")
         
     teacher = db.query(User).filter(User.id == teacher_id).first()
     if not teacher:
@@ -213,6 +234,8 @@ def teacher_undo_assignment(db: Session, leave_id: int, teacher_id: int) -> Leav
     ).first()
     if not leave:
         raise HTTPException(status_code=404, detail="Leave request not found or does not belong to you")
+    if is_substitution_expired(leave.date):
+        raise HTTPException(status_code=400, detail="Cannot modify an expired substitution (cutoff is 5:00 PM on the substitution date)")
     teacher = db.query(User).filter(User.id == teacher_id).first()
     return leave_service.undo_assignment(leave_id, teacher, db, leave.teacher.department_id)
 

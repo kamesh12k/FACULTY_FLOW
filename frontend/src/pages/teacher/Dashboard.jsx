@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { BRAND_CONFIG } from '../../config/branding'
-import { leavesApi, timetableApi, academicCalendarApi, subjectsApi, classesApi, roomsApi, creditsApi } from '../../api/services'
+import { leavesApi, timetableApi, academicCalendarApi, subjectsApi, classesApi, roomsApi, creditsApi, teachersApi } from '../../api/services'
 import { StatusBadge, Spinner, DayTypeBadge, CreditChip, Card, StatCard, Timeline, Badge } from '../../components/ui'
 import { PlusIcon, CalIcon, DocIcon } from '../../components/icons'
 
@@ -14,39 +14,50 @@ export default function TeacherDashboard() {
   const [subjects, setSubjects] = useState({})
   const [classes, setClasses] = useState({})
   const [rooms, setRooms] = useState({})
+  const [creditBalance, setCreditBalance] = useState(0)
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     Promise.all([
-      academicCalendarApi.myTodaySummary(),
-      leavesApi.myLeaves(),
-      timetableApi.getByTeacher(user.id),
-      subjectsApi.list(true),
-      classesApi.list(),
-      roomsApi.list(),
-      creditsApi.myTransactions(),
-    ]).then(([sumRes, leavesRes, slotsRes, subjRes, classRes, roomRes, txRes]) => {
-      setSummary(sumRes.data)
-      setLeaves(leavesRes.data)
-      setSlots(slotsRes.data)
-      setSubjects(Object.fromEntries(subjRes.data.map(s => [s.id, s])))
-      setClasses(Object.fromEntries(classRes.data.map(c => [c.id, c])))
-      setRooms(Object.fromEntries(roomRes.data.map(r => [r.id, r])))
-      setTransactions(txRes.data)
+      academicCalendarApi.myTodaySummary().catch(() => ({ data: null })),
+      leavesApi.myLeaves().catch(() => ({ data: [] })),
+      timetableApi.getByTeacher(user.id).catch(() => ({ data: [] })),
+      subjectsApi.list(true).catch(() => ({ data: [] })),
+      classesApi.list().catch(() => ({ data: [] })),
+      roomsApi.list().catch(() => ({ data: [] })),
+      creditsApi.myTransactions().catch(() => ({ data: [] })),
+      teachersApi.credits(user.id).catch(() => ({ data: { balance: 0 } })),
+    ]).then(([sumRes, leavesRes, slotsRes, subjRes, classRes, roomRes, txRes, credRes]) => {
+      setSummary(sumRes?.data || null)
+      setLeaves(leavesRes?.data || [])
+      setSlots(slotsRes?.data || [])
+      setSubjects(Object.fromEntries((subjRes?.data || []).map(s => [s.id, s])))
+      setClasses(Object.fromEntries((classRes?.data || []).map(c => [c.id, c])))
+      setRooms(Object.fromEntries((roomRes?.data || []).map(r => [r.id, r])))
+      setTransactions(txRes?.data || [])
+      setCreditBalance(credRes?.data?.balance ?? 0)
     }).catch(err => console.error('Failed to load teacher dashboard', err))
       .finally(() => setLoading(false))
   }, [user.id])
 
   // Compute balance
   const balance = useMemo(() => {
-    if (transactions.length === 0) return 0
-    // Sum points from transactions
-    return transactions.reduce((acc, curr) => acc + curr.points, 0)
-  }, [transactions])
+    if (creditBalance !== null && creditBalance !== undefined && !isNaN(Number(creditBalance))) {
+      return Number(creditBalance)
+    }
+    if (!transactions || transactions.length === 0) return 0
+    return transactions.reduce((acc, curr) => acc + (Number(curr.change) || 0), 0)
+  }, [creditBalance, transactions])
 
-  const pending = leaves.filter(l => l.status === 'pending').length
-  const approved = leaves.filter(l => l.status === 'approved').length
+  // Unique dates count for approved & pending leaves (day-based)
+  const pendingDays = useMemo(() => {
+    return new Set(leaves.filter(l => l.status === 'pending').map(l => l.date)).size
+  }, [leaves])
+
+  const approvedDays = useMemo(() => {
+    return new Set(leaves.filter(l => l.status === 'approved').map(l => l.date)).size
+  }, [leaves])
 
   const todaySlots = useMemo(() => {
     if (!summary || summary.day_order === null) return []
@@ -72,11 +83,14 @@ export default function TeacherDashboard() {
   })
 
   // Credits transaction timeline
-  const creditsTimelineItems = transactions.slice(0, 5).map(tx => ({
-    title: `${tx.points > 0 ? '+' : ''}${tx.points} Credits`,
-    date: new Date(tx.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-    description: tx.description || (tx.points > 0 ? 'Substitution coverage bonus' : 'Leave penalty deduction'),
-  }))
+  const creditsTimelineItems = transactions.slice(0, 5).map(tx => {
+    const ch = Number(tx.change) || 0
+    return {
+      title: `${ch > 0 ? '+' : ''}${ch} Credits`,
+      date: new Date(tx.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      description: tx.reason || (ch > 0 ? 'Substitution coverage bonus' : 'Leave penalty deduction'),
+    }
+  })
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 pb-10">
@@ -185,7 +199,7 @@ export default function TeacherDashboard() {
               <div>
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Leave History</h4>
                 <p className="text-[10px] text-slate-400 mt-1 font-bold">
-                  {pending > 0 ? `${pending} pending request${pending > 1 ? 's' : ''}` : 'View all requests'}
+                  {pendingDays > 0 ? `${pendingDays} pending request${pendingDays > 1 ? 's' : ''}` : 'View all requests'}
                 </p>
               </div>
             </div>
@@ -211,19 +225,19 @@ export default function TeacherDashboard() {
             <Card title="Leave & substitution breakdown">
               <div className="grid grid-cols-2 gap-4 pb-4 border-b border-slate-100">
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Approved leaves</p>
-                  <p className="text-xl font-extrabold text-slate-800 mt-1">{approved}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Approved Leave Days</p>
+                  <p className="text-xl font-extrabold text-slate-800 mt-1">{approvedDays} {approvedDays === 1 ? 'Day' : 'Days'}</p>
                 </div>
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pending requests</p>
-                  <p className="text-xl font-extrabold text-slate-800 mt-1">{pending}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pending Leave Days</p>
+                  <p className="text-xl font-extrabold text-slate-800 mt-1">{pendingDays} {pendingDays === 1 ? 'Day' : 'Days'}</p>
                 </div>
               </div>
               
               {/* Credit details info */}
               <div className="pt-4 flex items-center justify-between text-xs font-semibold text-slate-500">
-                <span>Earned {transactions.filter(t => t.points > 0).length} coverage credits</span>
-                <span>Taken {transactions.filter(t => t.points < 0).length} leave deductions</span>
+                <span>Earned {transactions.filter(t => (Number(t.change) || 0) > 0).length} coverage credits</span>
+                <span>Taken {transactions.filter(t => (Number(t.change) || 0) < 0).length} leave deductions</span>
               </div>
             </Card>
           </div>

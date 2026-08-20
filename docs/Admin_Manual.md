@@ -30,9 +30,10 @@ Copyright © 2026 Kamesh G. All Rights Reserved.
 16. [Notifications](#16-notifications)
 17. [Backup](#17-backup)
 18. [Restore](#18-restore)
-19. [Security](#19-security)
-20. [Troubleshooting](#20-troubleshooting)
-21. [Frequently Asked Questions](#21-frequently-asked-questions)
+19. [Data Retention & Selective Purge](#19-data-retention--selective-purge)
+20. [Security](#20-security)
+21. [Troubleshooting](#21-troubleshooting)
+22. [Frequently Asked Questions](#22-frequently-asked-questions)
 
 ---
 
@@ -828,7 +829,40 @@ python scripts/factory_reset.py
 
 ---
 
-## 19. Security
+## 19. Data Retention & Selective Purge
+
+FAFLOW includes a comprehensive data management and lifecycle pruning engine accessible from **Data Safety → Data Retention & Purge** (`/admin/data-retention`).
+
+### 19.1 Automated Retention Policies
+
+Configure automatic background pruning for aged records without manual intervention.
+
+- **Retention Thresholds:** Set retention windows in days for Audit Logs (default: 90d), Notifications (default: 30d), Backups (default: 60d / 10 max), Traffic Logs (30d), Completed Leaves (365d), Credit Transactions (365d), and Timetable Submissions (180d). Setting any threshold to `0` retains records indefinitely.
+- **Automated Frequency:** Prunes expired records automatically on a recurring schedule (default: every 7 days).
+- **Instant Execution:** Click **"Run Auto-Cleanup Now"** to execute lifecycle pruning on-demand.
+
+### 19.2 Selective Data Purge Console
+
+Selectively clean specific data categories with precise filters:
+1. **Target Selection:** Multi-select checkboxes for Audit Logs, Notifications, Traffic Logs, Backups, Leaves & Substitutions, Credit Transactions, Staff Leaves, and Timetable Submissions.
+2. **Filter Modes:**
+   - *Older than X Days:* Relative age slider with quick presets (`7d`, `30d`, `60d`, `90d`, `180d`, `365d`).
+   - *Custom Date Range:* Start date and end date calendar picker.
+   - *All Records:* Full category cleanse.
+3. **Impact Simulation:** Click **"Preview Impact & Record Count"** to calculate exact record counts matching your criteria before any data is deleted.
+4. **Safety Protections:**
+   - **Automatic Pre-Purge Backup Snapshot:** Saves a full database backup archive before deleting records.
+   - **Safety Confirmation Phrase:** Requires typing `PURGE DATA` to prevent accidental deletion.
+   - **Foreign-Key Safe Execution:** Deletes child relations (substitutions, transaction links) before parent records.
+   - **Audit Trail:** Logs every purge operation with administrator details and record counts.
+
+### 19.3 Table & Storage Inspector
+
+View real-time record counts, storage sizes, and oldest/newest record timestamps across all 17 core database tables.
+
+---
+
+## 20. Security
 
 ### 19.1 Authentication
 

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useDepartment } from '../../context/DepartmentContext'
 import { departmentsApi, adminApi } from '../../api/services'
 import { Spinner, ErrorAlert, Modal, EmptyState } from '../../components/ui'
 
 export default function AdminDepartments() {
   const { isSystemAdmin } = useAuth()
+  const { refreshDepartments } = useDepartment()
 
   if (!isSystemAdmin) {
     return <Navigate to="/admin/dashboard" replace />
@@ -45,7 +47,7 @@ export default function AdminDepartments() {
   const [userDeleting, setUserDeleting] = useState(false)
   const [userDeleteError, setUserDeleteError] = useState('')
 
-  const load = () => departmentsApi.list().then(r => setDepartments(r.data)).finally(() => setLoading(false))
+  const load = () => departmentsApi.list(true).then(r => setDepartments(r.data)).finally(() => setLoading(false))
   const loadUsers = () => adminApi.listGlobalUsers().then(r => setGlobalUsers(r.data)).finally(() => setUsersLoading(false))
 
   useEffect(() => {
@@ -62,6 +64,7 @@ export default function AdminDepartments() {
       setModalOpen(false)
       setForm({ name: '', code: '' })
       load()
+      refreshDepartments?.()
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create department.')
     } finally {
@@ -90,6 +93,7 @@ export default function AdminDepartments() {
       })
       setEditModalOpen(false)
       load()
+      refreshDepartments?.()
     } catch (err) {
       setEditError(err.response?.data?.detail || 'Failed to update department.')
     } finally {
@@ -110,12 +114,14 @@ export default function AdminDepartments() {
       await departmentsApi.remove(deptToDelete.id)
       setDeleteConfirmOpen(false)
       load()
+      refreshDepartments?.()
     } catch (err) {
       setDeleteError(err.response?.data?.detail || 'Failed to delete department.')
     } finally {
       setDeleting(false)
     }
   }
+
 
   const handleCreateUser = async (e) => {
     e.preventDefault()

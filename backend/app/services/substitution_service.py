@@ -38,9 +38,146 @@ from app.services.admin_service import log_audit_event
 from app.services.system_setting_service import get_setting, set_setting
 
 FAIRNESS_WINDOW_DAYS = 30  # "monthly substitutions" window for fairness scoring
+LEAVE_RECOVERY_LOOKBACK_DAYS = 30  # Lookback window for completed approved leave
+MAX_LEAVE_RECOVERY_BONUS = 7.0  # Maximum bonus points for leave recovery rebalancing
 
 
-# ---------- Campus Operations Mode ----------
+# ---------- Leave-Aware Fairness / Workload Rebalancing ----------
+
+def _calculate_leave_duration_bonus(days: int) -> float:
+    """
+    Graduated bonus based on continuous completed approved leave duration:
+      0 days    -> +0
+      1–2 days  -> +1
+      3–4 days  -> +2
+      5–6 days  -> +3
+      7–9 days  -> +5
+      10+ days  -> +7
+    """
+    if days <= 0:
+        return 0.0
+    elif days <= 2:
+        return 1.0
+    elif days <= 4:
+        return 2.0
+    elif days <= 6:
+        return 3.0
+    elif days <= 9:
+        return 5.0
+    else:
+        return 7.0
+
+
+def _calculate_leave_recency_factor(days_since_end: int, lookback_days: int = LEAVE_RECOVERY_LOOKBACK_DAYS) -> float:
+    """
+    Calculates a linear decay recency factor (0.0 to 1.0) for a completed leave:
+      - 1 day ago  -> 1.0 (strongest contribution)
+      - 15 days ago -> ~0.53 (moderate contribution)
+      - 30 days ago -> ~0.03 (small contribution)
+      - >30 days / future (<=0) -> 0.0 (no contribution)
+    """
+    if days_since_end < 1 or days_since_end > lookback_days:
+        return 0.0
+    return max(0.0, min(1.0, 1.0 - (days_since_end - 1) / float(lookback_days)))
+
+
+def calculate_leave_recovery(
+    db: Session,
+    teacher_id: int,
+    target_date: date,
+    lookback_days: int = LEAVE_RECOVERY_LOOKBACK_DAYS,
+) -> tuple[float, str | None, int, int]:
+    """
+    Computes leave-aware workload rebalancing / recovery bonus (0.0 to 7.0 pts).
+    
+    Considers only completed approved leave (dates strictly before target_date)
+    ending within the lookback window. Contiguous leave dates are merged into
+    continuous durations.
+    
+    Returns:
+        (bonus, explanation_reason, continuous_days, days_since_end)
+    """
+    earliest_date = target_date - timedelta(days=lookback_days + 90)
+    rows = (
+        db.query(LeaveRequest.date)
+        .filter(
+            LeaveRequest.teacher_id == teacher_id,
+            LeaveRequest.status == LeaveStatus.approved,
+            LeaveRequest.date < target_date,
+            LeaveRequest.date >= earliest_date,
+        )
+        .distinct()
+        .order_by(LeaveRequest.date.asc())
+        .all()
+    )
+
+    if not rows:
+        return 0.0, None, 0, 0
+
+    leave_dates = sorted({r[0] for r in rows})
+    if not leave_dates:
+        return 0.0, None, 0, 0
+
+    # Group into contiguous blocks of calendar dates
+    blocks: list[tuple[date, date, int]] = []
+    curr_start = leave_dates[0]
+    curr_end = leave_dates[0]
+
+    for d in leave_dates[1:]:
+        if d == curr_end + timedelta(days=1):
+            curr_end = d
+        else:
+            blocks.append((curr_start, curr_end, (curr_end - curr_start).days + 1))
+            curr_start = d
+            curr_end = d
+    blocks.append((curr_start, curr_end, (curr_end - curr_start).days + 1))
+
+    best_bonus = 0.0
+    best_reason = None
+    best_dur = 0
+    best_days_ago = 0
+
+    for _, end_d, dur in blocks:
+        days_since_end = (target_date - end_d).days
+        if days_since_end < 1 or days_since_end > lookback_days:
+            continue
+
+        dur_bonus = _calculate_leave_duration_bonus(dur)
+        recency = _calculate_leave_recency_factor(days_since_end, lookback_days)
+        bonus = round(min(MAX_LEAVE_RECOVERY_BONUS, dur_bonus * recency), 1)
+
+        if bonus > best_bonus:
+            best_bonus = bonus
+            best_dur = dur
+            best_days_ago = days_since_end
+            best_reason = f"Returned from {dur}-day approved leave ({days_since_end}d ago)"
+
+    return best_bonus, best_reason, best_dur, best_days_ago
+
+
+# ---------- Hard eligibility ----------
+
+@dataclass
+class Candidate:
+    teacher: User
+    score: float = 0.0
+    reasons: list[str] = field(default_factory=list)
+    same_subject: bool = False
+    same_department: bool = False
+    workload_count: int = 0
+    fairness: float = 0.0
+    today_workload: int = 0
+    projected_today_workload: int = 0
+    today_periods: list[int] = field(default_factory=list)
+    week_workload: int = 0
+    projected_week_workload: int = 0
+    substitutions_today: int = 0
+    substitutions_week: int = 0
+    longest_continuous_periods: int = 0
+    projected_longest_continuous_periods: int = 0
+    leave_recovery: float = 0.0
+    leave_recovery_reason: str | None = None
+
 
 VALID_MODES = CAMPUS_OPERATIONS_MODES
 
@@ -661,6 +798,13 @@ def score_candidate(
             result.same_subject = True
             result.score += 3.0
 
+    # F. Leave Recovery / Workload Rebalancing (up to +7.0 pts bonus)
+    leave_bonus, leave_reason, _, _ = calculate_leave_recovery(db, candidate.id, leave.date)
+    result.leave_recovery = leave_bonus
+    result.leave_recovery_reason = leave_reason
+    if leave_bonus > 0:
+        result.score += leave_bonus
+
     # --- Distinct Contextual Badges ---
     if result.same_department:
         result.reasons.append("Same department")
@@ -669,6 +813,9 @@ def score_candidate(
 
     if result.same_subject:
         result.reasons.append("Teaches this subject")
+
+    if result.leave_recovery > 0:
+        result.reasons.append(f"Leave recovery (+{result.leave_recovery} pts)")
 
     if limit_info["limit_reached"]:
         result.reasons.append(f"⚠ 7-day limit reached ({limit_info['current_allocations']}/{limit_info['max_allocations']})")
@@ -682,6 +829,7 @@ def score_candidate(
 
     result.score = round(min(result.score, 100.0), 1)
     return result
+
 
 
 def cross_department_substitutions_enabled(db: Session, department_id: int | None) -> bool:
@@ -804,12 +952,19 @@ def auto_process_approved_leave(db: Session, leave: LeaveRequest) -> AlterAssign
     if mode != "autonomous":
         return None
 
+    # Only consider other department staff when cross-department substitutions are enabled
+    allow_cross = cross_department_substitutions_enabled(db, dept_id)
+
     subject, dept_name = _subject_and_department_for_leave(db, leave)
-    eligible = list_eligible_candidates(db, leave, require_auto_opt_in=True)
+    eligible = list_eligible_candidates(
+        db, leave, require_auto_opt_in=True,
+        tenant_department_id=None if allow_cross else dept_id,
+    )
     if not eligible:
         log_audit_event(db, None, "substitution.autonomous_no_candidate", "leave_request", leave.id, {})
         db.commit()
         return None
+
 
     scored = [score_candidate(db, c, leave, subject, dept_name) for c in eligible]
     for candidate in scored:
@@ -926,8 +1081,15 @@ def run_dry_run_simulation(db: Session, start_date, end_date, department_id: int
         # Find eligible candidates using simulated checks
         eligible_candidates = []
         
-        # Fetch all active teachers
-        teachers = db.query(User).filter(User.role == Role.teacher, User.is_active == True).all()
+        leave_dept_id = leave.teacher.department_id if leave.teacher else None
+        allow_cross = cross_department_substitutions_enabled(db, leave_dept_id)
+
+        # Fetch active teachers (restricted to same department unless cross-department is enabled)
+        t_query = db.query(User).filter(User.role == Role.teacher, User.is_active == True)
+        if not allow_cross and leave_dept_id is not None:
+            t_query = t_query.filter(User.department_id == leave_dept_id)
+        teachers = t_query.all()
+
         
         for t in teachers:
             # 1. Not the leave teacher

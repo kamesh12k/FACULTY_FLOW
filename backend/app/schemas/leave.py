@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, computed_field
 from datetime import date, datetime
 from uuid import UUID
 from app.models.leave import LeaveStatus, AssignmentType
@@ -65,15 +65,13 @@ class LeaveOut(BaseModel):
     batch_id: UUID | None
     is_emergency: bool
     teacher: UserOut
-    # Defined below AlterAssignmentOut specifically so no forward
-    # reference is needed. Without this field, the approve-leave
-    # response (routes/leaves.py builds it via LeaveOut.model_validate)
-    # would silently omit any substitute that autonomous mode assigned
-    # during approval — the frontend would see the field simply absent
-    # rather than null, making "was a substitute already assigned?"
-    # unanswerable from this response alone. This was caught and fixed
-    # while verifying handoff Known Issue #2.
     alter_assignment: AlterAssignmentOut | None = None
+
+    @computed_field
+    @property
+    def is_expired(self) -> bool:
+        from app.core.timezone import is_substitution_expired
+        return is_substitution_expired(self.date)
 
     model_config = {"from_attributes": True}
 

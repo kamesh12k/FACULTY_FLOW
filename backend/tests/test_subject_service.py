@@ -49,3 +49,27 @@ class TestSubjectService:
         set_archived(subj.id, True, db_session)
         assert len(list_subjects(db_session, include_archived=False)) == 0
         assert len(list_subjects(db_session, include_archived=True)) == 1
+
+    def test_delete_subject(self, db_session):
+        from app.services.subject_service import delete_subject
+        dept = create_department(db_session)
+        subj = factory_subject(db_session, code="DEL101", department_id=dept.id)
+        assert len(list_subjects(db_session)) == 1
+        delete_subject(subj.id, db_session)
+        assert len(list_subjects(db_session)) == 0
+
+    def test_delete_subject_not_found(self, db_session):
+        from app.services.subject_service import delete_subject
+        with pytest.raises(HTTPException) as exc:
+            delete_subject(9999, db_session)
+        assert exc.value.status_code == 404
+
+    def test_delete_subject_department_mismatch(self, db_session):
+        from app.services.subject_service import delete_subject
+        dept1 = create_department(db_session, name="Dept1", code="D1")
+        dept2 = create_department(db_session, name="Dept2", code="D2")
+        subj = factory_subject(db_session, code="D1_SUB", department_id=dept1.id)
+        with pytest.raises(HTTPException) as exc:
+            delete_subject(subj.id, db_session, tenant_department_id=dept2.id)
+        assert exc.value.status_code == 403
+

@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import { substitutionsApi, leavesApi, classesApi, departmentsApi } from '../../api/services'
 import { Spinner, Modal, EmptyState, AssignmentTypeBadge, ErrorAlert } from '../../components/ui'
 import {
-  SwapIcon, UndoIcon, LockIcon, SearchIcon, SparklesIcon, AlertTriangleIcon
+  SwapIcon, UndoIcon, LockIcon, SearchIcon, SparklesIcon, AlertTriangleIcon, FilterIcon
 } from '../../components/icons'
 
 // ---------- small inline icons (kept local so print CSS's `button { display: none }`
@@ -104,6 +104,8 @@ export default function TodaySubstitutions() {
   const [selectedPeriod, setSelectedPeriod] = useState('')
   const [selectedSource, setSelectedSource] = useState('')
   const [showMyOnly, setShowMyOnly] = useState(false)
+  const [statusTab, setStatusTab] = useState('all')
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [sortConfig, setSortConfig] = useState({ key: 'period', direction: 'asc' })
   const searchInputRef = useRef(null)
 
@@ -404,9 +406,24 @@ export default function TodaySubstitutions() {
 
 
   // Filtered List
+  const statusCounts = useMemo(() => {
+    const all = subData.substitutions || []
+    return {
+      all: all.length,
+      needs_coverage: all.filter(s => !s.substitute_teacher).length,
+      assigned: all.filter(s => s.substitute_teacher && !s.is_expired).length,
+      completed: all.filter(s => s.is_expired).length,
+    }
+  }, [subData.substitutions])
+
   const filteredSubstitutions = useMemo(() => {
     if (!subData.substitutions) return []
     return subData.substitutions.filter(sub => {
+      // 0. Status Tab Filter
+      if (statusTab === 'needs_coverage' && sub.substitute_teacher) return false
+      if (statusTab === 'assigned' && (!sub.substitute_teacher || sub.is_expired)) return false
+      if (statusTab === 'completed' && !sub.is_expired) return false
+
       // 1. Search Teacher
       if (searchTeacher.trim()) {
         const query = searchTeacher.toLowerCase()
@@ -449,7 +466,7 @@ export default function TodaySubstitutions() {
 
       return true
     })
-  }, [subData.substitutions, searchTeacher, selectedClass, selectedPeriod, selectedSource, showMyOnly, isAdmin, user])
+  }, [subData.substitutions, statusTab, searchTeacher, selectedClass, selectedPeriod, selectedSource, showMyOnly, isAdmin, user])
 
   const sortedFilteredSubstitutions = useMemo(() => {
     const arr = [...filteredSubstitutions]
@@ -476,13 +493,15 @@ export default function TodaySubstitutions() {
     return Array.from(set).sort((a, b) => a - b)
   }, [subData.substitutions])
 
-  const filtersActive = Boolean(searchTeacher.trim() || selectedClass || selectedPeriod || selectedSource || showMyOnly)
+  const filtersActive = Boolean(searchTeacher.trim() || selectedClass || selectedPeriod || selectedSource || showMyOnly || statusTab !== 'all')
+  const extraFiltersActiveCount = (searchTeacher.trim() ? 1 : 0) + (selectedClass ? 1 : 0) + (selectedPeriod ? 1 : 0) + (selectedSource ? 1 : 0) + (showMyOnly ? 1 : 0)
   const resetFilters = () => {
     setSearchTeacher('')
     setSelectedClass('')
     setSelectedPeriod('')
     setSelectedSource('')
     setShowMyOnly(false)
+    setStatusTab('all')
   }
 
   const unassignedInView = useMemo(
@@ -679,7 +698,8 @@ export default function TodaySubstitutions() {
       <ErrorAlert message={error} />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 no-print">
+      {/* Desktop / Tablet Grid (sm and up) */}
+      <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-5 gap-4 no-print">
         <div className="card p-5 space-y-1 bg-white">
           <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Teachers on Leave</p>
           <p className="text-2xl font-bold text-gray-800">{summary.teachers_on_leave !== undefined ? summary.teachers_on_leave : '-'}</p>
@@ -717,9 +737,53 @@ export default function TodaySubstitutions() {
         </div>
       </div>
 
+      {/* Mobile Compact Summary Widget (below sm) */}
+      <div className="block sm:hidden card p-3 bg-white no-print space-y-2.5">
+        <div className="grid grid-cols-2 gap-2 text-center divide-x divide-slate-100">
+          <div className="p-0.5">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Teachers on Leave</span>
+            <span className="text-lg font-extrabold text-gray-800 mt-0.5 block">
+              {summary.teachers_on_leave !== undefined ? summary.teachers_on_leave : '-'}
+            </span>
+          </div>
+          <div className="p-0.5">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Leave Periods</span>
+            <span className="text-lg font-extrabold text-gray-800 mt-0.5 block">
+              {summary.leave_periods !== undefined ? summary.leave_periods : summary.total_leaves}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-slate-100 text-center">
+          <div className="bg-emerald-50/80 border border-emerald-150 rounded-lg py-1.5 px-1">
+            <span className="text-[9px] font-bold text-emerald-800 uppercase tracking-wider block">Covered</span>
+            <span className="text-sm font-extrabold text-emerald-700">
+              {summary.covered_periods !== undefined ? summary.covered_periods : summary.total_substitutions}
+            </span>
+          </div>
+          <div className={`rounded-lg py-1.5 px-1 border ${
+            (summary.pending_coverage !== undefined ? summary.pending_coverage : summary.unassigned_periods) > 0
+              ? 'bg-amber-50/80 border-amber-200 text-amber-900'
+              : 'bg-slate-50 border-slate-100 text-slate-700'
+          }`}>
+            <span className="text-[9px] font-bold uppercase tracking-wider block opacity-80">Pending</span>
+            <span className="text-sm font-extrabold">
+              {summary.pending_coverage !== undefined ? summary.pending_coverage : summary.unassigned_periods}
+            </span>
+          </div>
+          <div className="bg-primary-50/80 border border-primary-150 rounded-lg py-1.5 px-1">
+            <span className="text-[9px] font-bold text-primary-800 uppercase tracking-wider block">Coverage</span>
+            <span className="text-sm font-extrabold text-primary-700">
+              {summary.coverage_rate !== undefined ? summary.coverage_rate : summary.coverage_percentage}%
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Filter Bar */}
-      <div className="card p-4 space-y-3 bg-white no-print filter-bar">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="card p-3 sm:p-4 space-y-3 bg-white no-print filter-bar">
+        {/* Desktop Filter Layout (md and up) */}
+        <div className="hidden md:grid md:grid-cols-5 gap-3">
           {/* Date Picker */}
           <div>
             <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Date</label>
@@ -794,18 +858,18 @@ export default function TodaySubstitutions() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-1">
-          {/* My Coverage Switcher (Teachers only) */}
+        {/* Desktop Footer (md and up) */}
+        <div className="hidden md:flex items-center justify-between pt-1">
           {!isAdmin ? (
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
-                id="my-coverage-check"
+                id="my-coverage-check-desktop"
                 checked={showMyOnly}
                 onChange={e => setShowMyOnly(e.target.checked)}
                 className="rounded text-primary-600 focus:ring-primary-500 w-3.5 h-3.5 border-gray-300"
               />
-              <label htmlFor="my-coverage-check" className="text-xs font-medium text-gray-600 cursor-pointer">
+              <label htmlFor="my-coverage-check-desktop" className="text-xs font-medium text-gray-600 cursor-pointer">
                 Show only my coverage duties / leaves
               </label>
             </div>
@@ -815,6 +879,233 @@ export default function TodaySubstitutions() {
             <button onClick={resetFilters} className="text-xs font-semibold text-primary-600 hover:underline">Reset filters</button>
           )}
         </div>
+
+        {/* Mobile Compact Filter Bar (below md) */}
+        <div className="block md:hidden space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Date</label>
+              <input
+                type="date"
+                className="tt-input w-full py-1.5 px-2.5 text-xs font-semibold"
+                value={selectedDate}
+                onChange={handleDateChange}
+              />
+            </div>
+
+            <div className="shrink-0 flex items-end">
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                  mobileFiltersOpen || extraFiltersActiveCount > 0
+                    ? 'bg-primary-50 border-primary-300 text-primary-700 shadow-xs'
+                    : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <FilterIcon className="w-3.5 h-3.5" />
+                <span>Filters</span>
+                {extraFiltersActiveCount > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-primary-600 text-white text-[10px] flex items-center justify-center font-bold">
+                    {extraFiltersActiveCount}
+                  </span>
+                )}
+                {mobileFiltersOpen ? <ChevronUpIcon className="w-3.5 h-3.5 text-gray-500" /> : <ChevronDownIcon className="w-3.5 h-3.5 text-gray-500" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Active Filter Chips when collapsed on mobile */}
+          {!mobileFiltersOpen && extraFiltersActiveCount > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              {searchTeacher && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary-50 text-primary-700 border border-primary-200">
+                  Teacher: {searchTeacher}
+                  <button onClick={() => setSearchTeacher('')} className="hover:text-primary-900">✕</button>
+                </span>
+              )}
+              {selectedClass && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary-50 text-primary-700 border border-primary-200">
+                  {selectedClass}
+                  <button onClick={() => setSelectedClass('')} className="hover:text-primary-900">✕</button>
+                </span>
+              )}
+              {selectedPeriod && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary-50 text-primary-700 border border-primary-200">
+                  P{selectedPeriod}
+                  <button onClick={() => setSelectedPeriod('')} className="hover:text-primary-900">✕</button>
+                </span>
+              )}
+              {selectedSource && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary-50 text-primary-700 border border-primary-200">
+                  {selectedSource}
+                  <button onClick={() => setSelectedSource('')} className="hover:text-primary-900">✕</button>
+                </span>
+              )}
+              {showMyOnly && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary-50 text-primary-700 border border-primary-200">
+                  My Duties Only
+                  <button onClick={() => setShowMyOnly(false)} className="hover:text-primary-900">✕</button>
+                </span>
+              )}
+              <button
+                onClick={resetFilters}
+                className="text-[10px] font-bold text-primary-600 hover:underline ml-1"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
+
+          {/* Expandable Mobile Filters Section */}
+          {mobileFiltersOpen && (
+            <div className="pt-2.5 border-t border-gray-100 space-y-2.5">
+              {/* Teacher Search */}
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Teacher</label>
+                <div className="relative flex items-center">
+                  <SearchIcon className="absolute left-2.5 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                  <input
+                    className="tt-input w-full py-1.5 pl-8 text-xs"
+                    placeholder="Search name…"
+                    value={searchTeacher}
+                    onChange={e => setSearchTeacher(e.target.value)}
+                  />
+                  {searchTeacher && (
+                    <button onClick={() => setSearchTeacher('')} className="absolute right-2.5 text-xs text-gray-400 hover:text-gray-600">✕</button>
+                  )}
+                </div>
+              </div>
+
+              {/* Class & Period in 2 columns */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Class Section</label>
+                  <select
+                    className="tt-select w-full py-1.5 text-xs"
+                    value={selectedClass}
+                    onChange={e => setSelectedClass(e.target.value)}
+                  >
+                    <option value="">All Classes</option>
+                    {classes.map(c => (
+                      <option key={c.id} value={`${c.name} - ${c.section}`}>{c.name} - {c.section}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Period</label>
+                  <select
+                    className="tt-select w-full py-1.5 text-xs"
+                    value={selectedPeriod}
+                    onChange={e => setSelectedPeriod(e.target.value)}
+                  >
+                    <option value="">All Periods</option>
+                    {periodOptions.map(p => (
+                      <option key={p} value={String(p)}>Period {p}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Source Filter */}
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Source</label>
+                <select
+                  className="tt-select w-full py-1.5 text-xs"
+                  value={selectedSource}
+                  onChange={e => setSelectedSource(e.target.value)}
+                >
+                  <option value="">All Sources</option>
+                  <option value="Autonomous">Autonomous</option>
+                  <option value="Assisted">Assisted</option>
+                  <option value="Manual">Manual</option>
+                  <option value="Teacher Assigned">Teacher Assigned</option>
+                  <option value="Unassigned">Unassigned</option>
+                </select>
+              </div>
+
+              {/* My Coverage Switcher (Teachers only) */}
+              {!isAdmin && (
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="my-coverage-check-mobile"
+                    checked={showMyOnly}
+                    onChange={e => setShowMyOnly(e.target.checked)}
+                    className="rounded text-primary-600 focus:ring-primary-500 w-4 h-4 border-gray-300"
+                  />
+                  <label htmlFor="my-coverage-check-mobile" className="text-xs font-semibold text-gray-700 cursor-pointer">
+                    Show only my coverage duties / leaves
+                  </label>
+                </div>
+              )}
+
+              {/* Mobile Actions */}
+              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  disabled={!filtersActive}
+                  className="text-xs font-semibold text-gray-500 hover:text-gray-800 disabled:opacity-40"
+                >
+                  Reset filters
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMobileFiltersOpen(false)}
+                  className="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 shadow-xs"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs: All, Needs Cover, Assigned Cover, Completed / Past */}
+      <div className="border-b border-gray-200 flex gap-4 overflow-x-auto no-print" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
+        <button
+          onClick={() => setStatusTab('all')}
+          className={`pb-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+            statusTab === 'all'
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          All ({statusCounts.all})
+        </button>
+        <button
+          onClick={() => setStatusTab('needs_coverage')}
+          className={`pb-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+            statusTab === 'needs_coverage'
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          Needs Cover ({statusCounts.needs_coverage})
+        </button>
+        <button
+          onClick={() => setStatusTab('assigned')}
+          className={`pb-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+            statusTab === 'assigned'
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          Assigned Cover ({statusCounts.assigned})
+        </button>
+        <button
+          onClick={() => setStatusTab('completed')}
+          className={`pb-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+            statusTab === 'completed'
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          Completed / Past ({statusCounts.completed})
+        </button>
       </div>
 
       {/* Result count + bulk auto-assign */}
@@ -867,7 +1158,7 @@ export default function TodaySubstitutions() {
                   <SortableTh label="Class Section" sortKey="class" sortConfig={sortConfig} onSort={handleSort} />
                   <SortableTh label="Original Teacher" sortKey="original" sortConfig={sortConfig} onSort={handleSort} />
                   <SortableTh label="Substitute Teacher" sortKey="substitute" sortConfig={sortConfig} onSort={handleSort} />
-                  <SortableTh label="Source" sortKey="source" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableTh label="Source / Status" sortKey="source" sortConfig={sortConfig} onSort={handleSort} />
                   <th className="px-5 py-3 no-print" />
                 </tr>
               </thead>
@@ -875,6 +1166,8 @@ export default function TodaySubstitutions() {
                 {sortedFilteredSubstitutions.map(sub => {
                   const isUnassigned = !sub.substitute_teacher
                   const isLocked = sub.assignment_type === 'admin_assigned' || sub.assignment_type === 'overridden'
+                  const isExpired = sub.is_expired
+
                   return (
                     <tr key={sub.leave_id} className={`hover:bg-gray-50/50 ${isUnassigned ? 'bg-amber-50/50' : ''}`}>
                       <td className="px-5 py-3 text-gray-800 font-medium font-mono">P{sub.period_number}</td>
@@ -905,8 +1198,12 @@ export default function TodaySubstitutions() {
                       </td>
                       <td className="px-5 py-3">
                         {/* Interactive badges for screen, print-only fallback classes for paper */}
-                        <span className="no-print inline-flex items-center gap-1">
-                          {isUnassigned ? (
+                        <span className="no-print inline-flex items-center gap-1.5">
+                          {isExpired ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                              Completed
+                            </span>
+                          ) : isUnassigned ? (
                             <span className="inline-flex items-center rounded-full font-medium bg-gray-100 text-gray-400 px-1.5 py-0.5 text-[10px]">Unassigned</span>
                           ) : (
                             <>
@@ -916,13 +1213,17 @@ export default function TodaySubstitutions() {
                           )}
                         </span>
                         <span className="hidden print-only-badge">
-                          {isUnassigned ? 'Unassigned' : sub.assignment_type?.replace('_', ' ')}
+                          {isExpired ? 'Completed' : isUnassigned ? 'Unassigned' : sub.assignment_type?.replace('_', ' ')}
                         </span>
                       </td>
                       <td className="px-5 py-3 text-right no-print">
                         {isAdmin && (
                           <div className="flex items-center justify-end gap-2">
-                            {isUnassigned ? (
+                            {isExpired ? (
+                              <span className="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-slate-400 bg-slate-50 border border-slate-200 rounded-lg">
+                                Concluded
+                              </span>
+                            ) : isUnassigned ? (
                               <button
                                 onClick={() => openAssignModal(sub)}
                                 disabled={actionLoading !== null}

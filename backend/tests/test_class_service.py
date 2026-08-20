@@ -133,4 +133,37 @@ class TestClassService:
             bulk_create_classes(data, db_session, tenant_department_id=dept1.id)
         assert exc.value.status_code == 403
 
+    def test_create_and_update_with_default_room(self, db_session):
+        from app.models.room import Room, RoomType
+        from app.services.class_directory_service import list_class_directory, get_class_faculty
+
+        dept = create_department(db_session, name="MECH", code="MECH")
+        room = Room(room_number="Lab 101", room_type=RoomType.lab, capacity=40, department_id=dept.id)
+        db_session.add(room)
+        db_session.commit()
+
+        # Create class with default room
+        data = ClassCreate(name="Mech Class", section="A", department_id=dept.id, semester=2, default_room_id=room.id)
+        cls = create_class(data, db_session)
+        assert cls.default_room_id == room.id
+        assert cls.default_room_number == "Lab 101"
+        assert cls.default_room_type == "lab"
+
+        # Check in list_classes
+        all_classes = list_classes(db_session)
+        assert len(all_classes) == 1
+        assert all_classes[0].default_room_number == "Lab 101"
+
+        # Check directory
+        dir_res = list_class_directory(db_session)
+        assert len(dir_res) == 1
+        assert dir_res[0]["default_room_number"] == "Lab 101"
+
+        # Update room to None
+        update_class(cls.id, ClassUpdate(default_room_id=None), db_session)
+        updated = list_classes(db_session)[0]
+        assert updated.default_room_id is None
+        assert updated.default_room_number is None
+
+
 

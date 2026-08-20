@@ -13,6 +13,8 @@ def list_class_directory(db: Session) -> list[dict]:
         result.append({
             "id": cls.id, "name": cls.name, "section": cls.section,
             "semester": cls.semester, "department_id": cls.department_id,
+            "default_room_id": cls.default_room_id,
+            "default_room_number": cls.default_room.room_number if cls.default_room else None,
             "faculty_count": len(faculty_ids), "subject_count": len({s.subject_id for s in slots if s.subject_id}),
         })
     return result
@@ -25,6 +27,9 @@ def get_class_faculty(db: Session, class_id: int) -> dict:
     slots = db.query(TimetableSlot).filter(TimetableSlot.class_id == class_id).order_by(TimetableSlot.day_order, TimetableSlot.period_number).all()
     return {
         "id": cls.id, "name": cls.name, "section": cls.section, "semester": cls.semester, "department_id": cls.department_id,
+        "default_room_id": cls.default_room_id,
+        "default_room_number": cls.default_room.room_number if cls.default_room else None,
+        "default_room_type": cls.default_room.room_type.value if cls.default_room and hasattr(cls.default_room.room_type, "value") else (str(cls.default_room.room_type) if cls.default_room else None),
         "faculty": [{
             "teacher_id": slot.teacher_id, "teacher_name": slot.teacher.name, "teacher_department_id": slot.teacher.department_id,
             "teacher_department": slot.teacher.department, "subject_id": slot.subject_id,

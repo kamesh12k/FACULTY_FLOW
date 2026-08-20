@@ -50,9 +50,9 @@ def _raise_conflict(conflict_type: str, existing: TimetableSlot, requested: Time
 
 
 def _check_conflicts(db: Session, slot: TimetableSlotCreate, exclude_id: int | None = None) -> None:
-    """Mirrors the three DB-level UNIQUE constraints with a friendly,
-    specific 409 message identifying exactly which resource conflicts —
-    the DB constraint alone would just raise a generic IntegrityError."""
+    """Mirrors DB conflict validation with a friendly, specific 409 message identifying
+    exactly which resource conflicts. When allow_combined_class is True, allows multiple
+    staff to be assigned to the same class/room for co-teaching and combined sessions."""
     from sqlalchemy.orm import joinedload
     q = db.query(TimetableSlot).options(
         joinedload(TimetableSlot.teacher),
@@ -66,18 +66,29 @@ def _check_conflicts(db: Session, slot: TimetableSlotCreate, exclude_id: int | N
     if exclude_id:
         q = q.filter(TimetableSlot.id != exclude_id)
 
-    teacher_conflict = q.filter(TimetableSlot.teacher_id == slot.teacher_id).first()
-    if teacher_conflict:
-        _raise_conflict("teacher", teacher_conflict, slot)
+    if getattr(slot, "allow_combined_class", False):
+        # In Combined Class mode: allow co-staff or combined sections, but prevent exact duplicate
+        exact_dup = q.filter(
+            TimetableSlot.teacher_id == slot.teacher_id,
+            TimetableSlot.class_id == slot.class_id,
+        ).first()
+        if exact_dup:
+            _raise_conflict("teacher", exact_dup, slot)
+    else:
+        # Strict mode (Combine Class is OFF): single teacher per class, single class per teacher, single room per period
+        teacher_conflict = q.filter(TimetableSlot.teacher_id == slot.teacher_id).first()
+        if teacher_conflict:
+            _raise_conflict("teacher", teacher_conflict, slot)
 
-    class_conflict = q.filter(TimetableSlot.class_id == slot.class_id).first()
-    if class_conflict:
-        _raise_conflict("class", class_conflict, slot)
+        class_conflict = q.filter(TimetableSlot.class_id == slot.class_id).first()
+        if class_conflict:
+            _raise_conflict("class", class_conflict, slot)
 
-    if slot.room_id is not None:
-        room_conflict = q.filter(TimetableSlot.room_id == slot.room_id).first()
-        if room_conflict:
-            _raise_conflict("room", room_conflict, slot)
+        if slot.room_id is not None:
+            room_conflict = q.filter(TimetableSlot.room_id == slot.room_id).first()
+            if room_conflict:
+                _raise_conflict("room", room_conflict, slot)
+
 
 
 
@@ -92,15 +103,17 @@ def create_slot(data: TimetableSlotCreate, db: Session, tenant_department_id: in
         raise HTTPException(status_code=404, detail="Class not found")
 
     _check_conflicts(db, data)
-    slot = TimetableSlot(**data.model_dump())
+    slot_dict = data.model_dump(exclude={"allow_combined_class"})
+    slot = TimetableSlot(**slot_dict)
     db.add(slot)
     try:
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=409, detail="Conflicting timetable slot (teacher, class, or room already booked)")
+        raise HTTPException(status_code=409, detail="Conflicting timetable slot (teacher already booked)")
     db.refresh(slot)
     return slot
+
 
 
 def bulk_upload(slots_data: list[TimetableSlotCreate], db: Session, tenant_department_id: int | None = None) -> list[TimetableSlot]:
@@ -137,10 +150,11 @@ def bulk_upload(slots_data: list[TimetableSlotCreate], db: Session, tenant_depar
         if r_key:
             seen_room_keys.add(r_key)
 
-    slots = [TimetableSlot(**s.model_dump()) for s in slots_data]
+    slots = [TimetableSlot(**s.model_dump(exclude={"allow_combined_class"})) for s in slots_data]
     db.add_all(slots)
     try:
         db.commit()
+
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=409, detail="Conflicting timetable slot detected during save — no slots were saved")

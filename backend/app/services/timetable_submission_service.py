@@ -23,7 +23,7 @@ def submit(db: Session, teacher: User, data: TimetableSubmissionCreate) -> Timet
         raise HTTPException(404, "Class not found")
     slot = TimetableSlotCreate(teacher_id=teacher.id, **data.model_dump())
     timetable_service._check_conflicts(db, slot)
-    submission = TimetableSubmission(teacher_id=teacher.id, **data.model_dump())
+    submission = TimetableSubmission(teacher_id=teacher.id, **data.model_dump(exclude={"allow_combined_class"}))
     db.add(submission)
     log_audit_event(db, teacher.id, "timetable.submitted", "timetable_submission", None, data.model_dump())
     db.commit()
@@ -58,10 +58,11 @@ def review(db: Session, submission_id: int, admin: User, approved: bool, note: s
         official = TimetableSlotCreate(teacher_id=submission.teacher_id, subject_id=submission.subject_id, class_id=submission.class_id, room_id=submission.room_id, day_order=submission.day_order, period_number=submission.period_number)
         timetable_service._check_conflicts(db, official)
         from app.models.timetable import TimetableSlot
-        db.add(TimetableSlot(**official.model_dump()))
+        db.add(TimetableSlot(**official.model_dump(exclude={"allow_combined_class"})))
         submission.status = TimetableSubmissionStatus.approved
     else:
         submission.status = TimetableSubmissionStatus.rejected
+
     log_audit_event(db, admin.id, "timetable.submission_approved" if approved else "timetable.submission_rejected", "timetable_submission", submission.id, {"note": note})
     db.commit()
     db.refresh(submission)

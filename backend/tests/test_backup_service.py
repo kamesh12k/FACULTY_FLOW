@@ -540,3 +540,32 @@ class TestBackupRouteAuthorization:
             )
         assert resp.status_code == 400
         assert "Department Admins can only restore" in resp.json()["detail"]
+
+    def test_schedule_settings_and_run_now(self, client, auth_headers_super_admin, tmp_path, monkeypatch):
+        from app.services import backup_service
+        monkeypatch.setattr(backup_service, "_backup_dir", lambda: tmp_path)
+
+        # GET schedule
+        get_res = client.get("/admin/backups/schedule", headers=auth_headers_super_admin)
+        assert get_res.status_code == 200
+        data = get_res.json()
+        assert data["enabled"] is True
+        assert data["interval_days"] == 7
+
+        # PUT update schedule (e.g. interval_days = 3)
+        put_res = client.put(
+            "/admin/backups/schedule",
+            headers=auth_headers_super_admin,
+            json={"enabled": True, "interval_days": 3},
+        )
+        assert put_res.status_code == 200
+        assert put_res.json()["interval_days"] == 3
+
+        # POST run-now
+        run_res = client.post("/admin/backups/schedule/run-now", headers=auth_headers_super_admin)
+        assert run_res.status_code == 200
+        meta = run_res.json()
+        assert meta["backup_type"] == "auto"
+        assert "auto_backup_" in meta["filename"]
+
+

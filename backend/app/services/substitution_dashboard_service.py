@@ -5,8 +5,10 @@ from app.models.user import User
 from app.models.timetable import TimetableSlot
 from app.models.day_order_calendar import CalendarDay
 from app.models.class_ import Class
+from app.core.timezone import is_substitution_expired
 
 def get_today_substitutions(db: Session, target_date: date, tenant_department_id: int | None = None) -> dict:
+    is_expired = is_substitution_expired(target_date)
     # 1. Resolve Day Order calendar entry
     cal_day = db.query(CalendarDay).filter(CalendarDay.date == target_date).first()
     day_type_str = cal_day.day_type.value if cal_day else "holiday"
@@ -89,7 +91,8 @@ def get_today_substitutions(db: Session, target_date: date, tenant_department_id
             "assignment_type": assignment_type,
             "is_locked": is_locked,
             "reason": leave.reason,
-            "is_emergency": leave.is_emergency
+            "is_emergency": leave.is_emergency,
+            "is_expired": is_expired
         })
 
     unassigned_periods = total_leaves - total_substitutions

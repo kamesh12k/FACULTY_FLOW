@@ -94,10 +94,11 @@ export { DAY_TYPE_LABELS, DAY_TYPE_STYLES }
 
 // 5. Credit Chip
 export function CreditChip({ value }) {
-  const isPos = value > 0
+  const num = typeof value === 'number' && !isNaN(value) ? value : (Number(value) || 0)
+  const isPos = num > 0
   return (
-    <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-lg border ${isPos ? 'text-emerald-700 bg-emerald-50 border-emerald-200/60' : value < 0 ? 'text-rose-700 bg-rose-50 border-rose-200/60' : 'text-slate-600 bg-slate-50 border-slate-200'}`}>
-      {isPos ? `+${value}` : value}
+    <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-lg border ${isPos ? 'text-emerald-700 bg-emerald-50 border-emerald-200/60' : num < 0 ? 'text-rose-700 bg-rose-50 border-rose-200/60' : 'text-slate-600 bg-slate-50 border-slate-200'}`}>
+      {isPos ? `+${num}` : num}
     </span>
   )
 }

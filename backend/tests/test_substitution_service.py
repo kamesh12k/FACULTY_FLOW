@@ -416,3 +416,69 @@ class TestAutonomousSafety:
         assignment = auto_process_approved_leave(db_session, leave)
         assert assignment is None
 
+
+class TestAutonomousDepartmentBoundary:
+    def test_auto_substitution_same_department_only_when_cross_disabled(self, db_session, test_super_admin):
+        from app.services.substitution_service import set_mode, auto_process_approved_leave
+        from app.services.system_setting_service import set_setting
+
+        dept_a = create_department(db_session, name="Dept A", code="DA")
+        dept_b = create_department(db_session, name="Dept B", code="DB")
+        set_mode(db_session, "autonomous", test_super_admin, tenant_department_id=dept_a.id)
+        set_setting(db_session, "cross_department_substitutions_enabled", "false", department_id=dept_a.id)
+
+        leaver = _make_user(db_session, email="leaver_da@test.com", role="teacher", department="DA")
+        same_dept_teacher = _make_user(db_session, email="same_da@test.com", role="teacher", department="DA")
+        _make_user(db_session, email="other_db@test.com", role="teacher", department="DB")
+
+        leave = create_leave_request(
+            db_session, leaver.id, the_date=date(2026, 7, 20),
+            day_order=1, period_number=1, status=LeaveStatus.approved, reason="Medical",
+        )
+
+        assignment = auto_process_approved_leave(db_session, leave)
+        assert assignment is not None
+        assert assignment.substitute_teacher_id == same_dept_teacher.id
+
+    def test_auto_substitution_excludes_other_dept_when_cross_disabled(self, db_session, test_super_admin):
+        from app.services.substitution_service import set_mode, auto_process_approved_leave
+        from app.services.system_setting_service import set_setting
+
+        dept_a = create_department(db_session, name="Dept A2", code="DA2")
+        dept_b = create_department(db_session, name="Dept B2", code="DB2")
+        set_mode(db_session, "autonomous", test_super_admin, tenant_department_id=dept_a.id)
+        set_setting(db_session, "cross_department_substitutions_enabled", "false", department_id=dept_a.id)
+
+        leaver = _make_user(db_session, email="leaver_da2@test.com", role="teacher", department="DA2")
+        _make_user(db_session, email="other_db2@test.com", role="teacher", department="DB2")
+
+        leave = create_leave_request(
+            db_session, leaver.id, the_date=date(2026, 7, 20),
+            day_order=1, period_number=1, status=LeaveStatus.approved, reason="Medical",
+        )
+
+        assignment = auto_process_approved_leave(db_session, leave)
+        assert assignment is None
+
+    def test_auto_substitution_allows_other_dept_when_cross_enabled(self, db_session, test_super_admin):
+        from app.services.substitution_service import set_mode, auto_process_approved_leave
+        from app.services.system_setting_service import set_setting
+
+        dept_a = create_department(db_session, name="Dept A3", code="DA3")
+        dept_b = create_department(db_session, name="Dept B3", code="DB3")
+        set_mode(db_session, "autonomous", test_super_admin, tenant_department_id=dept_a.id)
+        set_setting(db_session, "cross_department_substitutions_enabled", "true", department_id=dept_a.id)
+
+        leaver = _make_user(db_session, email="leaver_da3@test.com", role="teacher", department="DA3")
+        other_dept_teacher = _make_user(db_session, email="other_db3@test.com", role="teacher", department="DB3")
+
+        leave = create_leave_request(
+            db_session, leaver.id, the_date=date(2026, 7, 20),
+            day_order=1, period_number=1, status=LeaveStatus.approved, reason="Medical",
+        )
+
+        assignment = auto_process_approved_leave(db_session, leave)
+        assert assignment is not None
+        assert assignment.substitute_teacher_id == other_dept_teacher.id
+
+

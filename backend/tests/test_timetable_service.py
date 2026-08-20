@@ -52,10 +52,26 @@ class TestCreateSlot:
         data = TimetableSlotCreate(
             teacher_id=teacher2.id, subject_id=subj.id, class_id=cls.id,
             room_id=room2.id, day_order=1, period_number=1,
+            allow_combined_class=False,
         )
         with pytest.raises(HTTPException) as exc:
             create_slot(data, db_session)
         assert exc.value.status_code == 409
+
+    def test_combine_class_multi_staff_success(self, db_session):
+        _, subj, cls, room, teacher = _setup(db_session)
+        create_timetable_slot(db_session, teacher.id, subj.id, cls.id, room_id=room.id)
+        teacher2 = _make_user(db_session, email="t2comb@test.com")
+        data = TimetableSlotCreate(
+            teacher_id=teacher2.id, subject_id=subj.id, class_id=cls.id,
+            room_id=room.id, day_order=1, period_number=1,
+            allow_combined_class=True,
+        )
+        slot2 = create_slot(data, db_session)
+        assert slot2.id is not None
+        assert slot2.teacher_id == teacher2.id
+        assert slot2.class_id == cls.id
+
 
 
 class TestBulkUpload:

@@ -132,6 +132,7 @@ export default function TeacherSubstitution() {
   const [loading, setLoading] = useState(true)
   const [myLeaves, setMyLeaves] = useState([])
   const [activeCoverLeaves, setActiveCoverLeaves] = useState([])
+  const [pastCoverLeaves, setPastCoverLeaves] = useState([])
   const [allDepartments, setAllDepartments] = useState([])
   const [activeTab, setActiveTab] = useState('needs-cover')
   const [assignModal, setAssignModal] = useState(null) // { leave, recommendations, others, isOverride }
@@ -163,8 +164,17 @@ export default function TeacherSubstitution() {
           teacherSubstitutionApi.myLeaves(),
           leavesApi.myLeaves()
         ])
-        setMyLeaves(needsCover)
-        setActiveCoverLeaves(allMyLeaves.filter(l => l.status === 'approved' && l.alter_assignment))
+        
+        // Backend is the single source of truth for expiration in Asia/Kolkata
+        setMyLeaves(needsCover.filter(l => !l.is_expired))
+        
+        setActiveCoverLeaves(
+          allMyLeaves.filter(l => l.status === 'approved' && l.alter_assignment && !l.is_expired)
+        )
+
+        setPastCoverLeaves(
+          allMyLeaves.filter(l => l.status === 'approved' && l.is_expired)
+        )
       }
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to load substitution data.')
@@ -378,7 +388,7 @@ export default function TeacherSubstitution() {
       <div className="border-b border-gray-100 flex gap-4 overflow-x-auto" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
         <button
           onClick={() => setActiveTab('needs-cover')}
-          className={`pb-2.5 text-sm font-semibold border-b-2 transition-colors ${
+          className={`pb-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'needs-cover'
               ? 'border-primary-600 text-primary-600'
               : 'border-transparent text-gray-400 hover:text-gray-600'
@@ -388,7 +398,7 @@ export default function TeacherSubstitution() {
         </button>
         <button
           onClick={() => setActiveTab('assigned-cover')}
-          className={`pb-2.5 text-sm font-semibold border-b-2 transition-colors ${
+          className={`pb-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'assigned-cover'
               ? 'border-primary-600 text-primary-600'
               : 'border-transparent text-gray-400 hover:text-gray-600'
@@ -396,87 +406,273 @@ export default function TeacherSubstitution() {
         >
           Assigned Cover ({activeCoverLeaves.length})
         </button>
+        <button
+          onClick={() => setActiveTab('completed-cover')}
+          className={`pb-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+            activeTab === 'completed-cover'
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          Completed / Past ({pastCoverLeaves.length})
+        </button>
       </div>
 
       <div className="card overflow-hidden">
         {activeTab === 'needs-cover' ? (
           myLeaves.length === 0 ? (
-            <EmptyState message="No approved leaves needing substitutes right now." />
+            <EmptyState message="No active approved leaves needing substitutes right now." />
           ) : (
-            <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-              <table className="w-full text-sm" style={{ minWidth: '550px' }}>
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  {['Date', 'Day Order', 'Period', 'Reason', ''].map(h => (
-                    <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
+            <>
+              {/* Desktop Table View (md and up) */}
+              <div className="hidden md:block overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      {['Date', 'Day Order', 'Period', 'Reason', ''].map(h => (
+                        <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {myLeaves.map(leave => (
+                      <tr key={leave.id} className="hover:bg-gray-50/50">
+                        <td className="px-5 py-3 text-gray-800 font-medium">{leave.date}</td>
+                        <td className="px-5 py-3 text-gray-500">DO {leave.day_order}</td>
+                        <td className="px-5 py-3 text-gray-500">P{leave.period_number}</td>
+                        <td className="px-5 py-3 text-gray-600 max-w-xs truncate">
+                          <div className="flex items-center gap-1.5">
+                            {leave.is_emergency && <AlertTriangleIcon className="w-3.5 h-3.5 text-red-500 shrink-0" />}
+                            {leave.reason}
+                          </div>
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          <button
+                            onClick={() => handleOpenAssignModal(leave, false)}
+                            disabled={!!actionLoading}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-medium rounded-lg transition-colors ml-auto"
+                          >
+                            <SwapIcon className="w-3 h-3" />
+                            {actionLoading === leave.id + '_load_candidates' ? 'Loading…' : 'Assign Sub'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View (below md — zero horizontal scroll) */}
+              <div className="block md:hidden divide-y divide-gray-100">
                 {myLeaves.map(leave => (
-                  <tr key={leave.id} className="hover:bg-gray-50/50">
-                    <td className="px-5 py-3 text-gray-800">{leave.date}</td>
-                    <td className="px-5 py-3 text-gray-500">DO {leave.day_order}</td>
-                    <td className="px-5 py-3 text-gray-500">P{leave.period_number}</td>
-                    <td className="px-5 py-3 text-gray-600 max-w-xs truncate">
-                      <div className="flex items-center gap-1.5">
-                        {leave.is_emergency && <AlertTriangleIcon className="w-3.5 h-3.5 text-red-500 shrink-0" />}
-                        {leave.reason}
+                  <div key={leave.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-gray-900 text-sm">{leave.date}</span>
+                          <span className="text-[10px] text-gray-600 font-semibold bg-gray-100 px-2 py-0.5 rounded-md">
+                            DO {leave.day_order} · P{leave.period_number}
+                          </span>
+                        </div>
                       </div>
-                    </td>
-                    <td className="px-5 py-3 text-right">
+                      {leave.is_emergency && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-md">
+                          <AlertTriangleIcon className="w-3 h-3 text-rose-500" />
+                          Emergency
+                        </span>
+                      )}
+                    </div>
+
+                    {leave.reason && (
+                      <div className="p-2.5 bg-gray-50/80 rounded-xl border border-gray-200/70 text-xs text-gray-700">
+                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Reason</span>
+                        <p className="font-medium">{leave.reason}</p>
+                      </div>
+                    )}
+
+                    <div className="pt-1">
                       <button
                         onClick={() => handleOpenAssignModal(leave, false)}
                         disabled={!!actionLoading}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-medium rounded-lg transition-colors ml-auto"
+                        className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold rounded-xl transition-all shadow-sm min-h-[40px]"
                       >
-                        <SwapIcon className="w-3 h-3" />
-                        {actionLoading === leave.id + '_load_candidates' ? 'Loading…' : 'Assign Sub'}
+                        <SwapIcon className="w-3.5 h-3.5" />
+                        <span>{actionLoading === leave.id + '_load_candidates' ? 'Loading…' : 'Assign Substitute'}</span>
                       </button>
-                    </td>
-                  </tr>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-            </div>
+              </div>
+            </>
           )
-        ) : (
+        ) : activeTab === 'assigned-cover' ? (
           activeCoverLeaves.length === 0 ? (
-            <EmptyState message="No substitute covers assigned yet." />
+            <EmptyState message="No active substitute covers assigned yet." />
           ) : (
-            <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-              <table className="w-full text-sm" style={{ minWidth: '600px' }}>
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  {['Date', 'Day Order', 'Period', 'Assigned Substitute', 'Type', ''].map(h => (
-                    <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
+            <>
+              {/* Desktop Table View (md and up) */}
+              <div className="hidden md:block overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      {['Date', 'Day Order', 'Period', 'Assigned Substitute', 'Type', ''].map(h => (
+                        <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {activeCoverLeaves.map(leave => (
+                      <tr key={leave.id} className="hover:bg-gray-50/50">
+                        <td className="px-5 py-3 text-gray-800 font-medium">{leave.date}</td>
+                        <td className="px-5 py-3 text-gray-500">DO {leave.day_order}</td>
+                        <td className="px-5 py-3 text-gray-500">P{leave.period_number}</td>
+                        <td className="px-5 py-3 text-gray-800 font-medium">{leave.alter_assignment.substitute?.name}</td>
+                        <td className="px-5 py-3">
+                          <AssignmentTypeBadge type={leave.alter_assignment.assignment_type} small />
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          <button
+                            onClick={() => handleOpenAssignModal(leave, true)}
+                            disabled={!!actionLoading}
+                            className="text-xs text-primary-600 hover:text-primary-800 font-medium ml-auto"
+                          >
+                            {actionLoading === leave.id + '_load_candidates' ? 'Loading…' : 'Change Cover'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View (below md — zero horizontal scroll) */}
+              <div className="block md:hidden divide-y divide-gray-100">
                 {activeCoverLeaves.map(leave => (
-                  <tr key={leave.id} className="hover:bg-gray-50/50">
-                    <td className="px-5 py-3 text-gray-800">{leave.date}</td>
-                    <td className="px-5 py-3 text-gray-500">DO {leave.day_order}</td>
-                    <td className="px-5 py-3 text-gray-500">P{leave.period_number}</td>
-                    <td className="px-5 py-3 text-gray-800 font-medium">{leave.alter_assignment.substitute?.name}</td>
-                    <td className="px-5 py-3">
+                  <div key={leave.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-gray-900 text-sm">{leave.date}</span>
+                          <span className="text-[10px] text-gray-600 font-semibold bg-gray-100 px-2 py-0.5 rounded-md">
+                            DO {leave.day_order} · P{leave.period_number}
+                          </span>
+                        </div>
+                      </div>
                       <AssignmentTypeBadge type={leave.alter_assignment.assignment_type} small />
-                    </td>
-                    <td className="px-5 py-3 text-right">
+                    </div>
+
+                    <div className="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl flex items-center justify-between gap-2">
+                      <div>
+                        <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-wider block mb-0.5">Assigned Substitute</span>
+                        <span className="font-extrabold text-gray-900 text-sm">{leave.alter_assignment.substitute?.name}</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-1">
                       <button
                         onClick={() => handleOpenAssignModal(leave, true)}
                         disabled={!!actionLoading}
-                        className="text-xs text-primary-600 hover:text-primary-800 font-medium ml-auto"
+                        className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 border border-primary-200 bg-primary-50/80 hover:bg-primary-100 active:bg-primary-200 text-primary-700 text-xs font-bold rounded-xl transition-all min-h-[40px]"
                       >
-                        {actionLoading === leave.id + '_load_candidates' ? 'Loading…' : 'Change Cover'}
+                        <SwapIcon className="w-3.5 h-3.5 text-primary-600" />
+                        <span>{actionLoading === leave.id + '_load_candidates' ? 'Loading…' : 'Change Cover'}</span>
                       </button>
-                    </td>
-                  </tr>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-            </div>
+              </div>
+            </>
+          )
+        ) : (
+          pastCoverLeaves.length === 0 ? (
+            <EmptyState message="No completed or past substitution records." />
+          ) : (
+            <>
+              {/* Desktop Table View (md and up) */}
+              <div className="hidden md:block overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      {['Date', 'Day Order', 'Period', 'Cover / Substitute', 'Status', 'Reason'].map(h => (
+                        <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {pastCoverLeaves.map(leave => {
+                      const subName = leave.alter_assignment?.substitute?.name
+                      return (
+                        <tr key={leave.id} className="hover:bg-gray-50/50">
+                          <td className="px-5 py-3 text-gray-800 font-medium whitespace-nowrap">{leave.date}</td>
+                          <td className="px-5 py-3 text-gray-500 whitespace-nowrap">DO {leave.day_order}</td>
+                          <td className="px-5 py-3 text-gray-500 whitespace-nowrap">P{leave.period_number}</td>
+                          <td className="px-5 py-3 text-gray-800 font-medium">
+                            {subName ? (
+                              <div className="flex items-center gap-2">
+                                <span>{subName}</span>
+                                <AssignmentTypeBadge type={leave.alter_assignment.assignment_type} small />
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 italic text-xs">No substitute assigned</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-3 whitespace-nowrap">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                              Completed
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 text-gray-500 text-xs max-w-xs truncate">
+                            {leave.reason || '-'}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View (below md) */}
+              <div className="block md:hidden divide-y divide-gray-100">
+                {pastCoverLeaves.map(leave => {
+                  const subName = leave.alter_assignment?.substitute?.name
+                  return (
+                    <div key={leave.id} className="p-4 space-y-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-gray-900 text-sm">{leave.date}</span>
+                          <span className="text-[10px] text-gray-600 font-semibold bg-gray-100 px-2 py-0.5 rounded-md">
+                            DO {leave.day_order} · P{leave.period_number}
+                          </span>
+                        </div>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
+                          Completed
+                        </span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between gap-2">
+                        <div>
+                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-0.5">
+                            Substitute Coverage
+                          </span>
+                          <span className="font-bold text-gray-800 text-sm">
+                            {subName || 'No substitute assigned'}
+                          </span>
+                        </div>
+                        {leave.alter_assignment && (
+                          <AssignmentTypeBadge type={leave.alter_assignment.assignment_type} small />
+                        )}
+                      </div>
+
+                      {leave.reason && (
+                        <p className="text-xs text-gray-500 italic truncate">
+                          Reason: {leave.reason}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </>
           )
         )}
       </div>

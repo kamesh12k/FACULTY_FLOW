@@ -1345,6 +1345,7 @@ function TimetableResetPanel() {
 
 /* ── Clear History ────────────────────────────────────────────────────── */
 function ClearHistoryPanel() {
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(null)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
@@ -1411,6 +1412,17 @@ function ClearHistoryPanel() {
             className={`${btnDanger} flex-1`}
           >
             {loading === 'credits' ? 'Clearing Credits…' : 'Clear Credits History'}
+          </button>
+        </div>
+
+        <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+          <p className="text-xs text-gray-500">Need advanced date filters, automated cleanup policies, or selective datasets?</p>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/data-retention')}
+            className="text-xs font-bold text-primary-600 hover:text-primary-700 underline"
+          >
+            Open Data Retention & Purge Console →
           </button>
         </div>
       </div>
@@ -1489,7 +1501,22 @@ export default function AdminSettings() {
         loading={loading}
       />
 
-      {(isSuperAdmin || isSystemAdmin) && <SettingsSection icon={UsersIcon} tint="bg-blue-50 text-blue-600" title="Cross-department substitutions" description="Allow eligible faculty from another department to appear in substitute recommendations for this department."><div className="px-6 pb-6 border-t border-gray-100 pt-4 flex items-center justify-between gap-4"><p className="text-sm text-gray-600">External candidates still need to be free, active, and within their workload limit.</p><ToggleSwitch checked={crossDepartment} onChange={toggleCrossDepartment} /></div></SettingsSection>}
+      {(isSuperAdmin || isSystemAdmin) && (
+        <SettingsSection
+          icon={UsersIcon}
+          tint="bg-blue-50 text-blue-600"
+          title="Cross-department substitutions"
+          description="Allow eligible faculty from another department to be selected for automatic substitutions and appear in substitute recommendations."
+        >
+          <div className="px-6 pb-6 border-t border-gray-100 pt-4 flex items-center justify-between gap-4">
+            <p className="text-sm text-gray-600">
+              When turned OFF, automatic substitutions and recommendations strictly select faculty from the same department only.
+            </p>
+            <ToggleSwitch checked={crossDepartment} onChange={toggleCrossDepartment} />
+          </div>
+        </SettingsSection>
+      )}
+
 
       {isSystemAdmin && <SettingsSection icon={HistoryIcon} tint="bg-emerald-50 text-emerald-600" title="Master accountability export" description="Download the institution-wide class faculty and substitution accountability workbook."><div className="px-6 pb-6 border-t border-gray-100 pt-4"><button className={btnPrimary} onClick={downloadMasterExport}>Download master export (.xlsx)</button></div></SettingsSection>}
       

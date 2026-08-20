@@ -112,3 +112,34 @@ class TestRoomAvailability:
         result = availability_dashboard(1, 1, db_session)
         assert len(result) == 2
         assert all(r.is_available for r in result)
+
+    def test_classroom_occupancy_matrix(self, db_session):
+        from app.services.room_service import get_classroom_occupancy
+        dept = create_department(db_session, name="CSE")
+        subj = create_subject(db_session, department_id=dept.id, name="Networks", code="CS301")
+        cls = create_class(db_session, department_id=dept.id, name="III CS A")
+        r1 = factory_room(db_session, room_number="CS-101", capacity=60, department_id=dept.id)
+        r2 = factory_room(db_session, room_number="CS-102", capacity=40, department_id=dept.id)
+        teacher = _make_user(db_session, email="occ@test.com", name="Prof. Alan")
+
+        # Book r1 for day_order=1, period_number=2
+        create_timetable_slot(db_session, teacher.id, subj.id, cls.id, room_id=r1.id, day_order=1, period_number=2)
+
+        res_p1 = get_classroom_occupancy(db_session, day_order=1, period_number=1)
+        assert res_p1["summary"]["total_rooms"] == 2
+        assert res_p1["summary"]["occupied_count"] == 0
+        assert res_p1["summary"]["vacant_count"] == 2
+
+        res_p2 = get_classroom_occupancy(db_session, day_order=1, period_number=2)
+        assert res_p2["summary"]["occupied_count"] == 1
+        assert res_p2["summary"]["vacant_count"] == 1
+        assert res_p2["summary"]["occupancy_rate_percent"] == 50.0
+
+        r1_item = next(r for r in res_p2["rooms"] if r["room_number"] == "CS-101")
+        assert r1_item["is_occupied"] is True
+        assert r1_item["current_slot"]["class_name"] == "III CS A"
+        assert r1_item["current_slot"]["subject_code"] == "CS301"
+        assert r1_item["current_slot"]["teacher_name"] == "Prof. Alan"
+        assert r1_item["period_schedule"][2]["is_occupied"] is True
+        assert r1_item["period_schedule"][1]["is_occupied"] is False
+

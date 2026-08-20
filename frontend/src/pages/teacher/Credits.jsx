@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { creditsApi, teachersApi, leavesApi } from '../../api/services'
 import { Spinner, EmptyState } from '../../components/ui'
-import { SearchIcon, SwapIcon, PlusIcon } from '../../components/icons'
+import { SearchIcon, SwapIcon, PlusIcon, PrinterIcon, DownloadIcon, CalIcon } from '../../components/icons'
 
 function formatDateTime(isoStr) {
   if (!isoStr) return { date: '—', time: '' }
@@ -37,6 +37,8 @@ export default function MyCredits() {
   const [activeTypeTab, setActiveTypeTab] = useState('all') // 'all', 'earned', 'deducted', 'adjustments'
   const [searchQuery, setSearchQuery] = useState('')
   const [sortOrder, setSortOrder] = useState('latest') // 'latest', 'oldest'
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
 
   useEffect(() => {
     Promise.all([
@@ -107,6 +109,16 @@ export default function MyCredits() {
 
       if (q && !r.includes(q)) return false
 
+      // Date range filtering
+      if (fromDate) {
+        const txDate = t.created_at ? t.created_at.split('T')[0] : ''
+        if (txDate < fromDate) return false
+      }
+      if (toDate) {
+        const txDate = t.created_at ? t.created_at.split('T')[0] : ''
+        if (txDate > toDate) return false
+      }
+
       return true
     }).sort((a, b) => {
       if (sortOrder === 'oldest') {
@@ -114,7 +126,67 @@ export default function MyCredits() {
       }
       return new Date(b.created_at) - new Date(a.created_at)
     })
-  }, [enhancedTransactions, activeTypeTab, searchQuery, sortOrder])
+  }, [enhancedTransactions, activeTypeTab, searchQuery, sortOrder, fromDate, toDate])
+
+  // Print to PDF
+  const handlePrint = () => {
+    window.print()
+  }
+
+  // Download filtered records as CSV
+  const handleDownloadCsv = () => {
+    if (filteredTransactions.length === 0) return
+
+    const headers = [
+      'Date',
+      'Time',
+      'Activity',
+      'Details / Reason',
+      'Credit Change',
+      'Running Balance',
+      'Related Leave ID'
+    ]
+
+    const rows = filteredTransactions.map(tx => {
+      const { date, time } = formatDateTime(tx.created_at)
+      const ch = Number(tx.change) || 0
+      return [
+        date,
+        time,
+        getActivityLabel(tx),
+        tx.reason || 'Substitution credit update',
+        ch > 0 ? `+${ch}` : `${ch}`,
+        tx.running_balance !== undefined ? (tx.running_balance >= 0 ? `+${tx.running_balance}` : `${tx.running_balance}`) : '',
+        tx.related_leave_id ? `#${tx.related_leave_id}` : ''
+      ]
+    })
+
+    const metadata = [
+      `# Faculty Credit Statement: ${user?.name || 'Faculty'}`,
+      `# Department: ${user?.department || 'N/A'} (ID: #${user?.id})`,
+      `# Generated On: ${new Date().toLocaleString()}`,
+      `# Current Balance: ${balance >= 0 ? '+' : ''}${balance}`,
+      `# Date Range: ${fromDate || 'Start'} to ${toDate || 'Present'}`,
+      `# Total Filtered Records: ${rows.length}`,
+      ''
+    ].join('\n')
+
+    const csvContent = "\uFEFF" + metadata + '\n' + [
+      headers.join(','),
+      ...rows.map(row => row.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.setAttribute('href', url)
+    const dateSuffix = fromDate && toDate ? `${fromDate}_to_${toDate}` : new Date().toISOString().slice(0, 10)
+    link.setAttribute('download', `Credit_Statement_${(user?.name || 'faculty').replace(/\s+/g, '_')}_${dateSuffix}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
 
   if (loading) {
     return (
@@ -126,8 +198,73 @@ export default function MyCredits() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-16">
+      {/* Custom print styling */}
+      <style>{`
+        @media print {
+          body {
+            background: white !important;
+            color: black !important;
+          }
+          aside, nav, header, .no-print, button {
+            display: none !important;
+          }
+          .print-header {
+            display: block !important;
+          }
+          .card, .bg-white {
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: none !important;
+          }
+          table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+          }
+          th, td {
+            border: 1px solid #cbd5e1 !important;
+            padding: 6px 8px !important;
+          }
+        }
+      `}</style>
+
+      {/* ── Print Document Header (Visible only when printing) ── */}
+      <div className="hidden print:block pb-4 mb-4 border-b-2 border-slate-900 space-y-3">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+              FACULTY CREDIT STATEMENT & ACCOUNTABILITY RECORD
+            </h1>
+            <p className="text-xs text-slate-600 mt-0.5 font-medium">
+              Institutional Timetable & Substitution Credit Ledger
+            </p>
+          </div>
+          <div className="text-right text-xs">
+            <span className="font-bold text-slate-900 block text-sm">Running Balance</span>
+            <span className="text-2xl font-extrabold font-mono text-slate-900">
+              {balance >= 0 ? `+${balance}` : balance} Credits
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 pt-3 border-t border-slate-200 text-xs">
+          <div>
+            <span className="text-slate-400 block font-bold text-[10px] uppercase">Faculty Member</span>
+            <span className="font-bold text-slate-900">{user.name}</span>
+          </div>
+          <div>
+            <span className="text-slate-400 block font-bold text-[10px] uppercase">Department & ID</span>
+            <span className="font-bold text-slate-900">{user.department || 'General'} (ID: #{user.id})</span>
+          </div>
+          <div>
+            <span className="text-slate-400 block font-bold text-[10px] uppercase">Statement Date Range</span>
+            <span className="font-bold text-slate-900">
+              {fromDate || 'All Records'} to {toDate || 'Present'}
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* ── Page Header & Quick Actions ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
         <div className="space-y-1">
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
             Credits & Transactions
@@ -137,17 +274,40 @@ export default function MyCredits() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Print / PDF Button */}
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs transition shadow-xs"
+            title="Print to PDF / Print Report"
+          >
+            <PrinterIcon className="w-3.5 h-3.5 text-slate-600" />
+            <span>Print to PDF</span>
+          </button>
+
+          {/* Download CSV Button */}
+          <button
+            type="button"
+            onClick={handleDownloadCsv}
+            disabled={filteredTransactions.length === 0}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Download Filtered Records as CSV"
+          >
+            <DownloadIcon className="w-3.5 h-3.5 text-white" />
+            <span>Download Records</span>
+          </button>
+
           <Link
             to="/teacher/today-coverage"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs transition shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs transition shadow-xs"
           >
             <SwapIcon className="w-3.5 h-3.5" />
             <span>Available Substitutions</span>
           </Link>
           <Link
             to="/teacher/leave/apply"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-semibold text-xs transition shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-semibold text-xs transition shadow-xs"
           >
             <PlusIcon className="w-3.5 h-3.5" />
             <span>Apply for Leave</span>
@@ -318,26 +478,105 @@ export default function MyCredits() {
         </div>
 
         {/* Filter Segmented Control */}
-        <div className="px-4 py-2 bg-slate-50/60 border-b border-slate-100 flex flex-wrap items-center gap-1.5">
-          {[
-            { key: 'all', label: `All (${transactions.length})` },
-            { key: 'earned', label: `Earned (+${stats.earned})` },
-            { key: 'deducted', label: `Deducted (-${stats.deducted})` },
-            { key: 'adjustments', label: `Adjustments (${stats.adjustments})` },
-          ].map(tab => (
+        <div className="px-4 py-2 bg-slate-50/60 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 no-print">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[
+              { key: 'all', label: `All (${transactions.length})` },
+              { key: 'earned', label: `Earned (+${stats.earned})` },
+              { key: 'deducted', label: `Deducted (-${stats.deducted})` },
+              { key: 'adjustments', label: `Adjustments (${stats.adjustments})` },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTypeTab(tab.key)}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                  activeTypeTab === tab.key
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <span className="text-[11px] font-semibold text-slate-500">
+            Showing <strong className="text-slate-900">{filteredTransactions.length}</strong> records
+          </span>
+        </div>
+
+        {/* Date Range Filter Bar */}
+        <div className="px-4 py-2.5 bg-slate-50/90 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs no-print">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+              <CalIcon className="w-3.5 h-3.5 text-slate-400" /> Date Range:
+            </span>
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-xs">
+              <span className="text-[10px] text-slate-400 font-bold uppercase">From</span>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={e => setFromDate(e.target.value)}
+                className="text-xs text-slate-800 bg-transparent font-semibold focus:outline-none"
+              />
+            </div>
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-xs">
+              <span className="text-[10px] text-slate-400 font-bold uppercase">To</span>
+              <input
+                type="date"
+                value={toDate}
+                onChange={e => setToDate(e.target.value)}
+                className="text-xs text-slate-800 bg-transparent font-semibold focus:outline-none"
+              />
+            </div>
+            {(fromDate || toDate) && (
+              <button
+                type="button"
+                onClick={() => { setFromDate(''); setToDate('') }}
+                className="text-[11px] font-bold text-rose-700 hover:text-rose-800 bg-rose-50 border border-rose-200 px-2 py-1 rounded-md transition"
+              >
+                Clear Dates
+              </button>
+            )}
+          </div>
+
+          {/* Quick Date Presets */}
+          <div className="flex items-center gap-1.5">
             <button
-              key={tab.key}
               type="button"
-              onClick={() => setActiveTypeTab(tab.key)}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-                activeTypeTab === tab.key
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
+              onClick={() => {
+                const now = new Date()
+                const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+                const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+                setFromDate(firstDay)
+                setToDate(lastDay)
+              }}
+              className="px-2 py-1 bg-white border border-slate-200 hover:bg-slate-100 rounded text-[11px] font-semibold text-slate-600 transition shadow-xs"
             >
-              {tab.label}
+              This Month
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => {
+                const now = new Date()
+                const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+                const today = now.toISOString().split('T')[0]
+                setFromDate(past)
+                setToDate(today)
+              }}
+              className="px-2 py-1 bg-white border border-slate-200 hover:bg-slate-100 rounded text-[11px] font-semibold text-slate-600 transition shadow-xs"
+            >
+              Last 30 Days
+            </button>
+            <button
+              type="button"
+              onClick={() => { setFromDate(''); setToDate('') }}
+              className="px-2 py-1 bg-white border border-slate-200 hover:bg-slate-100 rounded text-[11px] font-semibold text-slate-600 transition shadow-xs"
+            >
+              All Time
+            </button>
+          </div>
         </div>
 
         {/* Transactions Table (Desktop) & List (Mobile) */}

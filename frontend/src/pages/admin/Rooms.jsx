@@ -1,11 +1,24 @@
-import { useEffect, useState } from 'react'
-import { roomsApi, departmentsApi } from '../../api/services'
+import { useEffect, useState, useCallback } from 'react'
+import { roomsApi, departmentsApi, dayOrderApi } from '../../api/services'
 import { Spinner, ErrorAlert, Modal, EmptyState } from '../../components/ui'
 
 export default function AdminRooms() {
+  const [activeTab, setActiveTab] = useState('occupancy') // 'occupancy' | 'directory'
+
+  // Room Directory State
   const [rooms, setRooms] = useState([])
   const [departments, setDepartments] = useState([])
   const [loading, setLoading] = useState(true)
+
+  // Occupancy State
+  const [occupancyData, setOccupancyData] = useState(null)
+  const [occupancyLoading, setOccupancyLoading] = useState(false)
+  const [selectedDayOrder, setSelectedDayOrder] = useState(1)
+  const [selectedPeriod, setSelectedPeriod] = useState(1)
+  const [filterDept, setFilterDept] = useState('')
+  const [filterType, setFilterType] = useState('')
+  const [filterStatus, setFilterStatus] = useState('all') // 'all' | 'vacant' | 'occupied'
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Single Add Room State
   const [modalOpen, setModalOpen] = useState(false)
@@ -41,12 +54,33 @@ export default function AdminRooms() {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
-  const load = () => roomsApi.list().then(r => setRooms(r.data)).finally(() => setLoading(false))
+  const loadDirectory = () => roomsApi.list().then(r => setRooms(r.data)).finally(() => setLoading(false))
+
+  const loadOccupancy = useCallback(async (dayOrder, periodNum, deptId, rType) => {
+    setOccupancyLoading(true)
+    try {
+      const res = await roomsApi.getOccupancy({
+        day_order: dayOrder,
+        period_number: periodNum,
+        department_id: deptId || undefined,
+        room_type: rType || undefined,
+      })
+      setOccupancyData(res.data)
+      if (res.data?.day_order && !dayOrder) {
+        setSelectedDayOrder(res.data.day_order)
+      }
+    } catch (err) {
+      console.error('Failed to load room occupancy:', err)
+    } finally {
+      setOccupancyLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    load()
+    loadDirectory()
     departmentsApi.list(true).then(r => setDepartments(r.data))
-  }, [])
+    loadOccupancy(selectedDayOrder, selectedPeriod, filterDept, filterType)
+  }, [loadOccupancy, selectedDayOrder, selectedPeriod, filterDept, filterType])
 
   const handleCreate = async (e) => {
     e.preventDefault()
@@ -60,7 +94,8 @@ export default function AdminRooms() {
       })
       setModalOpen(false)
       setForm({ room_number: '', room_type: 'classroom', capacity: 40, department_id: '' })
-      load()
+      loadDirectory()
+      loadOccupancy(selectedDayOrder, selectedPeriod, filterDept, filterType)
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create room.')
     } finally {
@@ -88,7 +123,8 @@ export default function AdminRooms() {
         setBulkModalOpen(false)
         setBulkSuccess('')
       }, 1500)
-      load()
+      loadDirectory()
+      loadOccupancy(selectedDayOrder, selectedPeriod, filterDept, filterType)
     } catch (err) {
       setBulkError(err.response?.data?.detail || 'Failed to bulk create rooms.')
     } finally {
@@ -99,24 +135,21 @@ export default function AdminRooms() {
   const getRangePreview = () => {
     const start = Number(bulkForm.start_num) || 0
     const end = Number(bulkForm.end_num) || 0
-    if (end < start || (end - start + 1) > 200) return 'Invalid range'
-    const count = end - start + 1
     const pad = Number(bulkForm.pad_digits) || 0
-    const sample = []
-    const limit = Math.min(count, 4)
-    for (let i = 0; i < limit; i++) {
-      const num = start + i
-      const formatted = pad > 0 ? String(num).padStart(pad, '0') : String(num)
-      sample.push(`${bulkForm.prefix}${formatted}`)
+    const prefix = bulkForm.prefix || ''
+    if (end < start) return 'Invalid range (End < Start)'
+    const count = end - start + 1
+    if (count > 200) return `Too large (${count} rooms, max is 200)`
+    const fmt = n => (pad > 0 ? `${prefix}${String(n).padStart(pad, '0')}` : `${prefix}${n}`)
+    if (count <= 3) {
+      return Array.from({ length: count }, (_, i) => fmt(start + i)).join(', ')
     }
-    if (count > 4) sample.push('...')
-    const lastNum = pad > 0 ? String(end).padStart(pad, '0') : String(end)
-    if (count > 4) sample.push(`${bulkForm.prefix}${lastNum}`)
-    return `${sample.join(', ')} (${count} rooms total)`
+    return `${fmt(start)}, ${fmt(start + 1)}, ..., ${fmt(end)} (${count} rooms)`
   }
 
   const handleOpenEditModal = (room) => {
     setSelectedRoom(room)
+    editForm.room_number = room.room_number
     setEditForm({
       room_number: room.room_number,
       room_type: room.room_type,
@@ -139,7 +172,8 @@ export default function AdminRooms() {
         department_id: editForm.department_id ? Number(editForm.department_id) : null,
       })
       setEditModalOpen(false)
-      load()
+      loadDirectory()
+      loadOccupancy(selectedDayOrder, selectedPeriod, filterDept, filterType)
     } catch (err) {
       setEditError(err.response?.data?.detail || 'Failed to update room.')
     } finally {
@@ -159,7 +193,8 @@ export default function AdminRooms() {
     try {
       await roomsApi.remove(roomToDelete.id)
       setDeleteConfirmOpen(false)
-      load()
+      loadDirectory()
+      loadOccupancy(selectedDayOrder, selectedPeriod, filterDept, filterType)
     } catch (err) {
       setDeleteError(err.response?.data?.detail || 'Failed to delete room.')
     } finally {
@@ -169,55 +204,310 @@ export default function AdminRooms() {
 
   const deptName = (id) => departments.find(d => d.id === id)?.name || '—'
 
+  // Filtered rooms for occupancy view
+  const filteredOccupancyRooms = (occupancyData?.rooms || []).filter(r => {
+    if (filterStatus === 'vacant' && r.is_occupied) return false
+    if (filterStatus === 'occupied' && !r.is_occupied) return false
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      const matchRoom = r.room_number.toLowerCase().includes(q)
+      const matchDept = (r.department_name || '').toLowerCase().includes(q)
+      const matchClass = (r.current_slot?.class_name || '').toLowerCase().includes(q)
+      const matchSubject = (r.current_slot?.subject_name || '').toLowerCase().includes(q)
+      const matchTeacher = (r.current_slot?.teacher_name || '').toLowerCase().includes(q)
+      return matchRoom || matchDept || matchClass || matchSubject || matchTeacher
+    }
+    return true
+  })
+
   return (
     <div className="space-y-6">
+      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h1 className="text-xl font-bold text-gray-900">Rooms & Labs</h1>
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Classrooms & Labs</h1>
+          <p className="text-xs text-gray-500 mt-0.5">Real-time room occupancy status and venue management</p>
+        </div>
         <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
-          <button onClick={() => setBulkModalOpen(true)} className="btn-secondary text-sm flex items-center gap-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+          <button onClick={() => setBulkModalOpen(true)} className="btn-secondary text-xs sm:text-sm flex items-center gap-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
             <span>⚡</span> Bulk Add (Range)
           </button>
-          <button onClick={() => setModalOpen(true)} className="btn-primary text-sm">+ Add Room</button>
+          <button onClick={() => setModalOpen(true)} className="btn-primary text-xs sm:text-sm">+ Add Room</button>
         </div>
       </div>
 
-      <div className="card overflow-hidden">
-        {loading ? (
-          <div className="flex justify-center py-12"><Spinner /></div>
-        ) : rooms.length === 0 ? <EmptyState message="No rooms yet." /> : (
-          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-            <table className="w-full text-sm" style={{ minWidth: '480px' }}>
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                {['Room', 'Type', 'Capacity', 'Department', ''].map(h => (
-                  <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {rooms.map(r => (
-                <tr key={r.id} className="hover:bg-gray-50/50">
-                  <td className="px-5 py-3 font-medium text-gray-800">{r.room_number}</td>
-                  <td className="px-5 py-3">
-                    <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${r.room_type === 'lab' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
-                      {r.room_type}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-gray-500">{r.capacity}</td>
-                  <td className="px-5 py-3 text-gray-500">{deptName(r.department_id)}</td>
-                  <td className="px-5 py-3 text-right">
-                    <div className="flex justify-end gap-3">
-                      <button onClick={() => handleOpenEditModal(r)} className="text-xs text-primary-600 hover:text-primary-800 font-semibold hover:underline">Edit</button>
-                      <button onClick={() => handleOpenDelete(r)} className="text-xs text-red-500 hover:text-red-700 font-semibold hover:underline">Remove</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-        )}
+      {/* View Switcher Tabs */}
+      <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+        <button
+          onClick={() => setActiveTab('occupancy')}
+          className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition ${
+            activeTab === 'occupancy'
+              ? 'bg-indigo-600 text-white shadow-sm'
+              : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          📍 Classroom Occupancy Matrix
+        </button>
+        <button
+          onClick={() => setActiveTab('directory')}
+          className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition ${
+            activeTab === 'directory'
+              ? 'bg-indigo-600 text-white shadow-sm'
+              : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          📋 Room Directory ({rooms.length})
+        </button>
       </div>
+
+      {/* ── TAB 1: CLASSROOM OCCUPANCY MATRIX ── */}
+      {activeTab === 'occupancy' && (
+        <div className="space-y-5">
+          {/* Summary KPIs */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="card p-4 bg-white border border-gray-100">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Total Rooms</p>
+              <p className="text-2xl font-black text-gray-900 mt-1">{occupancyData?.summary?.total_rooms ?? '–'}</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Configured Venues</p>
+            </div>
+            <div className="card p-4 bg-red-50/70 border border-red-100">
+              <p className="text-xs font-bold text-red-600 uppercase tracking-wide">Occupied Now</p>
+              <p className="text-2xl font-black text-red-700 mt-1">{occupancyData?.summary?.occupied_count ?? '–'}</p>
+              <p className="text-[11px] text-red-600/80 mt-0.5">Period {selectedPeriod} (DO {selectedDayOrder})</p>
+            </div>
+            <div className="card p-4 bg-emerald-50/70 border border-emerald-100">
+              <p className="text-xs font-bold text-emerald-600 uppercase tracking-wide">Vacant / Free</p>
+              <p className="text-2xl font-black text-emerald-700 mt-1">{occupancyData?.summary?.vacant_count ?? '–'}</p>
+              <p className="text-[11px] text-emerald-600/80 mt-0.5">Available for use</p>
+            </div>
+            <div className="card p-4 bg-indigo-50/70 border border-indigo-100">
+              <p className="text-xs font-bold text-indigo-600 uppercase tracking-wide">Occupancy Rate</p>
+              <p className="text-2xl font-black text-indigo-700 mt-1">{occupancyData?.summary?.occupancy_rate_percent ?? 0}%</p>
+              <p className="text-[11px] text-indigo-600/80 mt-0.5">Campus Utilization</p>
+            </div>
+          </div>
+
+          {/* Controls: Day Order, Period, Dept, Type, Status */}
+          <div className="card p-4 space-y-3 bg-gray-50/60 border border-gray-200">
+            {/* Row 1: Day Order & Period Selectors */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              {/* Day Order Selector */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs font-bold text-gray-500 uppercase mr-1">Day Order:</span>
+                {[1, 2, 3, 4, 5, 6].map(d => (
+                  <button
+                    key={d}
+                    onClick={() => setSelectedDayOrder(d)}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                      selectedDayOrder === d
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    DO {d}
+                  </button>
+                ))}
+              </div>
+
+              {/* Period Selector */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs font-bold text-gray-500 uppercase mr-1">Period:</span>
+                {[1, 2, 3, 4, 5].map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setSelectedPeriod(p)}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                      selectedPeriod === p
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    Period {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Row 2: Search and Filters */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-1">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search room, class, faculty..."
+                className="input text-xs"
+              />
+              <select
+                value={filterStatus}
+                onChange={e => setFilterStatus(e.target.value)}
+                className="input text-xs"
+              >
+                <option value="all">All Rooms (Vacant + Occupied)</option>
+                <option value="vacant">🟢 Vacant / Available Only</option>
+                <option value="occupied">🔴 Occupied Only</option>
+              </select>
+              <select
+                value={filterType}
+                onChange={e => setFilterType(e.target.value)}
+                className="input text-xs"
+              >
+                <option value="">All Types (Classroom & Lab)</option>
+                <option value="classroom">Classrooms Only</option>
+                <option value="lab">Labs Only</option>
+              </select>
+              <select
+                value={filterDept}
+                onChange={e => setFilterDept(e.target.value)}
+                className="input text-xs"
+              >
+                <option value="">All Departments</option>
+                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Room Occupancy Cards Grid */}
+          {occupancyLoading ? (
+            <div className="flex justify-center py-16"><Spinner /></div>
+          ) : filteredOccupancyRooms.length === 0 ? (
+            <EmptyState message="No rooms match the selected criteria." />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {filteredOccupancyRooms.map(r => (
+                <div
+                  key={r.id}
+                  className={`card p-4 rounded-2xl border transition hover:shadow-md ${
+                    r.is_occupied
+                      ? 'border-red-200 bg-white'
+                      : 'border-emerald-200 bg-emerald-50/20'
+                  }`}
+                >
+                  {/* Card Header: Room Number, Type, Status */}
+                  <div className="flex items-start justify-between gap-2 mb-2.5">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-gray-900 text-base">{r.room_number}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase ${
+                          r.room_type === 'lab' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {r.room_type}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-gray-500 mt-0.5">{r.department_name} · {r.capacity} seats</p>
+                    </div>
+
+                    <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-lg flex items-center gap-1.5 ${
+                      r.is_occupied
+                        ? 'bg-red-100 text-red-700 border border-red-200'
+                        : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${r.is_occupied ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`} />
+                      {r.is_occupied ? 'Occupied' : 'Vacant'}
+                    </span>
+                  </div>
+
+                  {/* Active Slot Details if Occupied */}
+                  {r.is_occupied ? (
+                    <div className="bg-red-50/50 border border-red-100 rounded-xl p-3 mb-3 text-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-red-900">{r.current_slot?.class_name}</span>
+                        <span className="text-[10px] font-semibold text-red-700 bg-red-100 px-1.5 py-0.5 rounded">{r.current_slot?.subject_code || 'Subject'}</span>
+                      </div>
+                      <p className="text-gray-600 text-[11px] truncate">{r.current_slot?.subject_name}</p>
+                      <div className="pt-1 flex items-center justify-between text-[11px]">
+                        <span className="text-gray-500">Faculty:</span>
+                        <span className="font-bold text-gray-800">
+                          {r.current_slot?.teacher_name || '—'}
+                          {r.current_slot?.is_combined ? (
+                            <span className="ml-1.5 text-[9px] font-black uppercase text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded">👥 Combined</span>
+                          ) : r.current_slot?.is_substituted ? (
+                            <span className="ml-1 text-[9px] text-indigo-600 bg-indigo-50 px-1 rounded font-normal">(Cover)</span>
+                          ) : null}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-3 mb-3 text-xs flex items-center justify-between text-emerald-800">
+                      <span>Free during Period {selectedPeriod}</span>
+                      <span className="font-bold">Available</span>
+                    </div>
+                  )}
+
+                  {/* 5-Period Day Mini-Timeline */}
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Full Day Schedule (DO {selectedDayOrder})</p>
+                    <div className="grid grid-cols-5 gap-1">
+                      {[1, 2, 3, 4, 5].map(p => {
+                        const slot = r.period_schedule?.[p]
+                        const isPActive = selectedPeriod === p
+                        return (
+                          <div
+                            key={p}
+                            className={`p-1 text-center rounded-lg border text-[10px] transition ${
+                              isPActive ? 'ring-2 ring-indigo-500' : ''
+                            } ${
+                              slot?.is_occupied
+                                ? 'bg-red-50 border-red-200 text-red-700 font-bold'
+                                : 'bg-gray-50 border-gray-200 text-gray-400 font-medium'
+                            }`}
+                            title={`Period ${p}: ${slot?.is_occupied ? `${slot.class_name || 'Class'} (${slot.subject_code || ''})` : 'Free'}`}
+                          >
+                            P{p}
+                            <span className="block text-[8px] truncate mt-0.5">
+                              {slot?.is_occupied ? (slot.class_name || 'Occ') : 'Free'}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── TAB 2: ROOM DIRECTORY & MANAGEMENT ── */}
+      {activeTab === 'directory' && (
+        <div className="card overflow-hidden">
+          {loading ? (
+            <div className="flex justify-center py-12"><Spinner /></div>
+          ) : rooms.length === 0 ? <EmptyState message="No rooms yet." /> : (
+            <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <table className="w-full text-sm" style={{ minWidth: '480px' }}>
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    {['Room', 'Type', 'Capacity', 'Department', ''].map(h => (
+                      <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {rooms.map(r => (
+                    <tr key={r.id} className="hover:bg-gray-50/50">
+                      <td className="px-5 py-3 font-medium text-gray-800">{r.room_number}</td>
+                      <td className="px-5 py-3">
+                        <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${r.room_type === 'lab' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {r.room_type}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-gray-500">{r.capacity} seats</td>
+                      <td className="px-5 py-3 text-gray-500">{deptName(r.department_id)}</td>
+                      <td className="px-5 py-3 text-right">
+                        <div className="flex justify-end gap-3">
+                          <button onClick={() => handleOpenEditModal(r)} className="text-xs text-primary-600 hover:text-primary-800 font-semibold hover:underline">Edit</button>
+                          <button onClick={() => handleOpenDelete(r)} className="text-xs text-red-500 hover:text-red-700 font-semibold hover:underline">Remove</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Add Single Room Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Single Room">
@@ -241,7 +531,7 @@ export default function AdminRooms() {
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Department (optional)</label>
             <select className="input" value={form.department_id} onChange={e => setForm({ ...form, department_id: e.target.value })}>
-              <option value="">None</option>
+              <option value="">None (Global / Campus Venue)</option>
               {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>

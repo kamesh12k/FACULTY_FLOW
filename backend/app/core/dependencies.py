@@ -104,13 +104,19 @@ def require_manager_or_admin(
     return current_user
 
 
+def require_governance(current_user: User = Depends(require_credentials_set)) -> User:
+    if current_user.role not in (Role.governance, Role.system_admin):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Governance access required")
+    return current_user
+
+
 def get_tenant_department_id(
     current_user: User = Depends(require_credentials_set),
     x_department_id: str | None = Header(None, alias="X-Department-ID")
 ) -> int | None:
     """Returns the department_id that queries must be filtered by.
-    None for system_admin / principal / institution-wide manager, allowing them to scope via header or view all."""
-    if current_user.role in (Role.system_admin, Role.principal) or (current_user.role == Role.manager and current_user.department_id is None):
+    None for system_admin / principal / governance / institution-wide manager, allowing them to scope via header or view all."""
+    if current_user.role in (Role.system_admin, Role.principal, Role.governance) or (current_user.role == Role.manager and current_user.department_id is None):
         if x_department_id:
             try:
                 return int(x_department_id)
@@ -118,5 +124,6 @@ def get_tenant_department_id(
                 pass
         return None
     return current_user.department_id
+
 
 

@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { subjectsApi, departmentsApi } from '../../api/services'
 import { Spinner, ErrorAlert, Modal, EmptyState } from '../../components/ui'
+import { useAuth } from '../../context/AuthContext'
 
 export default function AdminSubjects() {
+  const { user, isSystemAdmin } = useAuth()
+
   const [subjects, setSubjects] = useState([])
   const [departments, setDepartments] = useState([])
   const [showArchived, setShowArchived] = useState(false)
@@ -10,30 +13,53 @@ export default function AdminSubjects() {
 
   // Add Subject State
   const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState({ code: '', name: '', subject_type: 'theory', credits: 3, department_id: '', semester: 1 })
+  const [form, setForm] = useState({ code: '', name: '', subject_type: 'theory', department_id: '', semester: 1 })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   // Edit Subject State
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [selectedSubject, setSelectedSubject] = useState(null)
-  const [editForm, setEditForm] = useState({ code: '', name: '', subject_type: 'theory', credits: 3, department_id: '', semester: 1 })
+  const [editForm, setEditForm] = useState({ code: '', name: '', subject_type: 'theory', department_id: '', semester: 1 })
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
-  const load = () => subjectsApi.list(showArchived).then(r => setSubjects(r.data)).finally(() => setLoading(false))
+  // Delete Confirm State
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [subjectToDelete, setSubjectToDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+
+  const load = () => subjectsApi.list(showArchived, true).then(r => setSubjects(r.data)).finally(() => setLoading(false))
 
   useEffect(() => { load() }, [showArchived])
-  useEffect(() => { departmentsApi.list().then(r => setDepartments(r.data)) }, [])
+  useEffect(() => {
+    departmentsApi.list(true).then(r => {
+      const allDepts = r.data
+      setDepartments(allDepts)
+      if (!isSystemAdmin && user?.department_id) {
+        setForm(f => ({ ...f, department_id: String(user.department_id) }))
+      } else if (!isSystemAdmin && allDepts.length === 1) {
+        setForm(f => ({ ...f, department_id: String(allDepts[0].id) }))
+      }
+    })
+  }, [isSystemAdmin, user])
+
+  const formDepts = (!isSystemAdmin && user?.department_id)
+    ? departments.filter(d => d.id === user.department_id)
+    : (!isSystemAdmin && departments.length === 1)
+    ? departments
+    : departments
 
   const handleCreate = async (e) => {
     e.preventDefault()
     setError('')
     setSaving(true)
     try {
-      await subjectsApi.create({ ...form, credits: Number(form.credits), department_id: Number(form.department_id), semester: Number(form.semester) })
+      const targetDeptId = form.department_id || (formDepts.length === 1 ? formDepts[0].id : '')
+      await subjectsApi.create({ ...form, credits: 1, department_id: Number(targetDeptId), semester: Number(form.semester) })
       setModalOpen(false)
-      setForm({ code: '', name: '', subject_type: 'theory', credits: 3, department_id: '', semester: 1 })
+      setForm({ code: '', name: '', subject_type: 'theory', department_id: !isSystemAdmin && user?.department_id ? String(user.department_id) : '', semester: 1 })
       load()
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create subject.')
@@ -48,7 +74,6 @@ export default function AdminSubjects() {
       code: subject.code,
       name: subject.name,
       subject_type: subject.subject_type,
-      credits: subject.credits,
       department_id: subject.department_id,
       semester: subject.semester,
     })
@@ -65,7 +90,6 @@ export default function AdminSubjects() {
         code: editForm.code,
         name: editForm.name,
         subject_type: editForm.subject_type,
-        credits: Number(editForm.credits),
         department_id: Number(editForm.department_id),
         semester: Number(editForm.semester),
       })
@@ -75,6 +99,26 @@ export default function AdminSubjects() {
       setEditError(err.response?.data?.detail || 'Failed to update subject.')
     } finally {
       setEditSaving(false)
+    }
+  }
+
+  const handleOpenDelete = (subject) => {
+    setSubjectToDelete(subject)
+    setDeleteError('')
+    setDeleteConfirmOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    setDeleteError('')
+    setDeleting(true)
+    try {
+      await subjectsApi.remove(subjectToDelete.id)
+      setDeleteConfirmOpen(false)
+      load()
+    } catch (err) {
+      setDeleteError(err.response?.data?.detail || 'Failed to delete subject.')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -89,6 +133,7 @@ export default function AdminSubjects() {
   }
 
   const deptName = (id) => departments.find(d => d.id === id)?.name || '—'
+  const canManageSubject = (s) => isSystemAdmin || !user?.department_id || s.department_id === user.department_id
 
   return (
     <div className="space-y-6">
@@ -108,38 +153,47 @@ export default function AdminSubjects() {
           <div className="flex justify-center py-12"><Spinner /></div>
         ) : subjects.length === 0 ? <EmptyState message="No subjects yet." /> : (
           <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-            <table className="w-full text-sm" style={{ minWidth: '600px' }}>
+            <table className="w-full text-sm" style={{ minWidth: '550px' }}>
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {['Code', 'Name', 'Type', 'Credits', 'Department', 'Semester', 'Status', ''].map(h => (
+                {['Code', 'Name', 'Type', 'Department', 'Semester', 'Status', ''].map(h => (
                   <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {subjects.map(s => (
-                <tr key={s.id} className="hover:bg-gray-50/50">
-                  <td className="px-5 py-3 font-mono text-xs text-gray-500">{s.code}</td>
-                  <td className="px-5 py-3 font-medium text-gray-800">{s.name}</td>
-                  <td className="px-5 py-3 text-gray-500 capitalize">{s.subject_type}</td>
-                  <td className="px-5 py-3 text-gray-500">{s.credits}</td>
-                  <td className="px-5 py-3 text-gray-500">{deptName(s.department_id)}</td>
-                  <td className="px-5 py-3 text-gray-500">Sem {s.semester}</td>
-                  <td className="px-5 py-3">
-                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${s.is_archived ? 'bg-gray-100 text-gray-500' : 'bg-green-100 text-green-700'}`}>
-                      {s.is_archived ? 'Archived' : 'Active'}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    <div className="flex justify-end gap-3">
-                      <button onClick={() => handleOpenEditModal(s)} className="text-xs text-primary-600 hover:text-primary-800 font-semibold hover:underline">Edit</button>
-                      <button onClick={() => toggleArchive(s)} className="text-xs text-gray-500 hover:text-gray-700 font-semibold hover:underline">
-                        {s.is_archived ? 'Unarchive' : 'Archive'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {subjects.map(s => {
+                const manageable = canManageSubject(s)
+                return (
+                  <tr key={s.id} className="hover:bg-gray-50/50">
+                    <td className="px-5 py-3 font-mono text-xs text-gray-500">{s.code}</td>
+                    <td className="px-5 py-3 font-medium text-gray-800">{s.name}</td>
+                    <td className="px-5 py-3 text-gray-500 capitalize">{s.subject_type}</td>
+                    <td className="px-5 py-3 text-gray-500">{deptName(s.department_id)}</td>
+                    <td className="px-5 py-3 text-gray-500">Sem {s.semester}</td>
+                    <td className="px-5 py-3">
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${s.is_archived ? 'bg-gray-100 text-gray-500' : 'bg-green-100 text-green-700'}`}>
+                        {s.is_archived ? 'Archived' : 'Active'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      {manageable ? (
+                        <div className="flex justify-end gap-3">
+                          <button onClick={() => handleOpenEditModal(s)} className="text-xs text-primary-600 hover:text-primary-800 font-semibold hover:underline">Edit</button>
+                          <button onClick={() => toggleArchive(s)} className="text-xs text-gray-500 hover:text-gray-700 font-semibold hover:underline">
+                            {s.is_archived ? 'Unarchive' : 'Archive'}
+                          </button>
+                          <button onClick={() => handleOpenDelete(s)} className="text-xs text-red-500 hover:text-red-700 font-semibold hover:underline">
+                            Delete
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400 font-medium italic">🔒 Read-only</span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
           </div>
@@ -166,14 +220,16 @@ export default function AdminSubjects() {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Credits</label>
-            <input type="number" min={1} required className="input" value={form.credits} onChange={e => setForm({ ...form, credits: e.target.value })} />
-          </div>
-          <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
-            <select required className="input" value={form.department_id} onChange={e => setForm({ ...form, department_id: e.target.value })}>
-              <option value="">Select…</option>
-              {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            <select
+              required
+              disabled={!isSystemAdmin && formDepts.length === 1}
+              className="input disabled:bg-gray-100 disabled:cursor-not-allowed"
+              value={form.department_id}
+              onChange={e => setForm({ ...form, department_id: e.target.value })}
+            >
+              {(isSystemAdmin || formDepts.length > 1) && <option value="">Select Department…</option>}
+              {formDepts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
           <div>
@@ -209,12 +265,14 @@ export default function AdminSubjects() {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Credits</label>
-            <input type="number" min={1} required className="input" value={editForm.credits} onChange={e => setEditForm({ ...editForm, credits: e.target.value })} />
-          </div>
-          <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
-            <select required className="input" value={editForm.department_id} onChange={e => setEditForm({ ...editForm, department_id: e.target.value })}>
+            <select
+              required
+              disabled={!isSystemAdmin}
+              className="input disabled:bg-gray-100 disabled:cursor-not-allowed"
+              value={editForm.department_id}
+              onChange={e => setEditForm({ ...editForm, department_id: e.target.value })}
+            >
               {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
@@ -229,6 +287,25 @@ export default function AdminSubjects() {
             <button type="submit" disabled={editSaving} className="btn-primary flex-1">{editSaving ? 'Saving…' : 'Save Changes'}</button>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title="Delete Subject">
+        <div className="space-y-4">
+          <ErrorAlert message={deleteError} />
+          <p className="text-sm text-gray-600">
+            Are you sure you want to delete <span className="font-semibold text-gray-800">{subjectToDelete?.code} — {subjectToDelete?.name}</span>?
+          </p>
+          <p className="text-xs text-amber-600 font-medium">
+            Deleting this subject will unbind it from any timetable slots and pending reviews. If this subject was taught previously, consider archiving it instead.
+          </p>
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={() => setDeleteConfirmOpen(false)} className="btn-secondary flex-1">Cancel</button>
+            <button type="button" onClick={handleDeleteConfirm} disabled={deleting} className="btn-danger flex-1">
+              {deleting ? 'Deleting…' : 'Delete Subject'}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   )

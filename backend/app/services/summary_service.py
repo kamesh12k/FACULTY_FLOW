@@ -52,7 +52,15 @@ def get_today_summary(db: Session, today: date, tenant_department_id: int | None
     pending_query = db.query(LeaveRequest).join(User, LeaveRequest.teacher_id == User.id)
     if tenant_department_id is not None:
         pending_query = pending_query.filter(User.department_id == tenant_department_id)
-    pending_count = pending_query.filter(LeaveRequest.status == LeaveStatus.pending).count()
+    
+    # Calculate distinct faculty count who have pending leave
+    pending_faculty_count = (
+        pending_query.filter(LeaveRequest.status == LeaveStatus.pending)
+        .with_entities(LeaveRequest.teacher_id)
+        .distinct()
+        .count()
+    )
+    pending_periods_count = pending_query.filter(LeaveRequest.status == LeaveStatus.pending).count()
 
 
     upcoming_rows = (
@@ -80,7 +88,9 @@ def get_today_summary(db: Session, today: date, tenant_department_id: int | None
         day_order=day_order,
         blocks_operations=blocks,
         teachers_on_leave=teachers_on_leave,
-        pending_leave_count=pending_count,
+        pending_leave_count=pending_faculty_count,
+        pending_faculty_count=pending_faculty_count,
+        pending_periods_count=pending_periods_count,
         upcoming_non_working_days=upcoming,
         teachers_on_leave_count=unique_teachers,
         leave_periods_count=len(teachers_on_leave),

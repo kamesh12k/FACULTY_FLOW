@@ -7,6 +7,7 @@ class ClassCreate(BaseModel):
     section: str
     department_id: int
     semester: int
+    default_room_id: int | None = None
 
     @field_validator("semester")
     @classmethod
@@ -21,6 +22,7 @@ class ClassUpdate(BaseModel):
     section: str | None = None
     department_id: int | None = None
     semester: int | None = None
+    default_room_id: int | None = None
 
 
 class ClassOut(BaseModel):
@@ -29,6 +31,9 @@ class ClassOut(BaseModel):
     section: str
     department_id: int
     semester: int
+    default_room_id: int | None = None
+    default_room_number: str | None = None
+    default_room_type: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -44,6 +49,7 @@ class BulkClassCreate(BaseModel):
     end_section: str = "D"
     department_id: int
     semester: int = 1
+    default_room_id: int | None = None
     auto_increment_semester: bool = True
 
     @field_validator("semester")

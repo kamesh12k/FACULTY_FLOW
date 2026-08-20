@@ -13,6 +13,15 @@ function DatabaseIcon() {
   )
 }
 
+function TrashNavIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" style={{width:'100%',height:'100%'}}>
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  )
+}
+
 export const ADMIN_NAV = [
   {
     section: null,
@@ -48,6 +57,7 @@ export const ADMIN_NAV = [
       { to: '/admin/classes', label: 'Classes', icon: <UsersIcon /> },
       { to: '/admin/rooms', label: 'Rooms & Labs', icon: <DoorIcon /> },
       { to: '/admin/settings', label: 'Settings & History', icon: <DocIcon /> },
+      { to: '/admin/data-retention', label: 'Data Retention & Purge', icon: <TrashNavIcon /> },
     ],
   },
 ]
@@ -107,6 +117,7 @@ export const SYSTEM_ADMIN_NAV = [
     section: 'Data Safety',
     items: [
       { to: '/admin/backup', label: 'Backup & Restore', icon: <DatabaseIcon /> },
+      { to: '/admin/data-retention', label: 'Data Retention & Purge', icon: <TrashNavIcon /> },
     ],
   },
 ]
@@ -153,6 +164,27 @@ export const STAFF_NAV = [
     ],
   },
 ]
+
+export const GOVERNANCE_NAV = [
+  {
+    section: 'Governance',
+    items: [
+      { to: '/governance', label: 'Command Center', icon: <GridIcon />, end: true },
+    ],
+  },
+  {
+    section: 'Operations & Oversight',
+    items: [
+      { to: '/admin/academic-calendar', label: 'Campus Calendar', icon: <CalIcon /> },
+      { to: '/admin/class-timetable', label: 'College Timetable', icon: <CalIcon /> },
+      { to: '/admin/today-substitutions', label: 'Live Substitutions', icon: <SwapIcon /> },
+      { to: '/admin/leaves', label: 'Leave Oversight', icon: <DocIcon /> },
+      { to: '/admin/backup', label: 'Emergency Backups', icon: <DatabaseIcon /> },
+      { to: '/admin/settings', label: 'Governance Audits', icon: <DocIcon /> },
+    ],
+  },
+]
+
 
 
 

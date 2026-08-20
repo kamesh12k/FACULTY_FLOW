@@ -76,11 +76,23 @@ def complete_first_login_setup(current_user: User, data: FirstLoginSetupRequest,
     if not current_user.must_change_credentials:
         raise HTTPException(status_code=400, detail="Credentials have already been set for this account")
 
-    existing = db.query(User).filter(User.username == data.new_username, User.id != current_user.id).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="That username is already taken")
+    if current_user.role == Role.teacher:
+        # Teachers authenticate by email — they must provide a new email.
+        if not data.new_email:
+            raise HTTPException(status_code=422, detail="Teachers must provide a new email address")
+        email_exists = db.query(User).filter(User.email == data.new_email, User.id != current_user.id).first()
+        if email_exists:
+            raise HTTPException(status_code=400, detail="That email address is already in use")
+        current_user.email = data.new_email
+    else:
+        # Admins / HODs / staff authenticate by username.
+        if not data.new_username:
+            raise HTTPException(status_code=422, detail="Please provide a new username")
+        existing = db.query(User).filter(User.username == data.new_username, User.id != current_user.id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="That username is already taken")
+        current_user.username = data.new_username
 
-    current_user.username = data.new_username
     current_user.password_hash = hash_password(data.new_password)
     current_user.must_change_credentials = False
 
@@ -90,6 +102,7 @@ def complete_first_login_setup(current_user: User, data: FirstLoginSetupRequest,
 
     token = create_access_token({"sub": str(current_user.id), "role": current_user.role})
     return {"access_token": token, "token_type": "bearer", "user": current_user}
+
 
 
 def list_admins(db: Session, tenant_department_id: int | None = None) -> list[User]:

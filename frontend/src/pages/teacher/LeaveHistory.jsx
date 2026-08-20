@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { leavesApi } from '../../api/services'
 import { Spinner, StatusBadge, EmptyState, Modal } from '../../components/ui'
-import { PlusIcon, SearchIcon, FilterIcon, XCircleIcon } from '../../components/icons'
+import { PlusIcon, SearchIcon, FilterIcon, XCircleIcon, AlertTriangleIcon } from '../../components/icons'
 
 const PERIOD_TIMES = {
   1: '8:00–9:00',
@@ -93,7 +93,26 @@ export default function LeaveHistory() {
     const pending = leaves.filter(l => l.status === 'pending').length
     const rejected = leaves.filter(l => l.status === 'rejected').length
     const cancelled = leaves.filter(l => l.status === 'cancelled').length
-    return { total, approved, pending, rejected, cancelled }
+
+    // Unique days count
+    const totalDays = new Set(leaves.map(l => l.date)).size
+    const approvedDays = new Set(leaves.filter(l => l.status === 'approved').map(l => l.date)).size
+    const pendingDays = new Set(leaves.filter(l => l.status === 'pending').map(l => l.date)).size
+    const rejectedDays = new Set(leaves.filter(l => l.status === 'rejected').map(l => l.date)).size
+    const cancelledDays = new Set(leaves.filter(l => l.status === 'cancelled').map(l => l.date)).size
+
+    return {
+      total,
+      approved,
+      pending,
+      rejected,
+      cancelled,
+      totalDays,
+      approvedDays,
+      pendingDays,
+      rejectedDays,
+      cancelledDays,
+    }
   }, [leaves])
 
   const filteredLeaves = useMemo(() => {
@@ -112,6 +131,47 @@ export default function LeaveHistory() {
       return true
     })
   }, [leaves, statusFilter, dayOrderFilter, searchQuery])
+
+  const sortedFilteredLeaves = useMemo(() => {
+    const list = [...filteredLeaves]
+    list.sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date)
+      return a.period_number - b.period_number
+    })
+    return list
+  }, [filteredLeaves])
+
+  const groupedLeavesByDate = useMemo(() => {
+    const map = new Map()
+    for (const leave of filteredLeaves) {
+      const createdDate = leave.created_at ? leave.created_at.split('T')[0] : ''
+      const key = `${leave.date}__${createdDate}__${leave.status}__${leave.reason || ''}`
+      if (!map.has(key)) {
+        map.set(key, {
+          id: key,
+          date: leave.date,
+          day_order: leave.day_order,
+          created_at: leave.created_at,
+          status: leave.status,
+          reason: leave.reason,
+          is_emergency: leave.is_emergency,
+          leaves: [],
+        })
+      }
+      const group = map.get(key)
+      group.leaves.push(leave)
+      if (leave.is_emergency) group.is_emergency = true
+    }
+    const list = Array.from(map.values()).map(group => {
+      group.leaves.sort((a, b) => a.period_number - b.period_number)
+      return group
+    })
+    list.sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date)
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0)
+    })
+    return list
+  }, [filteredLeaves])
 
   const activeFiltersCount = (statusFilter !== 'all' ? 1 : 0) + (dayOrderFilter !== 'all' ? 1 : 0)
 
@@ -145,11 +205,11 @@ export default function LeaveHistory() {
       {/* ── Status Summary Counter Bar (Enterprise Tabs) ── */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
         {[
-          { key: 'all', label: 'All Requests', count: counts.total, color: 'text-slate-900', border: 'hover:border-slate-300' },
-          { key: 'pending', label: 'Pending', count: counts.pending, color: 'text-amber-700', border: 'hover:border-amber-300' },
-          { key: 'approved', label: 'Approved', count: counts.approved, color: 'text-emerald-700', border: 'hover:border-emerald-300' },
-          { key: 'rejected', label: 'Rejected', count: counts.rejected, color: 'text-rose-700', border: 'hover:border-rose-300' },
-          { key: 'cancelled', label: 'Cancelled', count: counts.cancelled, color: 'text-slate-600', border: 'hover:border-slate-300' },
+          { key: 'all', label: 'All Requests', count: counts.total, daysCount: counts.totalDays, color: 'text-slate-900', border: 'hover:border-slate-300' },
+          { key: 'pending', label: 'Pending', count: counts.pending, daysCount: counts.pendingDays, color: 'text-amber-700', border: 'hover:border-amber-300' },
+          { key: 'approved', label: 'Approved', count: counts.approved, daysCount: counts.approvedDays, color: 'text-emerald-700', border: 'hover:border-emerald-300' },
+          { key: 'rejected', label: 'Rejected', count: counts.rejected, daysCount: counts.rejectedDays, color: 'text-rose-700', border: 'hover:border-rose-300' },
+          { key: 'cancelled', label: 'Cancelled', count: counts.cancelled, daysCount: counts.cancelledDays, color: 'text-slate-600', border: 'hover:border-slate-300' },
         ].map(item => {
           const isActive = statusFilter === item.key
           return (
@@ -166,9 +226,19 @@ export default function LeaveHistory() {
               <span className={`text-[10px] font-bold uppercase tracking-wider block ${isActive ? 'text-slate-300' : 'text-slate-500'}`}>
                 {item.label}
               </span>
-              <span className={`text-xl font-bold mt-1 block ${isActive ? 'text-white' : item.color}`}>
-                {item.count}
-              </span>
+              <div className="mt-1 flex items-baseline gap-1">
+                {/* On mobile: display days count exclusively */}
+                <span className={`text-xl font-bold block sm:hidden ${isActive ? 'text-white' : item.color}`}>
+                  {item.daysCount} <span className="text-[11px] font-semibold opacity-80">{item.daysCount === 1 ? 'day' : 'days'}</span>
+                </span>
+                {/* On desktop: display total count and days */}
+                <span className={`text-xl font-bold hidden sm:block ${isActive ? 'text-white' : item.color}`}>
+                  {item.count}
+                </span>
+                <span className={`text-[10px] hidden sm:inline font-semibold ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
+                  ({item.daysCount}d)
+                </span>
+              </div>
             </button>
           )
         })}
@@ -237,103 +307,141 @@ export default function LeaveHistory() {
         </div>
       </div>
 
-      {/* ── Main Data View ── */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+      {/* ── Main Data View (Zero-Scroll Linear Table Card - Grouped by Day) ── */}
+      <div className="card overflow-hidden bg-white border border-slate-200 shadow-xs rounded-xl">
         {loading ? (
           <div className="flex justify-center py-16"><Spinner /></div>
-        ) : filteredLeaves.length === 0 ? (
+        ) : groupedLeavesByDate.length === 0 ? (
           <div className="py-12">
             <EmptyState message={leaves.length === 0 ? 'No leave requests yet.' : 'No leaves match the selected filters.'} />
           </div>
         ) : (
           <>
-            {/* Desktop Table View (md and up) */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-50/90 border-b border-slate-200 text-slate-500 select-none">
+            {/* Desktop Full-Width No-Scroll Table */}
+            <div className="hidden md:block w-full">
+              <table className="w-full text-sm text-left border-collapse table-auto">
+                <thead className="bg-gray-50/90 border-b border-gray-100 select-none text-gray-500">
                   <tr>
-                    <th className="px-4 py-3 font-bold uppercase tracking-wider text-[11px]">Date & Day Order</th>
-                    <th className="px-4 py-3 font-bold uppercase tracking-wider text-[11px]">Period / Time</th>
-                    <th className="px-4 py-3 font-bold uppercase tracking-wider text-[11px]">Reason</th>
-                    <th className="px-4 py-3 font-bold uppercase tracking-wider text-[11px]">Status</th>
-                    <th className="px-4 py-3 font-bold uppercase tracking-wider text-[11px]">Class Coverage</th>
-                    <th className="px-4 py-3 font-bold uppercase tracking-wider text-[11px]">Applied On</th>
-                    <th className="px-4 py-3 font-bold uppercase tracking-wider text-[11px] text-right">Actions</th>
+                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider">Date & Applied</th>
+                    <th className="px-3 py-3.5 text-xs font-semibold uppercase tracking-wider">Periods</th>
+                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider">Reason</th>
+                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider">Substitute Coverage</th>
+                    <th className="px-3 py-3.5 text-xs font-semibold uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                  {filteredLeaves.map(leave => {
-                    const { allowed, reason: disabledReason } = getCancelability(leave)
-                    const isTerminal = leave.status === 'cancelled' || leave.status === 'rejected'
-                    const subTeacher = leave.alter_assignment?.substitute
+                <tbody className="divide-y divide-gray-100">
+                  {groupedLeavesByDate.map(dayGroup => {
+                    const cancellableLeaves = dayGroup.leaves.filter(l => getCancelability(l).allowed)
+                    const isTerminal = dayGroup.leaves.every(l => l.status === 'cancelled' || l.status === 'rejected')
+                    const coveredLeaves = dayGroup.leaves.filter(l => l.alter_assignment?.substitute)
 
                     return (
-                      <tr key={leave.id} className="hover:bg-slate-50/70 transition-colors">
+                      <tr key={dayGroup.id} className="hover:bg-slate-50/60 transition-colors">
                         <td className="px-4 py-3.5 whitespace-nowrap">
-                          <span className="font-bold text-slate-900 block text-xs">{formatDate(leave.date)}</span>
-                          <span className="text-[10px] text-slate-500 font-semibold bg-slate-100 px-1.5 py-0.5 rounded inline-block mt-0.5">
-                            Day Order {leave.day_order}
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900 text-sm">{formatDate(dayGroup.date)}</span>
+                            <span className="text-[10px] text-slate-500 font-semibold bg-slate-100 px-1.5 py-0.5 rounded">
+                              DO {dayGroup.day_order}
+                            </span>
+                          </div>
+                          <span className="block text-[11px] text-slate-400 mt-0.5">
+                            Applied {new Date(dayGroup.created_at).toLocaleDateString()}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 whitespace-nowrap">
-                          <span className="font-bold text-slate-900 block">Period {leave.period_number}</span>
-                          <span className="text-[10px] text-slate-400">{PERIOD_TIMES[leave.period_number] || ''}</span>
+
+                        <td className="px-3 py-3.5 whitespace-nowrap">
+                          <div className="flex flex-wrap items-center gap-1">
+                            <span className="font-bold text-gray-800 text-xs mr-1">
+                              {dayGroup.leaves.length} {dayGroup.leaves.length === 1 ? 'Period' : 'Periods'}
+                            </span>
+                            {dayGroup.leaves.map(l => (
+                              <button
+                                key={l.id}
+                                type="button"
+                                onClick={() => setViewDetailTarget(l)}
+                                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded transition ${
+                                  l.alter_assignment?.substitute
+                                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/70 hover:bg-indigo-100'
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                }`}
+                                title={`Period ${l.period_number} (${PERIOD_TIMES[l.period_number] || ''})`}
+                              >
+                                P{l.period_number}
+                              </button>
+                            ))}
+                          </div>
                         </td>
-                        <td className="px-4 py-3.5 max-w-xs">
-                          <p className="truncate text-slate-800" title={leave.reason}>{leave.reason}</p>
-                          {leave.is_emergency && (
+
+                        <td className="px-4 py-3.5">
+                          <p className="text-xs sm:text-sm font-medium text-gray-800 line-clamp-2" title={dayGroup.reason}>
+                            {dayGroup.reason || '-'}
+                          </p>
+                          {dayGroup.is_emergency && (
                             <span className="inline-block mt-0.5 text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded">
                               Emergency
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3.5 whitespace-nowrap">
-                          <StatusBadge status={leave.status} />
-                        </td>
-                        <td className="px-4 py-3.5 whitespace-nowrap">
-                          {subTeacher ? (
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 border border-indigo-200/80 rounded-lg">
-                              <span className="text-[10px] text-indigo-500 font-bold uppercase tracking-wider">Cover:</span>
-                              <span className="font-bold text-indigo-950 text-xs truncate max-w-[130px]" title={subTeacher.name}>
-                                {subTeacher.name}
-                              </span>
+
+                        <td className="px-4 py-3.5">
+                          {coveredLeaves.length > 0 ? (
+                            <div className="space-y-0.5">
+                              {coveredLeaves.map(l => (
+                                <div key={l.id} className="text-xs truncate max-w-[180px]">
+                                  <span className="font-bold text-gray-700">P{l.period_number}:</span>{' '}
+                                  <span className="font-semibold text-gray-900" title={l.alter_assignment.substitute.name}>
+                                    {l.alter_assignment.substitute.name}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : dayGroup.status === 'approved' ? (
+                            <div className="flex items-center gap-1 text-amber-500 font-medium text-xs">
+                              <AlertTriangleIcon className="w-3.5 h-3.5 shrink-0" />
+                              <span>Needs Coverage</span>
                             </div>
                           ) : (
-                            <span className="text-slate-400 text-xs italic">No substitute assigned</span>
+                            <span className="text-gray-400 text-xs italic">No substitute</span>
                           )}
                         </td>
-                        <td className="px-4 py-3.5 whitespace-nowrap text-slate-400 text-[11px]">
-                          {new Date(leave.created_at).toLocaleDateString()}
+
+                        <td className="px-3 py-3.5 whitespace-nowrap">
+                          <StatusBadge status={dayGroup.status} />
                         </td>
+
                         <td className="px-4 py-3.5 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               type="button"
-                              onClick={() => setViewDetailTarget(leave)}
+                              onClick={() => setViewDetailTarget(dayGroup.leaves[0])}
                               className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
                             >
                               Details
                             </button>
                             {!isTerminal && (
-                              allowed ? (
+                              cancellableLeaves.length > 0 ? (
                                 <button
                                   type="button"
-                                  onClick={() => setCancelTarget(leave)}
+                                  onClick={() => setCancelTarget(cancellableLeaves[0])}
                                   disabled={actionLoading !== null}
                                   className="px-2.5 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-lg transition disabled:opacity-40"
                                 >
                                   Cancel
                                 </button>
-                              ) : disabledReason ? (
+                              ) : (
                                 <button
                                   type="button"
-                                  onClick={() => setDisabledReasonModal({ leave, reason: disabledReason })}
+                                  onClick={() => {
+                                    const firstDisabled = dayGroup.leaves.map(l => getCancelability(l)).find(c => c.reason)
+                                    setDisabledReasonModal({ leave: dayGroup.leaves[0], reason: firstDisabled?.reason || 'Cannot be cancelled.' })
+                                  }}
                                   className="px-2 py-1 text-[11px] font-medium text-slate-400 hover:text-slate-600 rounded transition"
-                                  title={disabledReason}
+                                  title="Cancellation Info"
                                 >
                                   Info
                                 </button>
-                              ) : null
+                              )
                             )}
                           </div>
                         </td>
@@ -344,65 +452,100 @@ export default function LeaveHistory() {
               </table>
             </div>
 
-            {/* Mobile Card View (below md) */}
-            <div className="block md:hidden divide-y divide-slate-100">
-              {filteredLeaves.map(leave => {
-                const { allowed, reason: disabledReason } = getCancelability(leave)
-                const isTerminal = leave.status === 'cancelled' || leave.status === 'rejected'
-                const subTeacher = leave.alter_assignment?.substitute
+            {/* Mobile Full-Width Linear Cards (No horizontal scroll) */}
+            <div className="block md:hidden divide-y divide-gray-100">
+              {groupedLeavesByDate.map(dayGroup => {
+                const cancellableLeaves = dayGroup.leaves.filter(l => getCancelability(l).allowed)
+                const isTerminal = dayGroup.leaves.every(l => l.status === 'cancelled' || l.status === 'rejected')
+                const coveredLeaves = dayGroup.leaves.filter(l => l.alter_assignment?.substitute)
 
                 return (
-                  <div key={leave.id} className="p-4 space-y-3">
+                  <div key={dayGroup.id} className="p-4 space-y-2.5">
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-slate-900 text-sm">{formatDate(leave.date)}</span>
-                          <span className="text-[10px] text-slate-600 font-semibold bg-slate-100 px-1.5 py-0.5 rounded">
-                            DO {leave.day_order}
+                          <span className="font-bold text-slate-900 text-sm">{formatDate(dayGroup.date)}</span>
+                          <span className="text-[10px] text-slate-500 font-semibold bg-slate-100 px-1.5 py-0.5 rounded">
+                            DO {dayGroup.day_order}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                          Period {leave.period_number} · {PERIOD_TIMES[leave.period_number]}
-                        </p>
+                        <span className="text-[11px] text-slate-400">
+                          Applied {new Date(dayGroup.created_at).toLocaleDateString()}
+                        </span>
                       </div>
-                      <StatusBadge status={leave.status} />
+                      <StatusBadge status={dayGroup.status} />
                     </div>
 
-                    <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/70 text-xs text-slate-800">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Reason</span>
-                      <p className="font-medium leading-relaxed">{leave.reason}</p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="font-bold text-gray-800 text-xs mr-1">
+                        {dayGroup.leaves.length} {dayGroup.leaves.length === 1 ? 'Period' : 'Periods'}:
+                      </span>
+                      {dayGroup.leaves.map(l => (
+                        <button
+                          key={l.id}
+                          type="button"
+                          onClick={() => setViewDetailTarget(l)}
+                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded transition ${
+                            l.alter_assignment?.substitute
+                              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/70'
+                              : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          P{l.period_number}
+                        </button>
+                      ))}
                     </div>
 
-                    {subTeacher && (
-                      <div className="px-3 py-2 bg-indigo-50/70 border border-indigo-150 rounded-xl text-xs flex items-center justify-between">
-                        <span className="text-indigo-900 font-bold">Assigned Substitute: {subTeacher.name}</span>
-                        <span className="text-[10px] text-indigo-700">{subTeacher.department}</span>
+                    {dayGroup.reason && (
+                      <p className="text-xs text-gray-700 font-medium">
+                        <span className="text-gray-400 font-bold uppercase text-[9px] mr-1">Reason:</span>
+                        {dayGroup.reason}
+                      </p>
+                    )}
+
+                    {coveredLeaves.length > 0 && (
+                      <div className="p-2 bg-indigo-50/70 border border-indigo-100 rounded-lg text-xs space-y-0.5">
+                        <span className="text-[9px] font-bold text-indigo-800 uppercase tracking-wider block">Assigned Substitute</span>
+                        {coveredLeaves.map(l => (
+                          <div key={l.id} className="text-xs text-indigo-950 font-medium">
+                            <span>Period {l.period_number}: <strong>{l.alter_assignment.substitute.name}</strong></span>
+                          </div>
+                        ))}
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between pt-1 text-xs">
-                      <span className="text-[11px] text-slate-400">
-                        Applied {new Date(leave.created_at).toLocaleDateString()}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setViewDetailTarget(leave)}
-                          className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
-                        >
-                          Details
-                        </button>
-                        {!isTerminal && allowed && (
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setViewDetailTarget(dayGroup.leaves[0])}
+                        className="px-3 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                      >
+                        Details
+                      </button>
+                      {!isTerminal && (
+                        cancellableLeaves.length > 0 ? (
                           <button
                             type="button"
-                            onClick={() => setCancelTarget(leave)}
+                            onClick={() => setCancelTarget(cancellableLeaves[0])}
                             disabled={actionLoading !== null}
-                            className="px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition"
+                            className="px-3 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-lg transition disabled:opacity-40"
                           >
                             Cancel
                           </button>
-                        )}
-                      </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const firstDisabled = dayGroup.leaves.map(l => getCancelability(l)).find(c => c.reason)
+                              setDisabledReasonModal({ leave: dayGroup.leaves[0], reason: firstDisabled?.reason || 'Cannot be cancelled.' })
+                            }}
+                            className="px-2.5 py-1 text-[11px] font-medium text-slate-400 hover:text-slate-600 rounded transition"
+                            title="Cancellation Info"
+                          >
+                            Info
+                          </button>
+                        )
+                      )}
                     </div>
                   </div>
                 )
@@ -487,15 +630,37 @@ export default function LeaveHistory() {
 
       {/* ── View Details Modal ── */}
       <Modal open={!!viewDetailTarget} onClose={() => setViewDetailTarget(null)} title="Leave Request Details">
-        {viewDetailTarget && (
-          <div className="space-y-4 text-slate-800">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div>
-                <p className="text-base font-bold text-slate-900">{formatDate(viewDetailTarget.date)}</p>
-                <p className="text-xs text-slate-500">Day Order {viewDetailTarget.day_order} &middot; Period {viewDetailTarget.period_number} ({PERIOD_TIMES[viewDetailTarget.period_number]})</p>
+        {viewDetailTarget && (() => {
+          const sameDayLeaves = leaves.filter(l => l.date === viewDetailTarget.date).sort((a, b) => a.period_number - b.period_number)
+          return (
+            <div className="space-y-4 text-slate-800">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                  <p className="text-base font-bold text-slate-900">{formatDate(viewDetailTarget.date)}</p>
+                  <p className="text-xs text-slate-500">Day Order {viewDetailTarget.day_order} &middot; Period {viewDetailTarget.period_number} ({PERIOD_TIMES[viewDetailTarget.period_number]})</p>
+                </div>
+                <StatusBadge status={viewDetailTarget.status} />
               </div>
-              <StatusBadge status={viewDetailTarget.status} />
-            </div>
+
+              {sameDayLeaves.length > 1 && (
+                <div className="flex items-center gap-1.5 pb-1 overflow-x-auto">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Switch Period:</span>
+                  {sameDayLeaves.map(l => (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={() => setViewDetailTarget(l)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition ${
+                        viewDetailTarget.id === l.id
+                          ? 'bg-slate-900 border-slate-900 text-white'
+                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      Period {l.period_number}
+                    </button>
+                  ))}
+                </div>
+              )}
             <div>
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Reason for Leave</span>
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 leading-relaxed">
@@ -541,8 +706,9 @@ export default function LeaveHistory() {
               )}
             </div>
           </div>
-        )}
-      </Modal>
+        )
+      })()}
+    </Modal>
 
       {/* ── Cancellation Policy Info Modal ── */}
       <Modal open={!!disabledReasonModal} onClose={() => setDisabledReasonModal(null)} title="Cancellation Policy">

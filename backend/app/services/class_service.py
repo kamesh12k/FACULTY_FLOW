@@ -3,16 +3,29 @@ from fastapi import HTTPException
 
 from app.models.class_ import Class
 from app.models.timetable import TimetableSlot
-from app.schemas.class_ import ClassCreate, ClassUpdate, BulkClassCreate, BulkClassCreateOut
+from app.schemas.class_ import ClassCreate, ClassUpdate, ClassOut, BulkClassCreate, BulkClassCreateOut
+def _enrich_class(cls: Class) -> ClassOut:
+    return ClassOut(
+        id=cls.id,
+        name=cls.name,
+        section=cls.section,
+        department_id=cls.department_id,
+        semester=cls.semester,
+        default_room_id=cls.default_room_id,
+        default_room_number=cls.default_room.room_number if cls.default_room else None,
+        default_room_type=cls.default_room.room_type.value if cls.default_room and hasattr(cls.default_room.room_type, "value") else (str(cls.default_room.room_type) if cls.default_room else None),
+        created_at=cls.created_at,
+    )
 
 
-def list_classes(db: Session, tenant_department_id: int | None = None) -> list[Class]:
+def list_classes(db: Session, tenant_department_id: int | None = None) -> list[ClassOut]:
     # Classes are global. tenant_department_id is deliberately ignored for
     # read access; it remains relevant only when an admin changes ownership.
-    return db.query(Class).order_by(Class.name, Class.section).all()
+    classes = db.query(Class).order_by(Class.name, Class.section).all()
+    return [_enrich_class(c) for c in classes]
 
 
-def create_class(data: ClassCreate, db: Session, tenant_department_id: int | None = None) -> Class:
+def create_class(data: ClassCreate, db: Session, tenant_department_id: int | None = None) -> ClassOut:
     if tenant_department_id is not None and data.department_id != tenant_department_id:
         raise HTTPException(status_code=403, detail="HODs can only create classes for their own department")
     dept_id = tenant_department_id if tenant_department_id is not None else data.department_id
@@ -27,12 +40,13 @@ def create_class(data: ClassCreate, db: Session, tenant_department_id: int | Non
         name=data.name,
         section=data.section,
         department_id=dept_id,
-        semester=data.semester
+        semester=data.semester,
+        default_room_id=data.default_room_id,
     )
     db.add(cls)
     db.commit()
     db.refresh(cls)
-    return cls
+    return _enrich_class(cls)
 
 
 def bulk_create_classes(
@@ -75,6 +89,7 @@ def bulk_create_classes(
                 section=sec,
                 department_id=dept_id,
                 semester=data.semester,
+                default_room_id=data.default_room_id,
             )
             db.add(cls)
             existing_classes.add(key)
@@ -105,6 +120,7 @@ def bulk_create_classes(
                 section=sec,
                 department_id=dept_id,
                 semester=calc_sem,
+                default_room_id=data.default_room_id,
             )
             db.add(cls)
             existing_classes.add(key)
@@ -119,13 +135,12 @@ def bulk_create_classes(
 
 
 
-def update_class(class_id: int, data: ClassUpdate, db: Session, tenant_department_id: int | None = None) -> Class:
-    query = db.query(Class).filter(Class.id == class_id)
-    if tenant_department_id is not None:
-        query = query.filter(Class.department_id == tenant_department_id)
-    cls = query.first()
+def update_class(class_id: int, data: ClassUpdate, db: Session, tenant_department_id: int | None = None) -> ClassOut:
+    cls = db.query(Class).filter(Class.id == class_id).first()
     if not cls:
         raise HTTPException(status_code=404, detail="Class not found")
+    if tenant_department_id is not None and cls.department_id != tenant_department_id:
+        raise HTTPException(status_code=403, detail="You can only edit classes belonging to your own department")
         
     for key, value in data.model_dump(exclude_unset=True).items():
         if key == "department_id" and tenant_department_id is not None and value != tenant_department_id:
@@ -134,16 +149,15 @@ def update_class(class_id: int, data: ClassUpdate, db: Session, tenant_departmen
         
     db.commit()
     db.refresh(cls)
-    return cls
+    return _enrich_class(cls)
 
 
 def delete_class(class_id: int, db: Session, tenant_department_id: int | None = None) -> None:
-    query = db.query(Class).filter(Class.id == class_id)
-    if tenant_department_id is not None:
-        query = query.filter(Class.department_id == tenant_department_id)
-    cls = query.first()
+    cls = db.query(Class).filter(Class.id == class_id).first()
     if not cls:
         raise HTTPException(status_code=404, detail="Class not found")
+    if tenant_department_id is not None and cls.department_id != tenant_department_id:
+        raise HTTPException(status_code=403, detail="You can only delete classes belonging to your own department")
         
     from app.models.timetable_submission import TimetableSubmission
     db.query(TimetableSlot).filter(TimetableSlot.class_id == class_id).delete(synchronize_session=False)

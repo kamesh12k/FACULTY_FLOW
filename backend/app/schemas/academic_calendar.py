@@ -222,6 +222,8 @@ class TodaySummary(BaseModel):
     upcoming_non_working_days: list[UpcomingNonWorkingDay]
     teachers_on_leave_count: int | None = None
     leave_periods_count: int | None = None
+    pending_faculty_count: int | None = None
+    pending_periods_count: int | None = None
 
 
 class TeacherTodaySummary(BaseModel):

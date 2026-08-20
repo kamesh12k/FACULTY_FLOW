@@ -7,7 +7,15 @@ import { ErrorAlert, Spinner } from '../../components/ui'
 export default function FirstLoginSetup() {
   const { user, login, logout } = useAuth()
   const navigate = useNavigate()
-  const [form, setForm] = useState({ new_username: '', new_password: '', confirm_password: '' })
+
+  const isTeacher = user?.role === 'teacher'
+
+  const [form, setForm] = useState({
+    new_username: '',
+    new_email: isTeacher ? (user?.email || '') : '',
+    new_password: '',
+    confirm_password: '',
+  })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -16,17 +24,32 @@ export default function FirstLoginSetup() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
+    if (form.new_password !== form.confirm_password) {
+      setError('Passwords do not match.')
+      return
+    }
+
     setLoading(true)
     try {
-      const { data } = await adminApi.firstLoginSetup(form)
+      const payload = {
+        new_password: form.new_password,
+        confirm_password: form.confirm_password,
+        ...(isTeacher ? { new_email: form.new_email } : { new_username: form.new_username }),
+      }
+      const { data } = await adminApi.firstLoginSetup(payload)
       login(data.access_token, data.user)
-      const role = data.user.role;
+      const role = data.user.role
       if (role === 'principal') {
-        navigate('/principal/dashboard');
+        navigate('/principal/dashboard')
       } else if (role === 'admin' || role === 'system_admin') {
-        navigate('/admin/dashboard');
+        navigate('/admin/dashboard')
+      } else if (role === 'manager') {
+        navigate('/manager/dashboard')
+      } else if (role === 'staff') {
+        navigate('/staff/dashboard')
       } else {
-        navigate('/teacher/dashboard');
+        navigate('/teacher/dashboard')
       }
     } catch (err) {
       setError(err.response?.data?.detail || 'Could not update credentials.')
@@ -34,6 +57,8 @@ export default function FirstLoginSetup() {
       setLoading(false)
     }
   }
+
+  const roleLabel = isTeacher ? 'faculty' : 'account'
 
   return (
     <div className="min-h-screen bg-surface flex items-center justify-center px-4">
@@ -47,25 +72,65 @@ export default function FirstLoginSetup() {
           <h1 className="text-xl font-bold text-gray-900">Set your real credentials</h1>
           <p className="text-sm text-gray-500 mt-1">
             {user?.name ? `Welcome, ${user.name}. ` : ''}
-            You're signed in with default/temporary credentials. Choose a new username and
-            password before continuing — this account can't access anything else until you do.
+            You're signed in with default/temporary credentials. Please choose your own {isTeacher ? 'email address' : 'username'} and
+            password before continuing — your {roleLabel} cannot access anything else until you do.
           </p>
         </div>
 
         <div className="card p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <ErrorAlert message={error} />
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">New username</label>
-              <input type="text" required minLength={3} className="input" value={form.new_username} onChange={set('new_username')} placeholder="Not 'admin'" />
-            </div>
+            {isTeacher ? (
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Your Email Address</label>
+                <input
+                  type="email"
+                  required
+                  className="input"
+                  value={form.new_email}
+                  onChange={set('new_email')}
+                  placeholder="your.name@college.edu"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  You will use this email address to log in.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">New Username</label>
+                <input
+                  type="text"
+                  required
+                  minLength={3}
+                  className="input"
+                  value={form.new_username}
+                  onChange={set('new_username')}
+                  placeholder="Choose a unique username (not 'admin')"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">New password</label>
-              <input type="password" required minLength={8} className="input" value={form.new_password} onChange={set('new_password')} placeholder="At least 8 characters, 1 letter + 1 number" />
+              <input
+                type="password"
+                required
+                minLength={8}
+                className="input"
+                value={form.new_password}
+                onChange={set('new_password')}
+                placeholder="At least 8 characters, 1 letter + 1 number"
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Confirm password</label>
-              <input type="password" required minLength={8} className="input" value={form.confirm_password} onChange={set('confirm_password')} />
+              <input
+                type="password"
+                required
+                minLength={8}
+                className="input"
+                value={form.confirm_password}
+                onChange={set('confirm_password')}
+              />
             </div>
             <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2">
               {loading ? <Spinner size="sm" /> : null}

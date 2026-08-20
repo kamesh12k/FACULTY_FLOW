@@ -79,7 +79,8 @@ docs/
 │   ├── Timetable_Management.md               # Schedules, Matrixes & Conflict Audits
 │   ├── Leave_Management.md                   # Faculty & Staff Leave Policy Enforcement
 │   ├── Credit_Management.md                  # Workload Credits, Balances & Quotas
-│   └── Audit_Logs.md                         # Immutable Security & Action Logging
+│   ├── Audit_Logs.md                         # Immutable Security & Action Logging
+│   └── Data_Retention_and_Purge.md           # Automated Retention Policies & Selective Purge
 │
 ├── architecture/
 │   ├── System_Architecture.md                # High-Level Component & Data Flow

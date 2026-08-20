@@ -163,7 +163,8 @@ export default function AdminLeaves() {
   const groupLeaves = (leavesList) => {
     const map = {}
     leavesList.forEach(l => {
-      const key = `${l.teacher_id}_${l.date}`
+      const createdDate = l.created_at ? l.created_at.split('T')[0] : ''
+      const key = `${l.teacher_id}_${l.date}_${l.status}_${l.reason || ''}_${createdDate}`
       if (!map[key]) {
         map[key] = {
           key,
@@ -172,30 +173,31 @@ export default function AdminLeaves() {
           date: l.date,
           day_order: l.day_order,
           is_emergency: false,
-          status: 'approved',
+          status: l.status,
           requests: []
         }
       }
-      map[key].requests.push(l)
+      if (!map[key].requests.some(r => r.id === l.id)) {
+        map[key].requests.push(l)
+      }
       if (l.is_emergency) {
         map[key].is_emergency = true
       }
     })
 
-    Object.values(map).forEach(g => {
-      const statuses = g.requests.map(r => r.status)
-      if (statuses.includes('pending')) {
-        g.status = 'pending'
-      } else if (statuses.every(s => s === 'cancelled')) {
-        g.status = 'cancelled'
-      } else if (statuses.every(s => s === 'rejected')) {
-        g.status = 'rejected'
-      } else {
-        g.status = 'approved'
-      }
+    const list = Object.values(map).map(g => {
+      g.requests.sort((a, b) => a.period_number - b.period_number)
+      return g
     })
 
-    return Object.values(map)
+    list.sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date)
+      if (a.status === 'pending' && b.status !== 'pending') return -1
+      if (b.status === 'pending' && a.status !== 'pending') return 1
+      return (a.teacher?.name || '').localeCompare(b.teacher?.name || '')
+    })
+
+    return list
   }
 
   const groupedLeavesList = useMemo(() => groupLeaves(leaves), [leaves])
@@ -620,132 +622,130 @@ export default function AdminLeaves() {
         </div>
       </div>
 
-      <div className="card overflow-hidden">
+      <div className="card overflow-hidden bg-white border border-slate-200 shadow-xs rounded-xl">
         {loading ? (
           <div className="flex justify-center py-12"><Spinner /></div>
         ) : leaves.length === 0 ? <EmptyState message="No leave requests yet." /> : (
-          <div className="w-full">
+          <div className="w-full overflow-x-auto">
             <table className="w-full text-xs text-left border-collapse">
-            <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 select-none">
-              <tr>
-                <th className="px-2 py-2 w-6 text-center">
-                  {pendingGroupKeys.length > 0 && (
-                    <input type="checkbox" checked={selected.size === pendingGroupKeys.length} onChange={toggleSelectAll} />
-                  )}
-                </th>
-                <th className="px-2.5 py-2 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Teacher</th>
-                <th className="px-2.5 py-2 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Schedule</th>
-                <th className="px-2.5 py-2 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Periods</th>
-                <th className="px-2.5 py-2 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Reason</th>
-                <th className="px-2.5 py-2 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                <th className="px-2.5 py-2 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Substitute</th>
-                <th className="px-2.5 py-2 text-right text-[11px] font-bold text-slate-500 uppercase tracking-wider pr-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {groupedLeavesList.map(group => {
-                const firstReq = group.requests[0]
-                const approved = group.requests.filter(r => r.status === 'approved')
-                const covered = approved.filter(r => r.alter_assignment)
-                const subsNames = [...new Set(covered.map(r => r.alter_assignment.substitute?.name))].filter(Boolean)
-                const hasUnassigned = approved.some(r => !r.alter_assignment)
+              <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 select-none">
+                <tr>
+                  <th className="px-3 py-3 w-8 text-center">
+                    {pendingGroupKeys.length > 0 && (
+                      <input type="checkbox" checked={selected.size === pendingGroupKeys.length} onChange={toggleSelectAll} />
+                    )}
+                  </th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Teacher</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Schedule</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Periods</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Substitute</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-bold text-slate-500 uppercase tracking-wider pr-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {groupedLeavesList.map(group => {
+                  const firstReq = group.requests[0]
+                  const approved = group.requests.filter(r => r.status === 'approved')
+                  const covered = approved.filter(r => r.alter_assignment)
+                  const subsNames = [...new Set(covered.map(r => r.alter_assignment.substitute?.name))].filter(Boolean)
+                  const hasUnassigned = approved.some(r => !r.alter_assignment)
+                  const uniquePeriods = [...new Set(group.requests.map(r => r.period_number))].sort((a, b) => a - b)
 
-                return (
-                  <tr key={group.key} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-2 py-2 text-center">
-                      {group.status === 'pending' && (
-                        <input type="checkbox" checked={selected.has(group.key)} onChange={() => toggleSelect(group.key)} />
-                      )}
-                    </td>
-                    <td className="px-2.5 py-2 font-bold text-slate-900 truncate max-w-[160px]">
-                      {group.teacher?.name}
-                    </td>
-                    <td className="px-2.5 py-2 whitespace-nowrap">
-                      <span className="font-semibold text-slate-700 block text-[11px]">{group.date}</span>
-                      <span className="text-[10px] text-slate-400 font-medium">DO {group.day_order}</span>
-                    </td>
-                    <td className="px-2.5 py-2 text-slate-700 font-medium whitespace-nowrap text-[11px]">
-                      P{group.requests.map(r => r.period_number).sort().join(', P')}
-                    </td>
-                    <td className="px-2.5 py-2 text-slate-600 max-w-[180px] truncate text-[11px] hidden lg:table-cell" title={firstReq?.reason}>
-                      <div className="flex items-center gap-1 truncate">
-                        {group.is_emergency && <AlertTriangleIcon className="w-3.5 h-3.5 text-rose-500 shrink-0" />}
-                        <span className="truncate">{firstReq?.reason || '—'}</span>
-                      </div>
-                    </td>
-                    <td className="px-2.5 py-2 whitespace-nowrap">
-                      <StatusBadge status={group.status} />
-                    </td>
-                    <td className="px-2.5 py-2">
-                      {approved.length > 0 ? (
-                        covered.length === approved.length ? (
-                          <div className="space-y-0.5">
-                            <p className="text-[11px] font-medium text-slate-800 truncate max-w-[140px]" title={subsNames.join(', ')}>{subsNames.join(', ')}</p>
-                            <div className="flex items-center gap-1">
-                              <AssignmentTypeBadge type={covered[0]?.alter_assignment.assignment_type} small />
-                              {covered.some(r => r.alter_assignment.is_locked) && <LockIcon className="w-3.5 h-3.5 text-slate-400" />}
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-[11px] text-amber-600 font-semibold whitespace-nowrap">Needs sub ({covered.length}/{approved.length})</span>
-                        )
-                      ) : (
-                        <span className="text-[11px] text-slate-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-2.5 py-2 text-right whitespace-nowrap pr-3">
-                      <div className="flex items-center justify-end gap-1">
+                  return (
+                    <tr key={group.key} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-3 py-3 text-center">
                         {group.status === 'pending' && (
-                          <>
+                          <input type="checkbox" checked={selected.has(group.key)} onChange={() => toggleSelect(group.key)} />
+                        )}
+                      </td>
+                      <td className="px-4 py-3 font-bold text-slate-900 truncate max-w-[180px] text-xs sm:text-sm">
+                        {group.teacher?.name}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className="font-bold text-slate-900 block text-xs">{group.date}</span>
+                        <span className="text-[10px] text-slate-400 font-semibold">DO {group.day_order}</span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700 font-semibold whitespace-nowrap text-xs">
+                        {uniquePeriods.map(p => `P${p}`).join(', ')}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <StatusBadge status={group.status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        {approved.length > 0 ? (
+                          covered.length === approved.length ? (
+                            <div className="space-y-0.5 max-w-[180px]">
+                              <p className="text-xs font-semibold text-slate-800 truncate" title={subsNames.join(', ')}>
+                                {subsNames.join(', ')}
+                              </p>
+                              <div className="flex items-center gap-1">
+                                <AssignmentTypeBadge type={covered[0]?.alter_assignment?.assignment_type} small />
+                                {covered.some(r => r.alter_assignment?.is_locked) && <LockIcon className="w-3.5 h-3.5 text-slate-400" />}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-amber-600 font-semibold whitespace-nowrap">
+                              Needs sub ({covered.length}/{approved.length})
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-xs text-slate-300">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap pr-4">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {group.status === 'pending' && (
+                            <>
+                              <button
+                                onClick={() => handleApproveGroup(group)}
+                                disabled={!!actionLoading}
+                                className="text-xs px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition disabled:opacity-50 cursor-pointer shadow-xs"
+                              >
+                                {actionLoading === group.key + '_approve' ? '…' : 'Approve'}
+                              </button>
+                              <button
+                                onClick={() => handleRejectGroup(group)}
+                                disabled={!!actionLoading}
+                                className="text-xs px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg transition disabled:opacity-50 cursor-pointer shadow-xs"
+                              >
+                                {actionLoading === group.key + '_reject' ? '…' : 'Reject'}
+                              </button>
+                            </>
+                          )}
+                          {group.status === 'approved' && hasUnassigned && (
                             <button
-                              onClick={() => handleApproveGroup(group)}
-                              disabled={!!actionLoading}
-                              className="text-xs px-2 py-0.5 bg-emerald-600 text-white font-medium rounded hover:bg-emerald-700 transition-colors disabled:opacity-50 cursor-pointer"
+                              onClick={() => openSubModal(group)}
+                              className="text-xs px-2.5 py-1 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition cursor-pointer shadow-xs"
                             >
-                              {actionLoading === group.key + '_approve' ? '…' : 'Approve'}
+                              Assign Sub
                             </button>
+                          )}
+                          {group.status === 'approved' && !hasUnassigned && approved.length > 0 && (
                             <button
-                              onClick={() => handleRejectGroup(group)}
-                              disabled={!!actionLoading}
-                              className="text-xs px-2 py-0.5 bg-rose-600 text-white font-medium rounded hover:bg-rose-700 transition-colors disabled:opacity-50 cursor-pointer"
+                              onClick={() => openSubModal(group)}
+                              title="Swap substitute"
+                              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-primary-600 hover:border-primary-300 hover:bg-slate-50 transition cursor-pointer"
                             >
-                              {actionLoading === group.key + '_reject' ? '…' : 'Reject'}
+                              <SwapIcon className="w-3.5 h-3.5" />
                             </button>
-                          </>
-                        )}
-                        {group.status === 'approved' && hasUnassigned && (
-                          <button
-                            onClick={() => openSubModal(group)}
-                            className="text-xs px-2 py-0.5 bg-primary-600 text-white font-medium rounded hover:bg-primary-700 transition-colors cursor-pointer"
-                          >
-                            Assign Sub
-                          </button>
-                        )}
-                        {group.status === 'approved' && !hasUnassigned && approved.length > 0 && (
-                          <button
-                            onClick={() => openSubModal(group)}
-                            title="Swap substitute"
-                            className="p-1 rounded border border-slate-200 text-slate-500 hover:text-primary-600 hover:border-primary-300 cursor-pointer"
-                          >
-                            <SwapIcon className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        {group.status !== 'cancelled' && group.status !== 'rejected' && (
-                          <button
-                            onClick={() => openCancelModal(group)}
-                            disabled={!!actionLoading}
-                            title="Cancel leaves"
-                            className="text-xs px-2 py-0.5 border border-rose-200 text-rose-600 rounded hover:bg-rose-50 hover:text-rose-700 transition-colors disabled:opacity-30 font-medium cursor-pointer"
-                          >
-                            {actionLoading === group.key + '_cancel_open' ? '...' : 'Cancel'}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
+                          )}
+                          {group.status !== 'cancelled' && group.status !== 'rejected' && (
+                            <button
+                              onClick={() => openCancelModal(group)}
+                              disabled={!!actionLoading}
+                              title="Cancel leaves"
+                              className="text-xs px-2.5 py-1 border border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-lg transition disabled:opacity-30 font-semibold cursor-pointer"
+                            >
+                              {actionLoading === group.key + '_cancel_open' ? '...' : 'Cancel'}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
             </table>
           </div>
         )}

@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, func
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship
 
 from app.database import Base
 
@@ -20,4 +21,7 @@ class AuditLog(Base):
     target_id = Column(Integer, nullable=True)
     details = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    actor = relationship("User", foreign_keys=[actor_user_id], back_populates="audit_logs")
+
 

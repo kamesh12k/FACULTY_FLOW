@@ -32,7 +32,7 @@ set "FAFLOW_LAN_MODE=true"
 :: --- Client & Browser Launch ---
 :: true = Automatically open default browser after healthy startup
 :: false = Do not open browser
-set "FAFLOW_AUTO_BROWSER=true"
+set "FAFLOW_AUTO_BROWSER=false"
 
 :: --- Service Watchdog & Auto-Healing ---
 :: Maximum number of automatic restarts before entering error state

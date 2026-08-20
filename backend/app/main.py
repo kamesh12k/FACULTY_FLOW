@@ -17,14 +17,114 @@ from app.routes import (
     auth, teachers, timetable, leaves, credits, notifications,
     departments, subjects, classes, rooms, day_order, admin, academic_calendar,
     campus_operations, teacher_substitution, substitutions, principal, manager, staff,
-    backup,
+    backup, governance, data_retention,
 )
 from app.services.admin_service import bootstrap_default_super_admin
+from app.services.governance_service import bootstrap_governance_user
+from sqlalchemy import text
 
 logging.basicConfig(level=logging.INFO)
 
+def sync_database_schema():
+    """Ensures PostgreSQL enums and table constraints include new values such as 'governance'."""
+    if engine.dialect.name == "postgresql":
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            try:
+                conn.execute(text("ALTER TYPE role ADD VALUE IF NOT EXISTS 'governance'"))
+            except Exception as e:
+                logging.getLogger(__name__).warning("Could not add 'governance' to role enum: %s", e)
+
+            try:
+                conn.execute(text("ALTER TYPE assignment_type ADD VALUE IF NOT EXISTS 'combined_class'"))
+            except Exception as e:
+                logging.getLogger(__name__).warning("Could not add 'combined_class' to assignment_type enum: %s", e)
+
+
+            try:
+                conn.execute(text("""
+                    DO $$
+                    BEGIN
+                        IF EXISTS (
+                            SELECT 1 FROM pg_constraint WHERE conname = 'chk_user_department_role'
+                        ) THEN
+                            ALTER TABLE users DROP CONSTRAINT chk_user_department_role;
+                            ALTER TABLE users ADD CONSTRAINT chk_user_department_role CHECK (
+                                (role IN ('admin', 'teacher') AND department_id IS NOT NULL) OR
+                                (role IN ('manager', 'lab_staff', 'non_teaching_staff')) OR
+                                (role IN ('system_admin', 'principal', 'governance') AND department_id IS NULL)
+                            );
+                        END IF;
+
+                        IF EXISTS (
+                            SELECT 1 FROM pg_constraint WHERE conname = 'chk_user_identity'
+                        ) THEN
+                            ALTER TABLE users DROP CONSTRAINT chk_user_identity;
+                            ALTER TABLE users ADD CONSTRAINT chk_user_identity CHECK (
+                                (role = 'teacher' AND email IS NOT NULL) OR
+                                (role IN ('admin', 'system_admin', 'principal', 'manager', 'lab_staff', 'non_teaching_staff', 'governance') AND username IS NOT NULL)
+                            );
+                        END IF;
+
+                        IF EXISTS (
+                            SELECT 1 FROM pg_constraint WHERE conname = 'chk_admin_level'
+                        ) THEN
+                            ALTER TABLE users DROP CONSTRAINT chk_admin_level;
+                            ALTER TABLE users ADD CONSTRAINT chk_admin_level CHECK (
+                                (role = 'admin' AND admin_level IS NOT NULL) OR
+                                (role IN ('teacher', 'system_admin', 'principal', 'manager', 'lab_staff', 'non_teaching_staff', 'governance') AND admin_level IS NULL)
+                            );
+                        END IF;
+
+                        -- Drop strict single-staff constraints to allow multi-staff combined classes
+                        IF EXISTS (
+                            SELECT 1 FROM pg_constraint WHERE conname = 'uq_teacher_day_period'
+                        ) THEN
+                            ALTER TABLE timetable_slots DROP CONSTRAINT uq_teacher_day_period;
+                        END IF;
+
+                        IF EXISTS (
+                            SELECT 1 FROM pg_constraint WHERE conname = 'uq_class_day_period'
+                        ) THEN
+                            ALTER TABLE timetable_slots DROP CONSTRAINT uq_class_day_period;
+                        END IF;
+
+                        IF EXISTS (
+                            SELECT 1 FROM pg_constraint WHERE conname = 'uq_room_day_period'
+                        ) THEN
+                            ALTER TABLE timetable_slots DROP CONSTRAINT uq_room_day_period;
+                        END IF;
+
+                        IF NOT EXISTS (
+                            SELECT 1 FROM pg_constraint WHERE conname = 'uq_teacher_class_day_period'
+                        ) THEN
+                            ALTER TABLE timetable_slots ADD CONSTRAINT uq_teacher_class_day_period UNIQUE (teacher_id, class_id, day_order, period_number);
+                        END IF;
+
+                        -- Ensure default_room_id exists on classes table
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_name = 'classes' AND column_name = 'default_room_id'
+                        ) THEN
+                            ALTER TABLE classes ADD COLUMN default_room_id INTEGER REFERENCES rooms(id) ON DELETE SET NULL;
+                        END IF;
+                    END $$;
+                """))
+            except Exception as e:
+                logging.getLogger(__name__).warning("Could not sync PostgreSQL table constraints: %s", e)
+    elif engine.dialect.name == "sqlite":
+        with engine.connect() as conn:
+            try:
+                res = conn.execute(text("PRAGMA table_info(classes)")).fetchall()
+                col_names = [r[1] for r in res]
+                if "default_room_id" not in col_names:
+                    conn.execute(text("ALTER TABLE classes ADD COLUMN default_room_id INTEGER REFERENCES rooms(id) ON DELETE SET NULL"))
+                    conn.commit()
+            except Exception as e:
+                logging.getLogger(__name__).warning("Could not sync sqlite classes default_room_id: %s", e)
+
 # Create tables on startup (use Alembic migrations in production)
 if not os.environ.get("SKIP_DB_INIT"):
+    sync_database_schema()
     Base.metadata.create_all(bind=engine)
 
 # Bootstrap: if no Super Admin exists yet (fresh install, or right after a
@@ -34,6 +134,8 @@ if not os.environ.get("SKIP_DB_INIT"):
 if not os.environ.get("SKIP_DB_INIT"):
     with SessionLocal() as _bootstrap_db:
         bootstrap_default_super_admin(_bootstrap_db)
+        bootstrap_governance_user(_bootstrap_db)
+
 
 def get_allowed_origins():
     import socket
@@ -122,6 +224,8 @@ app.include_router(principal.router)
 app.include_router(manager.router)
 app.include_router(staff.router)
 app.include_router(backup.router)
+app.include_router(governance.router)
+app.include_router(data_retention.router)
 
 
 

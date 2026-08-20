@@ -13,6 +13,7 @@ class Role(str, enum.Enum):
     manager = "manager"
     lab_staff = "lab_staff"
     non_teaching_staff = "non_teaching_staff"
+    governance = "governance"
 
 
 
@@ -66,21 +67,26 @@ class User(Base):
     credit_transactions = relationship("CreditTransaction", back_populates="teacher", cascade="all, delete-orphan")
     credit_balance = relationship("TeacherCredit", back_populates="teacher", uselist=False, cascade="all, delete-orphan")
 
+    # Back-references to the audit logs this user produced
+    audit_logs = relationship("AuditLog", back_populates="actor", foreign_keys="AuditLog.actor_user_id")
+
+    # Table-level constraints: enforce mutual exclusivity of email vs username,
+    # and require department_id ONLY for teachers and department admins.
     __table_args__ = (
         CheckConstraint(
             "(role = 'teacher' AND email IS NOT NULL) OR "
-            "(role IN ('admin', 'system_admin', 'principal', 'manager', 'lab_staff', 'non_teaching_staff') AND username IS NOT NULL)",
+            "(role IN ('admin', 'system_admin', 'principal', 'manager', 'lab_staff', 'non_teaching_staff', 'governance') AND username IS NOT NULL)",
             name="chk_user_identity",
         ),
         CheckConstraint(
             "(role = 'admin' AND admin_level IS NOT NULL) OR "
-            "(role IN ('teacher', 'system_admin', 'principal', 'manager', 'lab_staff', 'non_teaching_staff') AND admin_level IS NULL)",
+            "(role IN ('teacher', 'system_admin', 'principal', 'manager', 'lab_staff', 'non_teaching_staff', 'governance') AND admin_level IS NULL)",
             name="chk_admin_level",
         ),
         CheckConstraint(
             "(role IN ('admin', 'teacher') AND department_id IS NOT NULL) OR "
             "(role IN ('manager', 'lab_staff', 'non_teaching_staff')) OR "
-            "(role IN ('system_admin', 'principal') AND department_id IS NULL)",
+            "(role IN ('system_admin', 'principal', 'governance') AND department_id IS NULL)",
             name="chk_user_department_role",
         ),
     )
@@ -91,6 +97,10 @@ class User(Base):
     @property
     def is_system_admin(self) -> bool:
         return self.role == Role.system_admin
+
+    @property
+    def is_governance(self) -> bool:
+        return self.role == Role.governance
 
     @property
     def is_department_admin(self) -> bool:

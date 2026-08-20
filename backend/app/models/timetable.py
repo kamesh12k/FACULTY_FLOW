@@ -21,9 +21,8 @@ class TimetableSlot(Base):
     room = relationship("Room")
 
     __table_args__ = (
-        UniqueConstraint("teacher_id", "day_order", "period_number", name="uq_teacher_day_period"),
-        UniqueConstraint("class_id", "day_order", "period_number", name="uq_class_day_period"),
-        UniqueConstraint("room_id", "day_order", "period_number", name="uq_room_day_period"),
+        UniqueConstraint("teacher_id", "class_id", "day_order", "period_number", name="uq_teacher_class_day_period"),
         CheckConstraint("day_order BETWEEN 1 AND 6", name="chk_timetable_day_order"),
         CheckConstraint("period_number BETWEEN 1 AND 5", name="chk_timetable_period_number"),
     )
+

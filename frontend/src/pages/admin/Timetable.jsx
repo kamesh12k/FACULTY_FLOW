@@ -152,6 +152,8 @@ export default function AdminTimetable() {
   const [selectedClassId, setSelectedClassId] = useState('')
   const [selectedSubjectId, setSelectedSubjectId] = useState('')
   const [selectedRoomId, setSelectedRoomId] = useState('')
+  const [combineClassMode, setCombineClassMode] = useState(false)
+
 
   // Room used for one-click / drag assignment (paired with the active class).
   // '' = Theory (no room). Set it once, then click/drag cells like normal —
@@ -312,10 +314,12 @@ export default function AdminTimetable() {
         room_id: roomId ? Number(roomId) : null,
         day_order: day,
         period_number: period,
+        allow_combined_class: combineClassMode,
       })
       const enriched = enrich(res.data, subjects, classes, rooms)
       dispatch({ type: 'SET', payload: [...slots, enriched] })
       popCell(day, period)
+
       // Clear any outstanding conflict entry for this slot on success
       setConflicts(c => { const n = { ...c }; delete n[`${day}-${period}`]; return n })
       const hourTag = enriched.hour_type ? ` · ${enriched.hour_type}` : ''
@@ -494,8 +498,10 @@ export default function AdminTimetable() {
         room_id: selectedRoomId ? Number(selectedRoomId) : null,
         day_order: selectedCell.day_order,
         period_number: selectedCell.period_number,
+        allow_combined_class: combineClassMode,
       })
       const enrichedSlot = enrich(res.data, subjects, classes, rooms)
+
       dispatch({ type: 'SET', payload: [...slots, enrichedSlot] })
       popCell(selectedCell.day_order, selectedCell.period_number)
       toast('Slot assigned successfully')
@@ -668,6 +674,27 @@ export default function AdminTimetable() {
               <IconPaint />
               Paint {paintMode ? 'on' : 'off'}
             </button>
+
+            <button
+              type="button"
+              className={`tt-btn ${combineClassMode ? 'tt-btn--combine-on' : 'tt-btn--combine-off'}`}
+              onClick={() => {
+                setCombineClassMode(m => {
+                  const next = !m
+                  toast(
+                    next
+                      ? '👥 Combine Class ON: You can now assign multiple staff to one class/period'
+                      : 'Combine Class OFF',
+                    'info'
+                  )
+                  return next
+                })
+              }}
+              title="Toggle Combine Class mode to assign two or more staff to one class"
+            >
+              👥 Combine Class {combineClassMode ? 'ON' : 'OFF'}
+            </button>
+
 
             <div className="tt-btn-group">
               <button
@@ -1116,6 +1143,18 @@ export default function AdminTimetable() {
                         </select>
                       </div>
 
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', padding: '8px 10px', background: combineClassMode ? '#FAF5FF' : '#F8FAFC', border: `1px solid ${combineClassMode ? '#D8B4FE' : '#E2E8F0'}`, borderRadius: '8px', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={combineClassMode}
+                          onChange={e => setCombineClassMode(e.target.checked)}
+                          style={{ width: '15px', height: '15px', accentColor: '#9333EA', cursor: 'pointer' }}
+                        />
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: combineClassMode ? '#6B21A8' : '#475569' }}>
+                          👥 Combine Class / Multi-Staff (allow 2+ staff on this class)
+                        </span>
+                      </label>
+
                       <button
                         type="button"
                         className="tt-btn tt-btn--primary w-full py-2 mt-2"
@@ -1130,6 +1169,7 @@ export default function AdminTimetable() {
                 </div>
               )}
             </div>
+
           ) : (
             <div className="tt-detail-placeholder">
               <svg viewBox="0 0 48 48" fill="none" className="dp-icon">
@@ -1480,8 +1520,42 @@ export default function AdminTimetable() {
             </section>
           </div>
 
-          <div className="conflict-resolution"><strong>How to fix it</strong><p>{conflictDetail?.resolution || 'Choose a different teacher, class, room, day order, or period.'}</p></div>
-          <button type="button" className="tt-btn tt-btn--primary" onClick={() => setConflictDetail(null)} style={{ width: '100%', justifyContent: 'center' }}>I understand — adjust timetable</button>
+          <div className="conflict-resolution">
+            <strong>How to fix it</strong>
+            <p>
+              {conflictDetail?.resolution || 'Choose a different teacher, class, room, day order, or period.'}
+            </p>
+            {!combineClassMode && (
+              <p style={{ marginTop: '6px', fontSize: '11px', color: '#6B21A8', fontWeight: '600' }}>
+                💡 Tip: If you intentionally want to assign two or more staff to this class (or combine sections), turn <strong>ON</strong> the <strong>👥 Combine Class</strong> switch.
+              </p>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', marginTop: '14px' }}>
+            <button
+              type="button"
+              className="tt-btn"
+              onClick={() => setConflictDetail(null)}
+              style={{ flex: 1, justifyContent: 'center' }}
+            >
+              Close / Adjust
+            </button>
+            {!combineClassMode && (
+              <button
+                type="button"
+                className="tt-btn tt-btn--combine-on"
+                onClick={() => {
+                  setCombineClassMode(true)
+                  setConflictDetail(null)
+                  toast('👥 Combine Class mode turned ON. Click the cell again to assign.', 'info')
+                }}
+                style={{ flex: 1.5, justifyContent: 'center', background: '#7C3AED', color: '#fff', border: '1px solid #6D28D9' }}
+              >
+                Turn ON Combine Class Mode
+              </button>
+            )}
+          </div>
         </div>
       </Modal>
 
@@ -1654,6 +1728,10 @@ const CSS = `
 
 .tt-btn--paint-off { color: #475569; }
 .tt-btn--paint-on  { background: #EEF2FF; border-color: #818CF8; color: #4338CA; }
+
+.tt-btn--combine-off { color: #475569; }
+.tt-btn--combine-on  { background: #FAF5FF; border-color: #A855F7; color: #7E22CE; font-weight: 800; box-shadow: 0 1px 4px rgba(168, 85, 247, 0.2); }
+
 
 .tt-paint-pulse {
   position: absolute;

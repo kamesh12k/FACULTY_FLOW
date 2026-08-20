@@ -20,8 +20,11 @@ class RecommendationOut(BaseModel):
     projected_longest_continuous_periods: int = 0
     workload_count: int = 0
     fairness: float = 0.0
+    leave_recovery: float = 0.0
+    leave_recovery_reason: str | None = None
 
     model_config = {"from_attributes": True}
+
 
 
 class CampusOperationsModeOut(BaseModel):

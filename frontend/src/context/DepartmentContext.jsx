@@ -16,17 +16,23 @@ export function DepartmentProvider({ children }) {
     return null
   })
 
+  const refreshDepartments = useCallback(() => {
+    if (isSystemAdmin) {
+      return departmentsApi.list(true)
+        .then(r => setDepartments(r.data))
+        .catch(() => setDepartments([]))
+    }
+  }, [isSystemAdmin])
+
   // Fetch departments list for system admin
   useEffect(() => {
     if (!user) return
     if (isSystemAdmin) {
-      departmentsApi.list()
-        .then(r => setDepartments(r.data))
-        .catch(() => setDepartments([]))
+      refreshDepartments()
     } else {
       setDepartments([])
     }
-  }, [user, isSystemAdmin])
+  }, [user, isSystemAdmin, refreshDepartments])
 
   const setActiveDepartmentId = useCallback((id) => {
     if (id === null || id === undefined || id === '') {
@@ -47,6 +53,7 @@ export function DepartmentProvider({ children }) {
   return (
     <DepartmentContext.Provider value={{
       departments,
+      refreshDepartments,
       activeDepartmentId,
       effectiveDepartmentId,
       setActiveDepartmentId,
@@ -60,4 +67,8 @@ export function DepartmentProvider({ children }) {
   )
 }
 
-export const useDepartment = () => useContext(DepartmentContext)
+export function useDepartment() {
+  const ctx = useContext(DepartmentContext)
+  if (!ctx) throw new Error('useDepartment must be used within DepartmentProvider')
+  return ctx
+}

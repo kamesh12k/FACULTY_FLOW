@@ -11,6 +11,7 @@ class TimetableSlotCreate(BaseModel):
     room_id: int | None = None
     day_order: int
     period_number: int
+    allow_combined_class: bool = False
 
     @field_validator("day_order")
     @classmethod
@@ -45,6 +46,8 @@ class TimetableSubmissionCreate(BaseModel):
     room_id: int | None = None
     day_order: int
     period_number: int
+    allow_combined_class: bool = False
+
 
     @field_validator("day_order")
     @classmethod

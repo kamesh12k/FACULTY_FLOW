@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { backupApi } from '../../api/services'
 import { getApiErrorMessage } from '../../api/client'
@@ -72,6 +73,14 @@ function AlertTriangleIcon(props) {
     </svg>
   )
 }
+function ClockIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  )
+}
 function SpinnerIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="animate-spin" {...props}>
@@ -79,6 +88,7 @@ function SpinnerIcon(props) {
     </svg>
   )
 }
+
 
 /* ── Style constants (matches Settings.jsx exactly) ──────────────────────── */
 const btnPrimary = 'inline-flex items-center justify-center gap-2 rounded-full bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 active:scale-[0.98] transition disabled:opacity-40 disabled:pointer-events-none'
@@ -312,6 +322,7 @@ export default function BackupRestore() {
 
   const [backups, setBackups] = useState([])
   const [summary, setSummary] = useState(null)
+  const [schedule, setSchedule] = useState({ enabled: true, interval_days: 7, last_auto_backup_at: null, next_scheduled_at: null })
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -333,12 +344,14 @@ export default function BackupRestore() {
   const fetchAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [listRes, sumRes] = await Promise.all([
+      const [listRes, sumRes, schedRes] = await Promise.all([
         backupApi.list(),
         backupApi.summary(),
+        backupApi.getSchedule().catch(() => ({ data: { enabled: true, interval_days: 7 } })),
       ])
       setBackups(listRes.data)
       setSummary(sumRes.data)
+      if (schedRes?.data) setSchedule(schedRes.data)
     } catch (err) {
       showToast(getApiErrorMessage(err, 'Failed to load backups.'), 'error')
     } finally {
@@ -347,6 +360,10 @@ export default function BackupRestore() {
   }, [showToast])
 
   useEffect(() => { fetchAll() }, [fetchAll])
+
+  const [customDays, setCustomDays] = useState('')
+  const [savingSchedule, setSavingSchedule] = useState(false)
+  const [runningAuto, setRunningAuto] = useState(false)
 
   /* ── Guard ────────────────────────────────────────────────────────────── */
   if (!isSystemAdmin) {
@@ -359,6 +376,56 @@ export default function BackupRestore() {
         </div>
       </div>
     )
+  }
+
+  /* ── Schedule Actions ─────────────────────────────────────────────────── */
+  const handleUpdateInterval = async (days) => {
+    setSavingSchedule(true)
+    try {
+      const res = await backupApi.updateSchedule({
+        enabled: schedule?.enabled ?? true,
+        interval_days: days,
+      })
+      setSchedule(res.data)
+      setCustomDays('')
+      showToast(`Automatic backup interval updated to every ${days} days.`)
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'Failed to update backup interval.'), 'error')
+    } finally {
+      setSavingSchedule(false)
+    }
+  }
+
+  const handleToggleSchedule = async () => {
+    setSavingSchedule(true)
+    try {
+      const nextState = !schedule?.enabled
+      const res = await backupApi.updateSchedule({
+        enabled: nextState,
+        interval_days: schedule?.interval_days || 7,
+      })
+      setSchedule(res.data)
+      showToast(`Automatic backup ${nextState ? 'enabled' : 'disabled'}.`)
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'Failed to toggle backup schedule.'), 'error')
+    } finally {
+      setSavingSchedule(false)
+    }
+  }
+
+  const handleRunAutoNow = async () => {
+    setRunningAuto(true)
+    try {
+      const res = await backupApi.runAutoBackupNow()
+      setBackups(prev => [res.data, ...prev])
+      const schedRes = await backupApi.getSchedule()
+      setSchedule(schedRes.data)
+      showToast(`Auto-backup executed successfully: ${res.data.filename}`)
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'Auto backup execution failed.'), 'error')
+    } finally {
+      setRunningAuto(false)
+    }
   }
 
   /* ── Actions ──────────────────────────────────────────────────────────── */
@@ -478,7 +545,7 @@ export default function BackupRestore() {
 
   /* ── Render ───────────────────────────────────────────────────────────── */
   const userBackups = backups.filter(b => !b.is_pre_restore)
-  const preRestoreBackups = backups.filter(b => b.is_pre_restore)
+  const preRestoreBackups = backups.filter(b => !b.is_pre_restore && b.backup_type === 'auto')
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
@@ -496,6 +563,14 @@ export default function BackupRestore() {
             accept=".json,application/json"
             className="hidden"
           />
+          <Link
+            to="/admin/data-retention"
+            className={btnSecondary}
+            title="Manage automated retention policies and selective data cleansing"
+          >
+            <TrashIcon className="w-4 h-4 text-red-600" />
+            Retention & Purge
+          </Link>
           <button
             id="backup-refresh-btn"
             className={btnSecondary}
@@ -555,6 +630,143 @@ export default function BackupRestore() {
         </div>
       )}
 
+      {/* Automated Backup Schedule Section */}
+      <Section
+        icon={ClockIcon}
+        tint="bg-emerald-50 text-emerald-600"
+        title="Automated Backup Schedule & Retention"
+        description="Configure periodic background database snapshots. The system automatically creates a full database backup every 7 days by default (customizable below)."
+      >
+        <div className="p-4 sm:p-5 space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-gray-100">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-gray-900">Automatic Background Backups</span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                  schedule?.enabled
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-gray-100 text-gray-600 border-gray-200'
+                }`}>
+                  {schedule?.enabled ? `Active · Every ${schedule.interval_days} Days` : 'Disabled'}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500">
+                The system automatically backs up data every {schedule?.interval_days || 7} days. Admins can customize the frequency below.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleToggleSchedule}
+                disabled={savingSchedule}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  schedule?.enabled ? 'bg-emerald-600' : 'bg-gray-200'
+                }`}
+                title="Toggle Automatic Backups"
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    schedule?.enabled ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+              <span className="text-xs font-bold text-gray-700">
+                {schedule?.enabled ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+            {/* Interval Configuration */}
+            <div className="space-y-2 md:col-span-2">
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                Backup Interval Frequency
+              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { days: 1, label: '1 Day (Daily)' },
+                  { days: 3, label: '3 Days' },
+                  { days: 7, label: '7 Days (Default)' },
+                  { days: 14, label: '14 Days (Bi-weekly)' },
+                  { days: 30, label: '30 Days (Monthly)' },
+                ].map(preset => (
+                  <button
+                    key={preset.days}
+                    type="button"
+                    onClick={() => handleUpdateInterval(preset.days)}
+                    disabled={savingSchedule}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer ${
+                      schedule?.interval_days === preset.days
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom Interval Input */}
+              <div className="flex items-center gap-2 pt-2">
+                <span className="text-xs text-gray-500 font-medium">Or custom days:</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="365"
+                  value={customDays}
+                  onChange={e => setCustomDays(e.target.value)}
+                  placeholder="e.g. 10"
+                  className="w-24 px-2.5 py-1 text-xs border border-gray-200 rounded-lg bg-gray-50 text-gray-900 focus:outline-none focus:border-primary-600 font-semibold"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const d = parseInt(customDays, 10)
+                    if (d >= 1 && d <= 365) {
+                      handleUpdateInterval(d)
+                    } else {
+                      showToast('Please enter a valid interval between 1 and 365 days.', 'error')
+                    }
+                  }}
+                  disabled={savingSchedule || !customDays}
+                  className="px-3 py-1 bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50 cursor-pointer"
+                >
+                  {savingSchedule ? 'Saving…' : 'Set Custom Interval'}
+                </button>
+              </div>
+            </div>
+
+            {/* Schedule Status Box */}
+            <div className="p-3.5 bg-gray-50 border border-gray-200 rounded-xl space-y-2 text-xs">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">Last Auto Backup</span>
+                <span className="font-semibold text-gray-800">
+                  {schedule?.last_auto_backup_at ? formatDateTime(schedule.last_auto_backup_at) : 'None recorded yet'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">Next Scheduled Backup</span>
+                <span className="font-semibold text-emerald-700">
+                  {schedule?.enabled && schedule?.next_scheduled_at
+                    ? formatDateTime(schedule.next_scheduled_at)
+                    : schedule?.enabled ? 'Due immediately' : 'Schedule paused'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleRunAutoNow}
+                disabled={runningAuto || creating}
+                className="w-full mt-1 px-2.5 py-1.5 bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 font-semibold rounded-lg transition shadow-2xs text-[11px] flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                {runningAuto ? <SpinnerIcon className="w-3.5 h-3.5" /> : <RefreshIcon className="w-3.5 h-3.5 text-gray-500" />}
+                <span>{runningAuto ? 'Running Auto Backup…' : 'Run Auto-Backup Now'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Section>
+
       {/* Backups table */}
       <Section
         icon={DatabaseIcon}
@@ -612,6 +824,11 @@ export default function BackupRestore() {
                         <p className="font-semibold text-gray-800 truncate max-w-[240px]">{backup.filename}</p>
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                           <span className="text-[10px] text-gray-400 font-mono">{backup.backup_id.slice(0, 8)}…</span>
+                          {backup.backup_type === 'auto' && (
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[9px] font-bold border bg-teal-50 text-teal-700 border-teal-200">
+                              Auto
+                            </span>
+                          )}
                           {backup.department_name && (
                             <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[9px] font-bold border bg-blue-50 text-blue-700 border-blue-200">
                               {backup.department_name}

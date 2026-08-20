@@ -31,6 +31,7 @@ export function AuthProvider({ children }) {
       isAdmin: user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'principal',
       isSystemAdmin: user?.role === 'system_admin',
       isPrincipal: user?.role === 'principal',
+      isGovernance: user?.role === 'governance',
       isManager: user?.role === 'manager',
       isLabStaff: user?.role === 'lab_staff',
       isNonTeachingStaff: user?.role === 'non_teaching_staff',

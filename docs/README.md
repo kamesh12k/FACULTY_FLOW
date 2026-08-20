@@ -32,6 +32,7 @@ Welcome to the official technical documentation ecosystem for **FAFLOW — Facul
 - [Leave Management & Approval Workflows](file:///c:/Users/kames/Downloads/FACREDIT-enhanced-20260724-v5/docs/administration/Leave_Management.md)
 - [Credit Management & Ledger Accounting](file:///c:/Users/kames/Downloads/FACREDIT-enhanced-20260724-v5/docs/administration/Credit_Management.md)
 - [Security Audit Logs & Compliance](file:///c:/Users/kames/Downloads/FACREDIT-enhanced-20260724-v5/docs/administration/Audit_Logs.md)
+- [Data Retention & Selective Purge](file:///c:/Users/kames/Downloads/FACREDIT-enhanced-20260724-v5/docs/administration/Data_Retention_and_Purge.md)
 
 ### 5. Technical Architecture
 - [System Architecture Overview](file:///c:/Users/kames/Downloads/FACREDIT-enhanced-20260724-v5/docs/architecture/System_Architecture.md)

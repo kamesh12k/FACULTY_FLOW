@@ -153,6 +153,13 @@ def get_recommendations(
     recommendation panel. Each entry shows the compatibility score and
     the specific reasons behind it (same subject, same department,
     workload, fairness) so the admin isn't approving a black-box number."""
+    from app.core.timezone import is_substitution_expired
+    from app.models.leave import LeaveRequest
+    leave = db.query(LeaveRequest).filter(LeaveRequest.id == leave_id).first()
+    if not leave:
+        raise HTTPException(404, "Leave not found")
+    if is_substitution_expired(leave.date):
+        raise HTTPException(400, "Cannot find candidates for an expired substitution (cutoff is 5:00 PM in Asia/Kolkata on the substitution date)")
     return substitution_service.get_ranked_recommendations(db, leave_id, limit, tenant_department_id, include_cross_department, only_handles_class)
 
 
@@ -237,10 +244,13 @@ def free_teachers(
     db: Session = Depends(get_db),
     tenant_department_id: int | None = Depends(get_tenant_department_id),
 ):
+    from app.core.timezone import is_substitution_expired
     from app.models.leave import LeaveRequest
     leave = db.query(LeaveRequest).filter(LeaveRequest.id == leave_id).first()
     if not leave:
         raise HTTPException(404, "Leave not found")
+    if is_substitution_expired(leave.date):
+        raise HTTPException(400, "Cannot find free teachers for an expired substitution (cutoff is 5:00 PM in Asia/Kolkata on the substitution date)")
     if tenant_department_id is not None and leave.teacher.department_id != tenant_department_id:
         raise HTTPException(403, "Access denied: leave request is from another department")
     if include_cross_department:

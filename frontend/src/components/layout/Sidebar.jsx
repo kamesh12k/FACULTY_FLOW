@@ -8,7 +8,7 @@ import { BRAND_CONFIG } from '../../config/branding'
 import {
   SettingsIcon, LogoutIcon, ChevronDownIcon,
 } from '../icons'
-import { ADMIN_NAV, TEACHER_NAV, SYSTEM_ADMIN_NAV, PRINCIPAL_NAV, MANAGER_NAV, STAFF_NAV } from './navConfig'
+import { ADMIN_NAV, TEACHER_NAV, SYSTEM_ADMIN_NAV, PRINCIPAL_NAV, MANAGER_NAV, STAFF_NAV, GOVERNANCE_NAV } from './navConfig'
 
 function NavItem({ to, icon, label, end, collapsed }) {
   return (
@@ -37,7 +37,7 @@ function NavItem({ to, icon, label, end, collapsed }) {
 }
 
 export default function Sidebar() {
-  const { user, isAdmin, isSystemAdmin, isPrincipal, isManager, isStaff, logout } = useAuth()
+  const { user, isAdmin, isSystemAdmin, isPrincipal, isGovernance, isManager, isStaff, logout } = useAuth()
   const { app_name, themePreset } = useTheme() || {}
   const { departments, activeDepartmentId, setActiveDepartmentId, activeDepartmentName } = useDepartment()
   const navigate = useNavigate()
@@ -54,7 +54,9 @@ export default function Sidebar() {
   }
 
   let nav = TEACHER_NAV
-  if (isSystemAdmin) {
+  if (isGovernance) {
+    nav = GOVERNANCE_NAV
+  } else if (isSystemAdmin) {
     nav = SYSTEM_ADMIN_NAV
   } else if (isPrincipal) {
     nav = PRINCIPAL_NAV
@@ -159,8 +161,8 @@ export default function Sidebar() {
         {nav.map((group, i) => (
           <div key={i} className="space-y-1.5">
             {!collapsed && group.section && (
-              <p className={`px-3.5 text-[9px] font-bold uppercase tracking-wider ${
-                themePreset?.sidebarStyle === 'dark' ? 'text-slate-500' : 'text-slate-400'
+              <p className={`px-3.5 text-[10px] font-bold uppercase tracking-wider ${
+                themePreset?.sidebarStyle === 'dark' ? 'text-slate-300' : 'text-slate-600'
               }`}>{group.section}</p>
             )}
             <div className="space-y-0.5">

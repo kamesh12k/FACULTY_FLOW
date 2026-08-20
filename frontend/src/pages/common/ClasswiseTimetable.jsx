@@ -113,19 +113,29 @@ export default function ClasswiseTimetable() {
         const rm = rooms.find(r => r.id === slot.room_id)
         const dept = departments.find(d => d.id === teach?.department_id)
 
-        matrix[slot.day_order][slot.period_number] = {
-          ...slot,
-          subject_name: subj?.name || 'Unassigned Subject',
-          subject_code: subj?.code || '',
-          teacher_name: teach?.name || 'Unknown Teacher',
-          teacher_department: dept?.name || '',
-          room_number: rm?.room_number || '',
-          room_type: rm?.room_type || '',
+        const existing = matrix[slot.day_order][slot.period_number]
+        if (existing) {
+          existing.teacher_names = [...(existing.teacher_names || [existing.teacher_name]), teach?.name || 'Unknown Teacher']
+          existing.teacher_name = existing.teacher_names.join(' + ')
+          existing.is_multi_staff = true
+        } else {
+          matrix[slot.day_order][slot.period_number] = {
+            ...slot,
+            subject_name: subj?.name || 'Unassigned Subject',
+            subject_code: subj?.code || '',
+            teacher_name: teach?.name || 'Unknown Teacher',
+            teacher_names: [teach?.name || 'Unknown Teacher'],
+            teacher_department: dept?.name || '',
+            room_number: rm?.room_number || '',
+            room_type: rm?.room_type || '',
+            is_multi_staff: false,
+          }
         }
       }
     }
     return matrix
   }, [slots, subjects, teachers, rooms, departments])
+
 
   // Subject summary for this class
   const subjectSummary = useMemo(() => {
@@ -238,11 +248,16 @@ export default function ClasswiseTimetable() {
           {/* Class Header Banner */}
           <div className="p-5 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xl font-extrabold tracking-tight">{selectedClass.name} – Section {selectedClass.section}</span>
                 <span className="bg-primary-600/80 text-white text-xs font-bold px-2.5 py-0.5 rounded-full border border-primary-500">
                   Semester {selectedClass.semester}
                 </span>
+                {selectedClass.default_room_number && (
+                  <span className="bg-emerald-600/80 text-white text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-400">
+                    🏢 Base Room: {selectedClass.default_room_number} {selectedClass.default_room_type ? `(${selectedClass.default_room_type})` : ''}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-300 mt-1 font-medium">
                 Official Weekly Master Timetable · {slots.length} Scheduled Periods
@@ -319,7 +334,13 @@ export default function ClasswiseTimetable() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                   </svg>
                                   <span className="truncate">{cell.teacher_name}</span>
+                                  {cell.is_multi_staff && (
+                                    <span className="text-[8px] font-black uppercase text-purple-700 bg-purple-100 px-1 py-0.2 rounded shrink-0">
+                                      👥 Multi-Staff
+                                    </span>
+                                  )}
                                 </div>
+
 
                                 {/* Room / Lab */}
                                 {cell.room_number && (

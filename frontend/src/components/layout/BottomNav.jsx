@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { GridIcon, CalIcon, DocIcon, PlusIcon, ChartIcon, MenuIcon, DoorIcon, UsersIcon, BookIcon } from '../icons'
+import { GridIcon, CalIcon, DocIcon, PlusIcon, ChartIcon, MenuIcon, DoorIcon, UsersIcon, BookIcon, SwapIcon } from '../icons'
 
 const ADMIN_TABS = [
   { to: '/admin/dashboard', label: 'Home', icon: GridIcon, end: true },
@@ -37,17 +37,25 @@ const STAFF_TABS = [
 ]
 
 
+const GOVERNANCE_TABS = [
+  { to: '/governance', label: 'Home', icon: GridIcon, end: true },
+  { to: '/admin/today-substitutions', label: 'Alerts', icon: SwapIcon },
+]
+
 export default function BottomNav({ onMoreClick }) {
-  const { isAdmin, isSystemAdmin, isPrincipal, isManager, isStaff } = useAuth()
-  const tabs = isSystemAdmin
-    ? SYSTEM_ADMIN_TABS
-    : (isPrincipal
-      ? PRINCIPAL_TABS
-      : (isManager
-        ? MANAGER_TABS
-        : (isStaff
-          ? STAFF_TABS
-          : (isAdmin ? ADMIN_TABS : TEACHER_TABS))))
+  const { isAdmin, isSystemAdmin, isPrincipal, isGovernance, isManager, isStaff } = useAuth()
+  const tabs = isGovernance
+    ? GOVERNANCE_TABS
+    : (isSystemAdmin
+      ? SYSTEM_ADMIN_TABS
+      : (isPrincipal
+        ? PRINCIPAL_TABS
+        : (isManager
+          ? MANAGER_TABS
+          : (isStaff
+            ? STAFF_TABS
+            : (isAdmin ? ADMIN_TABS : TEACHER_TABS)))))
+
 
 
 

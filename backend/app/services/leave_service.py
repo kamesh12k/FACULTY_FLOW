@@ -343,10 +343,14 @@ def assign_substitute(
     include_cross_department: bool = False,
     override_substitution_limit: bool = False,
 ) -> AlterAssignment:
+    from app.core.timezone import is_substitution_expired
     leave = _get_leave_or_404(leave_id, db, tenant_department_id)
 
     if leave.status != LeaveStatus.approved:
         raise HTTPException(status_code=400, detail="Leave must be approved before assigning substitute")
+
+    if is_substitution_expired(leave.date):
+        raise HTTPException(status_code=400, detail="Cannot assign substitute for an expired substitution (cutoff is 5:00 PM in Asia/Kolkata on the substitution date)")
 
     if leave.alter_assignment:
         raise HTTPException(status_code=400, detail="Substitute already assigned for this leave — use override instead")
@@ -446,7 +450,10 @@ def override_substitute(
     credit transactions before applying new ones, so the ledger always
     reflects who is actually covering the class right now — not a
     history of every assignment that was ever proposed."""
+    from app.core.timezone import is_substitution_expired
     leave = _get_leave_or_404(leave_id, db, tenant_department_id)
+    if is_substitution_expired(leave.date):
+        raise HTTPException(status_code=400, detail="Cannot change substitute for an expired substitution (cutoff is 5:00 PM in Asia/Kolkata on the substitution date)")
     existing = leave.alter_assignment
     if not existing:
         raise HTTPException(status_code=400, detail="No existing assignment to override — use the normal assign flow")
@@ -573,7 +580,10 @@ def undo_assignment(leave_id: int, actor: User, db: Session, tenant_department_i
     can be made — used for "Undo Last Action" / "Undo Auto Assignments"
     from the spec. Does not touch leave.status; the leave stays approved,
     only the substitute assignment is undone."""
+    from app.core.timezone import is_substitution_expired
     leave = _get_leave_or_404(leave_id, db, tenant_department_id)
+    if is_substitution_expired(leave.date):
+        raise HTTPException(status_code=400, detail="Cannot modify an expired substitution (cutoff is 5:00 PM in Asia/Kolkata on the substitution date)")
     existing = leave.alter_assignment
     if not existing:
         raise HTTPException(status_code=400, detail="No assignment to undo")
@@ -603,7 +613,10 @@ def undo_assignment(leave_id: int, actor: User, db: Session, tenant_department_i
 
 
 def set_assignment_lock(leave_id: int, locked: bool, actor: User, db: Session, tenant_department_id: int | None = None) -> AlterAssignment:
+    from app.core.timezone import is_substitution_expired
     leave = _get_leave_or_404(leave_id, db, tenant_department_id)
+    if is_substitution_expired(leave.date):
+        raise HTTPException(status_code=400, detail="Cannot modify lock on an expired substitution (cutoff is 5:00 PM in Asia/Kolkata on the substitution date)")
     existing = leave.alter_assignment
     if not existing:
         raise HTTPException(status_code=400, detail="No assignment to lock")

@@ -6,9 +6,17 @@ export function ProtectedRoute() {
   return (token && user) ? <Outlet /> : <Navigate to="/login" replace />
 }
 
-export function AdminRoute() {
-  const { token, user, isAdmin, isPrincipal } = useAuth()
+export function GovernanceRoute() {
+  const { token, user, isGovernance, isSystemAdmin } = useAuth()
   if (!token || !user) return <Navigate to="/login" replace />
+  if (!isGovernance && !isSystemAdmin) return <Navigate to="/login" replace />
+  return <Outlet />
+}
+
+export function AdminRoute() {
+  const { token, user, isAdmin, isPrincipal, isGovernance } = useAuth()
+  if (!token || !user) return <Navigate to="/login" replace />
+  if (isGovernance) return <Navigate to="/governance" replace />
   if (isPrincipal) return <Navigate to="/principal/dashboard" replace />
   if (!isAdmin) return <Navigate to="/teacher/dashboard" replace />
   return <Outlet />
@@ -37,8 +45,9 @@ export function StaffRoute() {
 
 
 export function TeacherRoute() {
-  const { token, user, isPrincipal, isManager, isStaff, isAdmin } = useAuth()
+  const { token, user, isPrincipal, isGovernance, isManager, isStaff, isAdmin } = useAuth()
   if (!token || !user) return <Navigate to="/login" replace />
+  if (isGovernance) return <Navigate to="/governance" replace />
   if (isPrincipal) return <Navigate to="/principal/dashboard" replace />
   if (isManager) return <Navigate to="/manager/dashboard" replace />
   if (isStaff) return <Navigate to="/staff/dashboard" replace />
@@ -47,9 +56,10 @@ export function TeacherRoute() {
 
 
 export function GuestRoute() {
-  const { token, user, isAdmin, isPrincipal, isManager, isStaff, mustChangeCredentials } = useAuth()
+  const { token, user, isAdmin, isPrincipal, isGovernance, isManager, isStaff, mustChangeCredentials } = useAuth()
   if (!token || !user) return <Outlet />
   if (mustChangeCredentials) return <Navigate to="/first-login-setup" replace />
+  if (isGovernance) return <Navigate to="/governance" replace />
   if (isPrincipal) return <Navigate to="/principal/dashboard" replace />
   if (isManager) return <Navigate to="/manager/dashboard" replace />
   if (isStaff) return <Navigate to="/staff/dashboard" replace />
@@ -69,9 +79,10 @@ export function RequireCredentialsSet() {
  * exempt from the credentials gate (and irrelevant once credentials are
  * already set, so it bounces forward instead of back). */
 export function FirstLoginSetupRoute() {
-  const { token, user, isAdmin, isPrincipal, isManager, isStaff, mustChangeCredentials } = useAuth()
+  const { token, user, isAdmin, isPrincipal, isGovernance, isManager, isStaff, mustChangeCredentials } = useAuth()
   if (!token || !user) return <Navigate to="/login" replace />
   if (!mustChangeCredentials) {
+    if (isGovernance) return <Navigate to="/governance" replace />
     if (isPrincipal) return <Navigate to="/principal/dashboard" replace />
     if (isManager) return <Navigate to="/manager/dashboard" replace />
     if (isStaff) return <Navigate to="/staff/dashboard" replace />
@@ -79,5 +90,6 @@ export function FirstLoginSetupRoute() {
   }
   return <Outlet />
 }
+
 
 

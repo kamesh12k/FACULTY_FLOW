@@ -305,12 +305,13 @@ def import_backup(
 
 def create_backup(
     db: Session,
-    actor_user_id: int,
-    actor_name: str,
+    actor_user_id: int | None = None,
+    actor_name: str = "System",
     is_pre_restore: bool = False,
     pre_restore_ref: str | None = None,
     tenant_department_id: int | None = None,
     tenant_department_name: str | None = None,
+    backup_type: str = "full",
 ) -> dict:
     """
     Dump application tables to a timestamped JSON file.
@@ -323,6 +324,9 @@ def create_backup(
 
     if is_pre_restore:
         filename = f"{prefix}pre_restore_backup_{ts}.json"
+        backup_type = "pre_restore"
+    elif backup_type == "auto":
+        filename = f"{prefix}auto_backup_{ts}.json"
     else:
         filename = f"{prefix}faflow_backup_{ts}.json"
 
@@ -504,6 +508,7 @@ def create_backup(
         created_by=actor_name,
         file_size_bytes=file_size,
         checksum=checksum,
+        backup_type=backup_type,
         is_pre_restore=is_pre_restore,
         department_id=tenant_department_id,
         department_name=tenant_department_name,
@@ -956,3 +961,193 @@ def _sync_postgres_sequences(db: Session) -> None:
             db.commit()
     except Exception as e:
         logger.warning("Failed to sync postgres sequences: %s", e)
+
+
+# ── Automatic Backup Scheduling ────────────────────────────────────────────────
+
+
+def get_backup_schedule_settings(db: Session) -> dict[str, Any]:
+    """
+    Retrieve automatic backup configuration and next scheduled backup time.
+    Default interval is 7 days if not previously configured.
+    """
+    from app.models.system_setting import SystemSetting
+    from datetime import timedelta
+
+    def _get_val(key: str, default: str) -> str:
+        row = db.query(SystemSetting).filter(
+            SystemSetting.key == key,
+            SystemSetting.department_id.is_(None)
+        ).first()
+        return row.value if row else default
+
+    enabled_str = _get_val("auto_backup_enabled", "true").strip().lower()
+    enabled = enabled_str in {"true", "1", "yes", "on"}
+
+    try:
+        interval_days = int(_get_val("auto_backup_interval_days", "7"))
+        if interval_days < 1:
+            interval_days = 7
+    except ValueError:
+        interval_days = 7
+
+    last_auto_str = _get_val("last_auto_backup_at", "").strip()
+    if not last_auto_str:
+        # Fallback: check latest backup in index
+        index = _load_index()
+        if index:
+            last_auto_str = index[0].get("created_at")
+
+    next_scheduled_at = None
+    if enabled:
+        if last_auto_str:
+            try:
+                dt = datetime.fromisoformat(last_auto_str)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                next_dt = dt + timedelta(days=interval_days)
+                next_scheduled_at = next_dt.isoformat()
+            except Exception:
+                next_scheduled_at = (datetime.now(timezone.utc) + timedelta(days=interval_days)).isoformat()
+        else:
+            # If no backup has ever run, next is immediate
+            next_scheduled_at = datetime.now(timezone.utc).isoformat()
+
+    return {
+        "enabled": enabled,
+        "interval_days": interval_days,
+        "last_auto_backup_at": last_auto_str or None,
+        "next_scheduled_at": next_scheduled_at,
+        "message": f"Automatic backup is {'active every ' + str(interval_days) + ' days' if enabled else 'disabled'}."
+    }
+
+
+def update_backup_schedule_settings(
+    db: Session,
+    enabled: bool,
+    interval_days: int,
+    actor_user_id: int | None = None,
+    actor_name: str | None = None,
+) -> dict[str, Any]:
+    """
+    Update automatic backup schedule interval (default: 7 days) and toggle status.
+    """
+    from app.models.system_setting import SystemSetting
+
+    if interval_days < 1:
+        interval_days = 7
+
+    def _set_val(key: str, val: str) -> None:
+        row = db.query(SystemSetting).filter(
+            SystemSetting.key == key,
+            SystemSetting.department_id.is_(None)
+        ).first()
+        if not row:
+            row = SystemSetting(key=key, value=val, department_id=None)
+            db.add(row)
+        else:
+            row.value = val
+
+    _set_val("auto_backup_enabled", "true" if enabled else "false")
+    _set_val("auto_backup_interval_days", str(interval_days))
+    db.commit()
+
+    log_audit_event(
+        db,
+        actor_user_id=actor_user_id,
+        action="backup.schedule_updated",
+        target_type="system_setting",
+        details={
+            "enabled": enabled,
+            "interval_days": interval_days,
+            "updated_by": actor_name,
+        },
+    )
+    db.commit()
+
+    logger.info(
+        "backup_service: schedule updated by %s (enabled=%s, interval_days=%d)",
+        actor_name or "admin",
+        enabled,
+        interval_days,
+    )
+
+    return get_backup_schedule_settings(db)
+
+
+def check_and_run_auto_backup(db: Session, force: bool = False) -> dict[str, Any] | None:
+    """
+    Evaluates if an automatic backup is due based on configured interval (default 7 days).
+    If due or force=True, creates a full database backup tagged as 'auto'.
+    """
+    from app.models.system_setting import SystemSetting
+    from datetime import timedelta
+
+    sched = get_backup_schedule_settings(db)
+    if not sched["enabled"] and not force:
+        return None
+
+    interval_days = sched["interval_days"]
+    last_auto_str = sched["last_auto_backup_at"]
+    is_due = False
+
+    if force or not last_auto_str:
+        is_due = True
+    else:
+        try:
+            dt = datetime.fromisoformat(last_auto_str)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            if (now - dt).total_seconds() >= interval_days * 86400:
+                is_due = True
+        except Exception:
+            is_due = True
+
+    if not is_due:
+        return None
+
+    logger.info(
+        "backup_service: running scheduled automatic backup (interval: %d days)...",
+        interval_days
+    )
+
+    try:
+        meta = create_backup(
+            db=db,
+            actor_user_id=None,
+            actor_name="Automated System Scheduler",
+            backup_type="auto",
+        )
+
+        now_str = _now_str()
+        row = db.query(SystemSetting).filter(
+            SystemSetting.key == "last_auto_backup_at",
+            SystemSetting.department_id.is_(None)
+        ).first()
+        if not row:
+            row = SystemSetting(key="last_auto_backup_at", value=now_str, department_id=None)
+            db.add(row)
+        else:
+            row.value = now_str
+        db.commit()
+
+        log_audit_event(
+            db,
+            actor_user_id=None,
+            action="backup.auto_completed",
+            target_type="backup",
+            details={
+                "backup_id": meta["backup_id"],
+                "filename": meta["filename"],
+                "interval_days": interval_days,
+            },
+        )
+        db.commit()
+
+        logger.info("backup_service: auto backup created successfully (%s)", meta["filename"])
+        return meta
+    except Exception as e:
+        logger.error("backup_service: scheduled auto-backup failed: %s", e)
+        return None
+

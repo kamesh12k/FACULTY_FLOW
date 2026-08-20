@@ -55,3 +55,17 @@ This document provides a route-by-route catalog of all endpoints exposed by the 
 | `GET` | `/leaves/{id}/recommendations` | Admin / HOD | Returns top-ranked substitute candidates. |
 | `GET` | `/credits/my/transactions` | Teacher | Returns personal credit ledger audit trail. |
 | `POST` | `/credits/adjust` | Admin / HOD | Manually adjusts teacher credit balance. |
+
+---
+
+## 5. Data Retention & Selective Purge (`/admin/data-retention`)
+
+| Method | Endpoint | Access Control | Description |
+|---|---|---|---|
+| `GET` | `/admin/data-retention/stats` | Admin | Returns storage statistics and record counts across core database tables. |
+| `GET` | `/admin/data-retention/policy` | Admin | Retrieves current automated retention policies and cleanup schedule. |
+| `PUT` | `/admin/data-retention/policy` | Super Admin | Updates retention thresholds per dataset and cleanup frequency. |
+| `POST` | `/admin/data-retention/run-auto-cleanup` | Super Admin | Executes automated lifecycle retention pruning immediately. |
+| `POST` | `/admin/data-retention/preview` | Admin | Simulates selective purge and calculates affected record counts. |
+| `POST` | `/admin/data-retention/purge` | Super Admin | Executes selective dataset deletion with pre-purge backup and safety verification. |
+

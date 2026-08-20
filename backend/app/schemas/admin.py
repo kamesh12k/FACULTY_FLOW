@@ -6,21 +6,36 @@ from app.core.security import validate_password_strength, MIN_PASSWORD_LENGTH
 
 
 class FirstLoginSetupRequest(BaseModel):
-    """Clears must_change_credentials for an admin still on bootstrap/reset
-    defaults. new_username lets them replace the literal "admin" username
-    so it can't be guessed/reused afterwards."""
-    new_username: str
+    """Clears must_change_credentials for any user still on default/temporary credentials.
+    - Admins / HODs set new_username + new_password.
+    - Teachers set new_email + new_password (they authenticate by email, not username).
+    Exactly one of new_username or new_email must be provided based on the caller's role.
+    """
+    new_username: str | None = None
+    new_email: str | None = None
     new_password: str
     confirm_password: str
 
     @field_validator("new_username")
     @classmethod
-    def validate_username(cls, v: str) -> str:
+    def validate_username(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
         v = v.strip()
         if len(v) < 3:
             raise ValueError("Username must be at least 3 characters long")
         if v.lower() == "admin":
             raise ValueError('Username cannot remain the default value ("admin")')
+        return v
+
+    @field_validator("new_email")
+    @classmethod
+    def validate_email(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip().lower()
+        if "@" not in v or "." not in v.split("@")[-1]:
+            raise ValueError("Please enter a valid email address")
         return v
 
     @model_validator(mode="after")
@@ -32,6 +47,7 @@ class FirstLoginSetupRequest(BaseModel):
         except ValueError as e:
             raise ValueError(str(e))
         return self
+
 
 
 class SecondaryAdminCreate(BaseModel):

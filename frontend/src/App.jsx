@@ -1,13 +1,17 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { DepartmentProvider } from './context/DepartmentContext'
-import { ProtectedRoute, AdminRoute, PrincipalRoute, ManagerRoute, StaffRoute, TeacherRoute, GuestRoute, FirstLoginSetupRoute, RequireCredentialsSet } from './routes/Guards'
+import { ProtectedRoute, AdminRoute, PrincipalRoute, GovernanceRoute, ManagerRoute, StaffRoute, TeacherRoute, GuestRoute, FirstLoginSetupRoute, RequireCredentialsSet } from './routes/Guards'
 import AppShell from './components/layout/AppShell'
 
 // Auth pages
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
 import FirstLoginSetup from './pages/auth/FirstLoginSetup'
+
+// Governance Command Center
+import GovernanceDashboard from './pages/governance/Dashboard'
+
 
 // Admin pages
 import AdminDashboard from './pages/admin/Dashboard'
@@ -28,6 +32,7 @@ import AcademicCalendar from './pages/admin/AcademicCalendar'
 import AcademicCalendarReports from './pages/admin/AcademicCalendarReports'
 import SystemMetrics from './pages/admin/SystemMetrics'
 import BackupRestore from './pages/admin/Backup'
+import DataRetention from './pages/admin/DataRetention'
 
 // Principal pages
 import PrincipalDashboard from './pages/admin/PrincipalDashboard'
@@ -58,6 +63,7 @@ import LeaveHistory from './pages/teacher/LeaveHistory'
 import MyCredits from './pages/teacher/Credits'
 import SubstitutionPreferences from './pages/teacher/Preferences'
 import TeacherSubstitution from './pages/teacher/Substitution'
+import ScrollToTop from './components/common/ScrollToTop'
 
 import { ToastProvider } from './components/ui/Toast'
 
@@ -66,6 +72,7 @@ export default function App() {
     <AuthProvider>
     <DepartmentProvider>
     <ToastProvider>
+      <ScrollToTop />
       <Routes>
         {/* Public / guest routes */}
         <Route element={<GuestRoute />}>
@@ -105,6 +112,16 @@ export default function App() {
               <Route path="/admin/settings" element={<AdminSettings />} />
               <Route path="/admin/system-metrics" element={<SystemMetrics />} />
               <Route path="/admin/backup" element={<BackupRestore />} />
+              <Route path="/admin/data-retention" element={<DataRetention />} />
+            </Route>
+          </Route>
+        </Route>
+
+        {/* Governance routes — Command Center & Emergency Controls */}
+        <Route element={<GovernanceRoute />}>
+          <Route element={<RequireCredentialsSet />}>
+            <Route element={<AppShell />}>
+              <Route path="/governance" element={<GovernanceDashboard />} />
             </Route>
           </Route>
         </Route>

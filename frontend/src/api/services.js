@@ -39,12 +39,24 @@ export const backupApi = {
   },
   list: () => api.get('/admin/backups'),
   summary: () => api.get('/admin/backups/summary'),
+  getSchedule: () => api.get('/admin/backups/schedule'),
+  updateSchedule: (data) => api.put('/admin/backups/schedule', data),
+  runAutoBackupNow: () => api.post('/admin/backups/schedule/run-now'),
   get: (id) => api.get(`/admin/backups/${id}`),
   download: (id) => api.get(`/admin/backups/${id}/download`, { responseType: 'blob' }),
   validate: (id) => api.post(`/admin/backups/${id}/validate`),
   restore: (id, confirmationText) =>
     api.post(`/admin/backups/${id}/restore`, { confirmation_text: confirmationText }),
   delete: (id) => api.delete(`/admin/backups/${id}`),
+}
+
+export const dataRetentionApi = {
+  getStats: () => api.get('/admin/data-retention/stats'),
+  getPolicy: () => api.get('/admin/data-retention/policy'),
+  updatePolicy: (data) => api.put('/admin/data-retention/policy', data),
+  runAutoCleanupNow: () => api.post('/admin/data-retention/run-auto-cleanup'),
+  previewPurge: (data) => api.post('/admin/data-retention/preview', data),
+  executePurge: (data) => api.post('/admin/data-retention/purge', data),
 }
 
 export const teachersApi = {
@@ -83,6 +95,7 @@ export const subjectsApi = {
   list: (includeArchived = false, includeCrossDepartment = false) => api.get('/subjects/', { params: { include_archived: includeArchived, include_cross_department: includeCrossDepartment } }),
   create: (data) => api.post('/subjects/', data),
   update: (id, data) => api.patch(`/subjects/${id}`, data),
+  remove: (id) => api.delete(`/subjects/${id}`),
   archive: (id) => api.patch(`/subjects/${id}/archive`),
   unarchive: (id) => api.patch(`/subjects/${id}/unarchive`),
 }
@@ -107,7 +120,9 @@ export const roomsApi = {
     api.get('/rooms/availability/dashboard', { params: { day_order: dayOrder, period_number: periodNumber } }),
   checkAvailability: (roomId, dayOrder, periodNumber) =>
     api.get(`/rooms/${roomId}/check-availability`, { params: { day_order: dayOrder, period_number: periodNumber } }),
+  getOccupancy: (params) => api.get('/rooms/occupancy', { params }),
 }
+
 
 export const dayOrderApi = {
   getRange: (start, end) => api.get('/day-order-calendar/', { params: { start, end } }),
@@ -262,6 +277,15 @@ export const managerLeavesApi = {
   adjustCredit: (data) => api.post('/manager/credits/adjust', data),
   updateQuota: (data) => api.post('/manager/credits/quota', data),
 }
+
+export const governanceApi = {
+  getOverview: () => api.get('/governance/overview'),
+  search: (q) => api.get('/governance/search', { params: { q } }),
+  getCandidates: (leaveId) => api.get(`/governance/candidates/${leaveId}`),
+  emergencyOverride: (data) => api.post('/governance/emergency-override', data),
+  assignSubstitute: (data) => api.post('/governance/assign-substitute', data),
+}
+
 
 
 

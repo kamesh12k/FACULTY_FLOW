@@ -64,6 +64,7 @@ def create_user_by_admin(data: UserCreate, db: Session, tenant_department_id: in
         role=Role.teacher,
         department=data.department,
         department_id=dept_id,
+        must_change_credentials=True,  # teacher must set own credentials on first login
     )
     db.add(user)
     db.flush()

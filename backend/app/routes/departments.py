@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.core.dependencies import require_admin, require_system_admin, get_current_user, get_tenant_department_id
-from app.models.user import User
+from app.models.user import User, Role
 from app.schemas.department import DepartmentCreate, DepartmentUpdate, DepartmentOut
 from app.schemas.admin import SecondaryAdminCreate
 from app.schemas.user import UserOut
@@ -19,7 +19,10 @@ def list_departments(
     db: Session = Depends(get_db),
     tenant_department_id: int | None = Depends(get_tenant_department_id),
 ):
-    return department_service.list_departments(db, None if include_global else tenant_department_id)
+    if _user.role in [Role.system_admin, Role.principal, Role.governance] or include_global:
+        return department_service.list_departments(db, None)
+    return department_service.list_departments(db, tenant_department_id)
+
 
 
 @router.post("/", response_model=DepartmentOut, status_code=201)

@@ -41,7 +41,8 @@ def create_class(
     db: Session = Depends(get_db),
     tenant_department_id: int | None = Depends(get_tenant_department_id),
 ):
-    return class_service.create_class(data, db, tenant_department_id)
+    effective_tenant = None if _admin.is_system_admin else tenant_department_id
+    return class_service.create_class(data, db, effective_tenant)
 
 
 @router.post("/bulk", response_model=BulkClassCreateOut, status_code=201)
@@ -51,7 +52,8 @@ def bulk_create_classes(
     db: Session = Depends(get_db),
     tenant_department_id: int | None = Depends(get_tenant_department_id),
 ):
-    return class_service.bulk_create_classes(data, db, tenant_department_id)
+    effective_tenant = None if _admin.is_system_admin else tenant_department_id
+    return class_service.bulk_create_classes(data, db, effective_tenant)
 
 
 
@@ -63,7 +65,8 @@ def update_class(
     db: Session = Depends(get_db),
     tenant_department_id: int | None = Depends(get_tenant_department_id),
 ):
-    return class_service.update_class(class_id, data, db, tenant_department_id)
+    effective_tenant = None if _admin.is_system_admin else tenant_department_id
+    return class_service.update_class(class_id, data, db, effective_tenant)
 
 
 @router.delete("/{class_id}", status_code=204)
@@ -73,4 +76,6 @@ def delete_class(
     db: Session = Depends(get_db),
     tenant_department_id: int | None = Depends(get_tenant_department_id),
 ):
-    class_service.delete_class(class_id, db, tenant_department_id)
+    effective_tenant = None if _admin.is_system_admin else tenant_department_id
+    class_service.delete_class(class_id, db, effective_tenant)
+
