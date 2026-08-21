@@ -20,6 +20,26 @@ CREATE TYPE employment_status AS ENUM ('active', 'on_leave', 'transferred', 'ina
 CREATE TYPE shift_type AS ENUM ('general', 'morning', 'evening', 'night');
 CREATE TYPE timetable_submission_status AS ENUM ('pending', 'approved', 'rejected', 'withdrawn');
 
+-- ---------- DEPARTMENTS ----------
+CREATE TABLE departments (
+    id              SERIAL PRIMARY KEY,
+    name            VARCHAR(100) NOT NULL UNIQUE,
+    code            VARCHAR(20) UNIQUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ---------- ROOMS (classrooms and labs) ----------
+CREATE TABLE rooms (
+    id              SERIAL PRIMARY KEY,
+    room_number     VARCHAR(20) NOT NULL UNIQUE,
+    room_type       room_type NOT NULL DEFAULT 'classroom',
+    capacity        INTEGER NOT NULL CHECK (capacity > 0),
+    department_id   INTEGER REFERENCES departments(id) ON DELETE SET NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_rooms_type ON rooms(room_type);
+
 -- ---------- USERS ----------
 -- Admins authenticate with `username` (e.g. the bootstrap "admin" account).
 -- Teachers authenticate with `email`.
@@ -53,16 +73,7 @@ CREATE TABLE users (
     )
 );
 
-
 CREATE INDEX idx_users_admin_level ON users(admin_level);
-
--- ---------- DEPARTMENTS ----------
-CREATE TABLE departments (
-    id              SERIAL PRIMARY KEY,
-    name            VARCHAR(100) NOT NULL UNIQUE,
-    code            VARCHAR(20) UNIQUE,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
-);
 
 -- ---------- SUBJECTS ----------
 CREATE TABLE subjects (
@@ -97,18 +108,6 @@ CREATE TABLE classes (
 
 CREATE INDEX idx_classes_department ON classes(department_id);
 CREATE INDEX idx_classes_default_room ON classes(default_room_id);
-
--- ---------- ROOMS (classrooms and labs) ----------
-CREATE TABLE rooms (
-    id              SERIAL PRIMARY KEY,
-    room_number     VARCHAR(20) NOT NULL UNIQUE,
-    room_type       room_type NOT NULL DEFAULT 'classroom',
-    capacity        INTEGER NOT NULL CHECK (capacity > 0),
-    department_id   INTEGER REFERENCES departments(id) ON DELETE SET NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_rooms_type ON rooms(room_type);
 
 -- ---------- ACADEMIC YEARS ----------
 CREATE TABLE academic_years (
