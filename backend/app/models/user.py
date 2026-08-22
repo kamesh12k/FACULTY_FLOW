@@ -35,8 +35,8 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=True, index=True)
 
     password_hash = Column(String(255), nullable=False)
-    role = Column(Enum(Role), default=Role.teacher, nullable=False)
-    admin_level = Column(Enum(AdminLevel), nullable=True)
+    role = Column(Enum(Role, name="user_role", create_type=False), default=Role.teacher, nullable=False)
+    admin_level = Column(Enum(AdminLevel, name="admin_level", create_type=False), nullable=True)
     department_old = Column("department", String(100), nullable=True)
     department_id = Column(Integer, ForeignKey("departments.id", ondelete="RESTRICT"), nullable=True)
 

@@ -56,7 +56,7 @@ class CalendarDay(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     date = Column(Date, nullable=False, unique=True)
-    day_type = Column(Enum(DayType), nullable=False, default=DayType.working)
+    day_type = Column(Enum(DayType, name="day_type", create_type=False), nullable=False, default=DayType.working)
     day_order = Column(Integer, nullable=True)  # 1-6, NULL for non-working days
 
     academic_year_id = Column(Integer, ForeignKey("academic_years.id", ondelete="SET NULL"), nullable=True)

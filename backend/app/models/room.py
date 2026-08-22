@@ -15,7 +15,7 @@ class Room(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     room_number = Column(String(20), nullable=False, unique=True)
-    room_type = Column(Enum(RoomType), default=RoomType.classroom, nullable=False)
+    room_type = Column(Enum(RoomType, name="room_type", create_type=False), default=RoomType.classroom, nullable=False)
     capacity = Column(Integer, nullable=False)
     department_id = Column(Integer, ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

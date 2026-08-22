@@ -16,7 +16,7 @@ class Subject(Base):
     id = Column(Integer, primary_key=True, index=True)
     code = Column(String(20), nullable=False)
     name = Column(String(150), nullable=False)
-    subject_type = Column(Enum(SubjectType), default=SubjectType.theory, nullable=False)
+    subject_type = Column(Enum(SubjectType, name="subject_type", create_type=False), default=SubjectType.theory, nullable=False)
     credits = Column(Integer, nullable=False)
     department_id = Column(Integer, ForeignKey("departments.id", ondelete="RESTRICT"), nullable=False)
     semester = Column(Integer, nullable=False)
