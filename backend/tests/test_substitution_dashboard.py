@@ -89,6 +89,43 @@ def test_get_today_substitutions_with_data(db_session):
     assert sub2["substitute_teacher"] is None
     assert sub2["assignment_type"] is None
 
+def test_get_today_substitutions_cross_department_class(db_session):
+    # Department A (CS) and Department B (BCA)
+    dept_cs = create_department(db_session, name="Computer Science", code="CS")
+    dept_bca = create_department(db_session, name="BCA Department", code="BCA")
+    
+    # Teacher in CS
+    t_cs = _make_user(db_session, email="t_cs@test.com", department="CS")
+    # Class in BCA
+    cls_bca = create_class(db_session, department_id=dept_bca.id, name="I BCA", section="A")
+    subj_bca = create_subject(db_session, department_id=dept_bca.id)
+    room = create_room(db_session)
+    
+    # Calendar DO1
+    cal = CalendarDay(date=date(2026, 6, 22), day_type=DayType.working, day_order=1)
+    db_session.add(cal)
+    
+    # CS Teacher teaches BCA Class on period 2
+    create_timetable_slot(db_session, t_cs.id, subj_bca.id, cls_bca.id, room_id=room.id, day_order=1, period_number=2)
+    
+    # CS Teacher applies for leave on that period
+    leave = LeaveRequest(
+        teacher_id=t_cs.id, date=date(2026, 6, 22), day_order=1, period_number=2,
+        status=LeaveStatus.approved, reason="Medical", is_emergency=False
+    )
+    db_session.add(leave)
+    db_session.commit()
+    
+    # CS HOD queries dashboard with tenant_department_id = dept_cs.id
+    res = service.get_today_substitutions(db_session, date(2026, 6, 22), tenant_department_id=dept_cs.id)
+    
+    assert len(res["substitutions"]) == 1
+    sub = res["substitutions"][0]
+    assert sub["period_number"] == 2
+    assert sub["original_teacher"]["id"] == t_cs.id
+    assert sub["class_name"] == "I BCA - A"
+    assert sub["class_name"] != "General Duty"
+
 class TestSubstitutionsRoute:
     def test_get_today_substitutions_unauthorized(self, client):
         response = client.get("/substitutions/today")

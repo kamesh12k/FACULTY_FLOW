@@ -39,17 +39,15 @@ def get_today_substitutions(db: Session, target_date: date, tenant_department_id
     slots_map = {}
     if cal_day and cal_day.day_order and leaves:
         teacher_ids = {leave.teacher_id for leave in leaves}
-        query_slots = (
+        slots = (
             db.query(TimetableSlot)
             .options(joinedload(TimetableSlot.class_))
             .filter(
                 TimetableSlot.day_order == cal_day.day_order,
                 TimetableSlot.teacher_id.in_(teacher_ids)
             )
+            .all()
         )
-        if tenant_department_id is not None:
-            query_slots = query_slots.join(Class, TimetableSlot.class_id == Class.id).filter(Class.department_id == tenant_department_id)
-        slots = query_slots.all()
         for slot in slots:
             slots_map[(slot.teacher_id, slot.period_number)] = slot
 
