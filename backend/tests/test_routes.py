@@ -38,6 +38,17 @@ class TestAuthRoutes:
         data = response.json()
         assert "access_token" in data
 
+    def test_login_case_insensitive_and_whitespace_trimmed(self, client, test_teacher):
+        payload = {
+            "identifier": "  TEACHER@TEST.COM  ",
+            "password": "Testpass1",
+        }
+        response = client.post("/auth/login", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert data["user"]["email"] == "teacher@test.com"
+
 
 class TestAdminRoutes:
     def test_list_secondary_admins(self, client, auth_headers_admin):

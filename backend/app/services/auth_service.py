@@ -1,4 +1,4 @@
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from datetime import date as date_cls
@@ -77,7 +77,13 @@ def create_user_by_admin(data: UserCreate, db: Session, tenant_department_id: in
 
 
 def login(identifier: str, password: str, db: Session) -> dict:
-    user = db.query(User).filter(or_(User.username == identifier, User.email == identifier)).first()
+    cleaned_identifier = (identifier or "").strip()
+    user = db.query(User).filter(
+        or_(
+            func.lower(User.username) == cleaned_identifier.lower(),
+            func.lower(User.email) == cleaned_identifier.lower(),
+        )
+    ).first()
     if not user or not verify_password(password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, model_validator
+from pydantic import BaseModel, EmailStr, model_validator, field_validator
 from datetime import datetime
 from app.models.user import Role, AdminLevel
 
@@ -17,6 +17,11 @@ class UserLogin(BaseModel):
     (teachers) so the frontend can use a single login field."""
     identifier: str
     password: str
+
+    @field_validator("identifier")
+    @classmethod
+    def strip_identifier(cls, v: str) -> str:
+        return v.strip() if v else v
 
 
 class UserOut(BaseModel):
