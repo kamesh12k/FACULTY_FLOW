@@ -298,12 +298,40 @@ server {
     # Client upload size limit for documents/excel
     client_max_body_size 25M;
 
+    # Modern Gzip Compression
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_min_length 256;
+    gzip_types
+        text/plain
+        text/css
+        text/xml
+        text/javascript
+        application/json
+        application/javascript
+        application/x-javascript
+        application/xml
+        application/xml+rss
+        image/svg+xml;
+
+    # Immutable Cache for Hashed Vite Assets (/assets/*.js, /assets/*.css)
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+
     # Frontend Single-Page Application fallback
     location / {
         try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header X-Content-Type-Options "nosniff";
+        add_header X-Frame-Options "SAMEORIGIN";
     }
 
-    # Proxy API calls directly to Gunicorn backend
+    # Proxy API calls directly to Gunicorn/Uvicorn backend
     location /api/ {
         proxy_pass http://127.0.0.1:8000/;
         proxy_http_version 1.1;

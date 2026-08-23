@@ -144,10 +144,39 @@ server {
 
     client_max_body_size 100M;
 
+    # Modern Gzip Compression
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_min_length 256;
+    gzip_types
+        text/plain
+        text/css
+        text/xml
+        text/javascript
+        application/json
+        application/javascript
+        application/x-javascript
+        application/xml
+        application/xml+rss
+        image/svg+xml;
+
+    # Immutable Cache for Hashed Vite Assets (/assets/*.js, /assets/*.css)
+    location /assets/ {
+        root /home/credits/credits-system/frontend/dist;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+
+    # SPA Entrypoint (index.html must not be aggressively cached)
     location / {
         root /home/credits/credits-system/frontend/dist;
         try_files $uri /index.html;
-        expires 1h;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header X-Content-Type-Options "nosniff";
+        add_header X-Frame-Options "SAMEORIGIN";
     }
 
     location /api/ {
