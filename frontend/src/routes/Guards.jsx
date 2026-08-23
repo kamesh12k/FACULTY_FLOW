@@ -14,9 +14,8 @@ export function GovernanceRoute() {
 }
 
 export function AdminRoute() {
-  const { token, user, isAdmin, isPrincipal, isGovernance } = useAuth()
+  const { token, user, isAdmin, isPrincipal } = useAuth()
   if (!token || !user) return <Navigate to="/login" replace />
-  if (isGovernance) return <Navigate to="/governance" replace />
   if (isPrincipal) return <Navigate to="/principal/dashboard" replace />
   if (!isAdmin) return <Navigate to="/teacher/dashboard" replace />
   return <Outlet />

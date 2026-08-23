@@ -46,11 +46,11 @@ def require_admin(
     current_user: User = Depends(require_credentials_set),
     request: Request = None
 ) -> User:
-    if current_user.role == Role.principal:
+    if current_user.role in (Role.principal, Role.governance):
         if request is not None and request.method != "GET":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Principal accounts are read-only"
+                detail=f"{current_user.role.value.capitalize()} accounts have read-only access to standard administrative records"
             )
         return current_user
     if current_user.role not in (Role.admin, Role.system_admin):

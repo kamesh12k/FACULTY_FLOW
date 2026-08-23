@@ -28,7 +28,7 @@ export function AuthProvider({ children }) {
       token,
       login,
       logout,
-      isAdmin: user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'principal',
+      isAdmin: user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'principal' || user?.role === 'governance',
       isSystemAdmin: user?.role === 'system_admin',
       isPrincipal: user?.role === 'principal',
       isGovernance: user?.role === 'governance',

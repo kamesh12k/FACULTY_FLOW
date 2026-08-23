@@ -8,7 +8,7 @@ import {
   GridIcon, UsersIcon, DocIcon, SwapIcon,
   CheckCircleIcon, AlertTriangleIcon, CloseIcon,
   RefreshIcon, ShieldIcon, SparklesIcon,
-  ChevronUpIcon, ClockIcon, BellIcon, MenuIcon
+  ChevronUpIcon, ClockIcon, BellIcon, MenuIcon, CalIcon
 } from "../../components/icons"
 
 /* ─ LiveClock ─────────────────────────────────────────── */
@@ -336,29 +336,48 @@ function AssignModal({ item, candidates, loading, onClose, onConfirm, submitting
 /* ─ More Drawer ──────────────────────────────────────── */
 function MoreDrawer({ open, onClose, onNavigate, onLogout }) {
   const ITEMS = [
-    { label: "Faculty",       Icon: UsersIcon,       key: "faculty" },
-    { label: "Leave",         Icon: DocIcon,         key: "leave" },
-    { label: "Departments",   Icon: GridIcon,        key: "departments" },
-    { label: "Engine Stats",  Icon: SparklesIcon,    key: "engine" },
-    { label: "Audit Log",     Icon: ClockIcon,       key: "audit" },
-    { label: "System Health", Icon: CheckCircleIcon, key: "system" },
+    { label: "Campus Calendar", Icon: CalIcon,   to: "/admin/academic-calendar" },
+    { label: "Timetables",      Icon: CalIcon,   to: "/admin/class-timetable" },
+    { label: "Live Substitutions", Icon: SwapIcon, to: "/admin/today-substitutions" },
+    { label: "Leave Oversight", Icon: DocIcon,   to: "/admin/leaves" },
+    { label: "Faculty Directory", Icon: UsersIcon, to: "/admin/teachers" },
+    { label: "Departments",     Icon: GridIcon,  to: "/admin/departments" },
+    { label: "Audit Log",       Icon: ClockIcon, tab: "audit" },
+    { label: "Alerts & Health", Icon: BellIcon,  tab: "alerts" },
+    { label: "Emergency Override", Icon: ShieldIcon, override: true },
   ]
   if (!open) return null
   return (
     <div className="fixed inset-0 z-40 flex items-end">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full bg-white rounded-t-3xl shadow-2xl overflow-hidden">
-        <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto mt-3 mb-4" />
-        <div className="px-4 pb-4 grid grid-cols-3 gap-3">
-          {ITEMS.map(({ label, Icon, key }) => (
-            <button key={key} onClick={() => { onNavigate(key); onClose() }} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-slate-50 border border-slate-200 active:bg-slate-100 touch-manipulation">
-              <Icon className="w-6 h-6 text-indigo-600" />
-              <span className="text-[11px] font-bold text-slate-700 text-center leading-tight">{label}</span>
-            </button>
-          ))}
+      <div className="relative w-full bg-white rounded-t-3xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+        <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto mt-3 mb-2 flex-shrink-0" />
+        <div className="px-5 py-2 flex items-center justify-between border-b border-slate-100 flex-shrink-0">
+          <p className="text-xs font-black uppercase tracking-wider text-slate-500">Governance Navigation</p>
+          <button onClick={onClose} className="text-xs font-bold text-slate-400 hover:text-slate-600">Close</button>
         </div>
-        <div className="border-t border-slate-100 mx-4 pt-3 pb-6">
-          <button onClick={onLogout} className="w-full py-3 rounded-xl border border-red-200 text-red-600 text-sm font-bold active:bg-red-50 touch-manipulation">Sign Out</button>
+        <div className="p-4 grid grid-cols-3 gap-3 overflow-y-auto">
+          {ITEMS.map((item, idx) => {
+            const Icon = item.Icon
+            return (
+              <button
+                key={idx}
+                onClick={() => {
+                  onNavigate(item)
+                  onClose()
+                }}
+                className="flex flex-col items-center gap-2 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 active:bg-slate-100 hover:border-indigo-200 touch-manipulation transition-colors"
+              >
+                <Icon className="w-6 h-6 text-indigo-600" />
+                <span className="text-[11px] font-bold text-slate-700 text-center leading-tight">{item.label}</span>
+              </button>
+            )
+          })}
+        </div>
+        <div className="border-t border-slate-100 p-4 bg-slate-50 flex-shrink-0">
+          <button onClick={onLogout} className="w-full py-3 rounded-xl border border-red-200 text-red-600 bg-white text-sm font-bold active:bg-red-50 touch-manipulation shadow-xs">
+            Sign Out
+          </button>
         </div>
       </div>
     </div>
@@ -666,7 +685,15 @@ export default function GovernanceDashboard() {
     finally { setOverrideSubmitting(false) }
   }
 
-  const handleMoreNav = (key) => setActiveTab({ faculty: "alerts", leave: "alerts", departments: "alerts", engine: "subs", audit: "audit", system: "home" }[key] || "home")
+  const handleMoreNav = (item) => {
+    if (item.to) {
+      navigate(item.to)
+    } else if (item.tab) {
+      setActiveTab(item.tab)
+    } else if (item.override) {
+      setOverrideOpen(true)
+    }
+  }
 
   if (loading && !data) return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 gap-4">
