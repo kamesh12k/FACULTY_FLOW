@@ -181,12 +181,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+import uuid
+
+@app.exception_handler(Exception)
+async def global_unhandled_exception_handler(request: Request, exc: Exception):
+    request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+    logging.getLogger("app.exceptions").exception("Unhandled server exception [request_id=%s]: %s", request_id, exc)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An internal server error occurred. Please contact the administrator with the reference request ID.", "request_id": request_id},
+        headers={"X-Request-ID": request_id}
+    )
+
 @app.middleware("http")
 async def traffic_logger_middleware(request: Request, call_next):
     start_time = time.time()
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    request.state.request_id = request_id
+    status_code = 500
     try:
         response = await call_next(request)
         status_code = response.status_code
+        response.headers["X-Request-ID"] = request_id
         return response
     except Exception as e:
         status_code = 500

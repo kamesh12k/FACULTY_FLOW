@@ -32,6 +32,23 @@ def submit_leave(teacher_id: int, data: LeaveCreate, db: Session) -> LeaveReques
     assignments, or credit transactions."""
     calendar_day = day_order_service.assert_working_day_or_400(db, data.date)
 
+    # Idempotency / duplicate protection: prevent duplicate submissions for the same period
+    existing_leave = (
+        db.query(LeaveRequest)
+        .filter(
+            LeaveRequest.teacher_id == teacher_id,
+            LeaveRequest.date == data.date,
+            LeaveRequest.period_number == data.period_number,
+            LeaveRequest.status != LeaveStatus.cancelled
+        )
+        .first()
+    )
+    if existing_leave:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Leave already exists for Period {data.period_number} on {data.date}",
+        )
+
     teacher = db.query(User).filter(User.id == teacher_id).first()
     teacher_dept_id = teacher.department_id if teacher else None
     auto_approve = should_auto_approve_leave(db, teacher_dept_id)
@@ -128,6 +145,22 @@ def submit_leave_batch(teacher_id: int, data: LeaveBatchCreate, db: Session) -> 
         status = LeaveStatus.approved if auto_approve else LeaveStatus.pending
 
         for period in periods:
+            existing_leave = (
+                db.query(LeaveRequest)
+                .filter(
+                    LeaveRequest.teacher_id == teacher_id,
+                    LeaveRequest.date == data.date,
+                    LeaveRequest.period_number == period,
+                    LeaveRequest.status != LeaveStatus.cancelled
+                )
+                .first()
+            )
+            if existing_leave:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Leave already exists for Period {period} on {data.date}",
+                )
+
             leave = LeaveRequest(
                 teacher_id=teacher_id,
                 date=data.date,
@@ -280,7 +313,11 @@ def detect_free_teachers(
     """Return teachers who have NO timetable slot for this Day Order +
     period. Day-Order-based (not weekday-based) so it correctly reflects
     the rotating schedule regardless of which calendar date triggered the
-    lookup."""
+    lookup.
+
+    Optimized for high-concurrency: performs bulk queries for today's slots
+    and weekly workloads across all candidates in O(1) database round-trips.
+    """
     busy_ids_query = (
         db.query(TimetableSlot.teacher_id)
         .filter(
@@ -298,28 +335,24 @@ def detect_free_teachers(
     if tenant_department_id is not None:
         query = query.filter(User.department_id == tenant_department_id)
     free_teachers = query.all()
+    if not free_teachers:
+        return []
+
+    teacher_ids = [t.id for t in free_teachers]
+    all_slots = db.query(TimetableSlot).filter(TimetableSlot.teacher_id.in_(teacher_ids)).all()
+
+    today_slots_by_teacher: dict[int, list[int]] = {}
+    week_count_by_teacher: dict[int, int] = {}
+
+    for s in all_slots:
+        week_count_by_teacher[s.teacher_id] = week_count_by_teacher.get(s.teacher_id, 0) + 1
+        if s.day_order == day_order:
+            today_slots_by_teacher.setdefault(s.teacher_id, []).append(s.period_number)
 
     res = []
     for t in free_teachers:
-        # Today's periods
-        today_slots = (
-            db.query(TimetableSlot.period_number)
-            .filter(
-                TimetableSlot.teacher_id == t.id,
-                TimetableSlot.day_order == day_order
-            )
-            .order_by(TimetableSlot.period_number)
-            .all()
-        )
-        periods_today = [row[0] for row in today_slots]
-        
-        # Week workload
-        week_count = (
-            db.query(TimetableSlot)
-            .filter(TimetableSlot.teacher_id == t.id)
-            .count()
-        )
-        
+        periods_today = sorted(today_slots_by_teacher.get(t.id, []))
+        week_count = week_count_by_teacher.get(t.id, 0)
         res.append(
             FreeTeacherOut(
                 id=t.id,
@@ -793,8 +826,11 @@ def get_cancel_impact(leave_id: int, db: Session, tenant_department_id: int | No
     )
 
 
-def _get_leave_or_404(leave_id: int, db: Session, tenant_department_id: int | None = None) -> LeaveRequest:
-    leave = db.query(LeaveRequest).filter(LeaveRequest.id == leave_id).first()
+def _get_leave_or_404(leave_id: int, db: Session, tenant_department_id: int | None = None, for_update: bool = False) -> LeaveRequest:
+    query = db.query(LeaveRequest).filter(LeaveRequest.id == leave_id)
+    if for_update and db.bind and db.bind.dialect.name == "postgresql":
+        query = query.with_for_update()
+    leave = query.first()
     if not leave:
         raise HTTPException(status_code=404, detail="Leave request not found")
     if tenant_department_id is not None:

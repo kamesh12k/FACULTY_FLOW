@@ -16,15 +16,20 @@ def apply_credit_change(
     db: Session,
     category: str = "other",
 ) -> None:
-    """Atomically update balance and record the transaction. Callers
-    (leave_service.assign_substitute) are responsible for having already
+    """Atomically update balance and record the transaction with row-level locking.
+    Callers (leave_service.assign_substitute) are responsible for having already
     verified the leave's date is a working day — credit changes never
     happen for leaves on holidays, because such leaves are rejected at
     submission time (see leave_service.submit_leave)."""
-    credit = db.query(TeacherCredit).filter(TeacherCredit.teacher_id == teacher_id).first()
+    query = db.query(TeacherCredit).filter(TeacherCredit.teacher_id == teacher_id)
+    if db.bind and db.bind.dialect.name == "postgresql":
+        query = query.with_for_update()
+    credit = query.first()
+
     if not credit:
         credit = TeacherCredit(teacher_id=teacher_id, balance=0)
         db.add(credit)
+        db.flush()
 
     credit.balance += change
 
@@ -62,7 +67,7 @@ def get_all_transactions(db: Session, tenant_department_id: int | None = None) -
 
 
 def get_credit_report(db: Session, tenant_department_id: int | None = None) -> list[CreditReportEntry]:
-    query = db.query(User, TeacherCredit).join(TeacherCredit, TeacherCredit.teacher_id == User.id)
+    query = db.query(User, TeacherCredit).outerjoin(TeacherCredit, TeacherCredit.teacher_id == User.id).filter(User.role == Role.teacher)
     if tenant_department_id is not None:
         query = query.filter(User.department_id == tenant_department_id)
     rows = query.all()
@@ -71,7 +76,7 @@ def get_credit_report(db: Session, tenant_department_id: int | None = None) -> l
             teacher_id=u.id,
             name=u.name,
             department=u.department,
-            balance=c.balance,
+            balance=c.balance if c else 0,
         )
         for u, c in rows
     ]
@@ -86,6 +91,9 @@ def get_faculty_workload_report(db: Session, tenant_department_id: int | None = 
     zero. Since timetable_slots are keyed by day_order (not raw date), this
     is the correct exclusion: a day_order's periods count once per actual
     working occurrence in the calendar, not once per the abstract slot.
+
+    Optimized for high-concurrency: performs bulk batch fetching (O(1) database queries)
+    eliminating previous 2N+1 query bottlenecks.
     """
     working_day_orders_count: dict[int, int] = {}
     working_days = db.query(CalendarDay).filter(CalendarDay.day_type == DayType.working).all()
@@ -97,9 +105,24 @@ def get_faculty_workload_report(db: Session, tenant_department_id: int | None = 
     if tenant_department_id is not None:
         query = query.filter(User.department_id == tenant_department_id)
     teachers = query.all()
+    if not teachers:
+        return []
+
+    teacher_ids = [t.id for t in teachers]
+
+    # Bulk query 1: Fetch all timetable slots for target teachers
+    all_slots = db.query(TimetableSlot).filter(TimetableSlot.teacher_id.in_(teacher_ids)).all()
+    slots_by_teacher: dict[int, list[TimetableSlot]] = {}
+    for slot in all_slots:
+        slots_by_teacher.setdefault(slot.teacher_id, []).append(slot)
+
+    # Bulk query 2: Fetch all credit balances for target teachers
+    all_credits = db.query(TeacherCredit).filter(TeacherCredit.teacher_id.in_(teacher_ids)).all()
+    balance_by_teacher: dict[int, int] = {c.teacher_id: c.balance for c in all_credits}
+
     report = []
     for teacher in teachers:
-        slots = db.query(TimetableSlot).filter(TimetableSlot.teacher_id == teacher.id).all()
+        slots = slots_by_teacher.get(teacher.id, [])
         total_periods = 0
         working_days_counted = 0
         for slot in slots:
@@ -107,7 +130,7 @@ def get_faculty_workload_report(db: Session, tenant_department_id: int | None = 
             total_periods += occurrences
             working_days_counted += occurrences
 
-        balance = get_balance(teacher.id, db)
+        balance = balance_by_teacher.get(teacher.id, 0)
         report.append(
             FacultyWorkloadReportEntry(
                 teacher_id=teacher.id,
