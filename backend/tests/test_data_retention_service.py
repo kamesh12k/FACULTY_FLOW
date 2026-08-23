@@ -226,3 +226,18 @@ class TestDataRetentionRoutes:
         )
         assert resp.status_code == 400
         assert "PURGE DATA" in resp.json()["detail"]
+
+    def test_data_retention_forbidden_for_dept_admin(self, client, auth_headers_admin):
+        """HODs / Department Admins must be forbidden from accessing data retention endpoints."""
+        resp_stats = client.get("/admin/data-retention/stats", headers=auth_headers_admin)
+        assert resp_stats.status_code == 403
+
+        resp_policy = client.get("/admin/data-retention/policy", headers=auth_headers_admin)
+        assert resp_policy.status_code == 403
+
+        resp_preview = client.post(
+            "/admin/data-retention/preview",
+            headers=auth_headers_admin,
+            json={"targets": ["audit_logs"], "filter_type": "older_than_days", "older_than_days": 30},
+        )
+        assert resp_preview.status_code == 403

@@ -57,7 +57,6 @@ export const ADMIN_NAV = [
       { to: '/admin/classes', label: 'Classes', icon: <UsersIcon /> },
       { to: '/admin/rooms', label: 'Rooms & Labs', icon: <DoorIcon /> },
       { to: '/admin/settings', label: 'Settings & History', icon: <DocIcon /> },
-      { to: '/admin/data-retention', label: 'Data Retention & Purge', icon: <TrashNavIcon /> },
     ],
   },
 ]

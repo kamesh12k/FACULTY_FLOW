@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.core.dependencies import require_admin, require_super_admin, require_system_admin, get_tenant_department_id
-from app.models.user import User, Role
+from app.core.dependencies import require_system_admin
+from app.models.user import User
 from app.schemas.data_retention import (
     RetentionPolicySettingsIn,
     RetentionPolicySettingsOut,
@@ -23,33 +23,28 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin/data-retention", tags=["Data Retention & Purge"])
 
 
-def _get_dept_scope(admin: User) -> int | None:
-    if admin.role == Role.system_admin:
-        return None
-    return admin.department_id
-
-
 @router.get("/stats", response_model=StorageStatsOut)
 def get_storage_stats(
-    admin: User = Depends(require_admin),
+    admin: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     """
     Returns live database record counts across all core application tables,
     backup filesystem footprint, and retention configuration status.
+    Strictly accessible to System Admin only.
     """
-    dept_id = _get_dept_scope(admin)
-    return data_retention_service.get_storage_stats(db, tenant_department_id=dept_id)
+    return data_retention_service.get_storage_stats(db, tenant_department_id=None)
 
 
 @router.get("/policy", response_model=RetentionPolicySettingsOut)
 def get_retention_policy(
-    admin: User = Depends(require_admin),
+    admin: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     """
     Retrieve automated retention policy settings, scheduled cleanup interval, and retention windows.
     Also triggers a check if auto-cleanup is due.
+    Strictly accessible to System Admin only.
     """
     try:
         data_retention_service.check_and_run_auto_cleanup(db)
@@ -61,12 +56,12 @@ def get_retention_policy(
 @router.put("/policy", response_model=RetentionPolicySettingsOut)
 def update_retention_policy(
     policy: RetentionPolicySettingsIn,
-    admin: User = Depends(require_super_admin),
+    admin: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     """
     Update automated retention policies (cleanup frequency, retention windows per entity).
-    Callable by Super Admins and System Admins.
+    Strictly accessible to System Admin only.
     """
     return data_retention_service.update_retention_policy(
         db=db,
@@ -78,11 +73,12 @@ def update_retention_policy(
 
 @router.post("/run-auto-cleanup", response_model=SelectivePurgeExecuteResponse)
 def run_auto_cleanup_now(
-    admin: User = Depends(require_super_admin),
+    admin: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     """
     Force immediate execution of automated data retention cleanup policy.
+    Strictly accessible to System Admin only.
     """
     res = data_retention_service.check_and_run_auto_cleanup(db, force=True)
     if not res:
@@ -103,36 +99,36 @@ def run_auto_cleanup_now(
 @router.post("/preview", response_model=SelectivePurgePreviewResponse)
 def preview_selective_purge(
     req: SelectivePurgePreviewRequest,
-    admin: User = Depends(require_admin),
+    admin: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     """
     Simulates selective data purge and calculates exact record counts for each selected entity
     matching user filter criteria (without modifying any database records).
+    Strictly accessible to System Admin only.
     """
-    dept_id = _get_dept_scope(admin)
-    return data_retention_service.preview_selective_purge(db, req=req, tenant_department_id=dept_id)
+    return data_retention_service.preview_selective_purge(db, req=req, tenant_department_id=None)
 
 
 @router.post("/purge", response_model=SelectivePurgeExecuteResponse)
 def execute_selective_purge(
     req: SelectivePurgeExecuteRequest,
-    admin: User = Depends(require_super_admin),
+    admin: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
     """
     Executes selective data purge of targeted datasets according to filter parameters.
     Requires safety confirmation phrase 'PURGE DATA' and can automatically generate
     a snapshot backup prior to deletion.
+    Strictly accessible to System Admin only.
     """
-    dept_id = _get_dept_scope(admin)
     try:
         return data_retention_service.execute_selective_purge(
             db=db,
             req=req,
             actor_user_id=admin.id,
             actor_name=admin.username or admin.name,
-            tenant_department_id=dept_id,
+            tenant_department_id=None,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

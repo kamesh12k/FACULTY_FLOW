@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { DepartmentProvider } from './context/DepartmentContext'
-import { ProtectedRoute, AdminRoute, PrincipalRoute, GovernanceRoute, ManagerRoute, StaffRoute, TeacherRoute, GuestRoute, FirstLoginSetupRoute, RequireCredentialsSet } from './routes/Guards'
+import { ProtectedRoute, AdminRoute, SystemAdminRoute, PrincipalRoute, GovernanceRoute, ManagerRoute, StaffRoute, TeacherRoute, GuestRoute, FirstLoginSetupRoute, RequireCredentialsSet } from './routes/Guards'
 import AppShell from './components/layout/AppShell'
 import PageLoader from './components/common/PageLoader'
 import ScrollToTop from './components/common/ScrollToTop'
@@ -94,7 +94,6 @@ export default function App() {
                 <Route path="/admin/academic-calendar" element={<AcademicCalendar />} />
                 <Route path="/admin/academic-calendar/reports" element={<AcademicCalendarReports />} />
                 <Route path="/admin/teachers" element={<Teachers />} />
-                <Route path="/admin/managers" element={<AdminManagers />} />
                 <Route path="/admin/timetable" element={<AdminTimetable />} />
                 <Route path="/admin/timetable/approvals" element={<TimetableApprovals />} />
                 <Route path="/admin/leaves" element={<AdminLeaves />} />
@@ -109,9 +108,14 @@ export default function App() {
                 <Route path="/admin/resource-availability" element={<ResourceAvailability />} />
                 <Route path="/admin/today-substitutions" element={<TodaySubstitutions />} />
                 <Route path="/admin/settings" element={<AdminSettings />} />
-                <Route path="/admin/system-metrics" element={<SystemMetrics />} />
                 <Route path="/admin/backup" element={<BackupRestore />} />
-                <Route path="/admin/data-retention" element={<DataRetention />} />
+
+                {/* System Admin only routes */}
+                <Route element={<SystemAdminRoute />}>
+                  <Route path="/admin/managers" element={<AdminManagers />} />
+                  <Route path="/admin/system-metrics" element={<SystemMetrics />} />
+                  <Route path="/admin/data-retention" element={<DataRetention />} />
+                </Route>
               </Route>
             </Route>
           </Route>

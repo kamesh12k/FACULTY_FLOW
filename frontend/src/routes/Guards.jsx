@@ -22,6 +22,13 @@ export function AdminRoute() {
   return <Outlet />
 }
 
+export function SystemAdminRoute() {
+  const { token, user, isSystemAdmin } = useAuth()
+  if (!token || !user) return <Navigate to="/login" replace />
+  if (!isSystemAdmin) return <Navigate to="/admin/dashboard" replace />
+  return <Outlet />
+}
+
 export function PrincipalRoute() {
   const { token, user, isPrincipal } = useAuth()
   if (!token || !user) return <Navigate to="/login" replace />

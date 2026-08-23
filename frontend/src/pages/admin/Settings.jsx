@@ -1345,6 +1345,7 @@ function TimetableResetPanel() {
 
 /* ── Clear History ────────────────────────────────────────────────────── */
 function ClearHistoryPanel() {
+  const { isSystemAdmin } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(null)
   const [error, setError] = useState('')
@@ -1415,16 +1416,18 @@ function ClearHistoryPanel() {
           </button>
         </div>
 
-        <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
-          <p className="text-xs text-gray-500">Need advanced date filters, automated cleanup policies, or selective datasets?</p>
-          <button
-            type="button"
-            onClick={() => navigate('/admin/data-retention')}
-            className="text-xs font-bold text-primary-600 hover:text-primary-700 underline"
-          >
-            Open Data Retention & Purge Console →
-          </button>
-        </div>
+        {isSystemAdmin && (
+          <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+            <p className="text-xs text-gray-500">Need advanced date filters, automated cleanup policies, or selective datasets?</p>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/data-retention')}
+              className="text-xs font-bold text-primary-600 hover:text-primary-700 underline"
+            >
+              Open Data Retention & Purge Console →
+            </button>
+          </div>
+        )}
       </div>
     </SettingsSection>
   )
