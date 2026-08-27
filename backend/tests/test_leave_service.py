@@ -42,6 +42,22 @@ class TestSubmitLeave:
             submit_leave(test_teacher.id, data, db_session)
         assert exc.value.status_code == 400
 
+    def test_reapply_after_rejection(self, db_session, test_teacher):
+        create_calendar_day(db_session, date(2026, 7, 1), DayType.working, day_order=1)
+        data1 = LeaveCreate(date=date(2026, 7, 1), period_number=1, reason="First try")
+        leave1 = submit_leave(test_teacher.id, data1, db_session)
+        assert leave1.status == LeaveStatus.pending
+
+        # Reject it
+        reject_leave(leave1.id, db_session)
+        assert leave1.status == LeaveStatus.rejected
+
+        # Reapply on the same date and period
+        data2 = LeaveCreate(date=date(2026, 7, 1), period_number=1, reason="Second try with proper reason")
+        leave2 = submit_leave(test_teacher.id, data2, db_session)
+        assert leave2.id != leave1.id
+        assert leave2.status == LeaveStatus.pending
+
 
 class TestGetLeaves:
     def test_all(self, db_session, test_teacher):

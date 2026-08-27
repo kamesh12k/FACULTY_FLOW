@@ -39,7 +39,7 @@ def submit_leave(teacher_id: int, data: LeaveCreate, db: Session) -> LeaveReques
             LeaveRequest.teacher_id == teacher_id,
             LeaveRequest.date == data.date,
             LeaveRequest.period_number == data.period_number,
-            LeaveRequest.status != LeaveStatus.cancelled
+            LeaveRequest.status.in_([LeaveStatus.pending, LeaveStatus.approved])
         )
         .first()
     )
@@ -174,7 +174,7 @@ def submit_leave_batch(teacher_id: int, data: LeaveBatchCreate, db: Session) -> 
                     LeaveRequest.teacher_id == teacher_id,
                     LeaveRequest.date == data.date,
                     LeaveRequest.period_number == period,
-                    LeaveRequest.status != LeaveStatus.cancelled
+                    LeaveRequest.status.in_([LeaveStatus.pending, LeaveStatus.approved])
                 )
                 .first()
             )
@@ -937,7 +937,7 @@ def submit_leave_by_admin(data: AdminLeaveCreate, admin_user: User, db: Session,
                     LeaveRequest.teacher_id == data.teacher_id,
                     LeaveRequest.date == data.date,
                     LeaveRequest.period_number == period,
-                    LeaveRequest.status != LeaveStatus.cancelled
+                    LeaveRequest.status.in_([LeaveStatus.pending, LeaveStatus.approved])
                 )
                 .first()
             )
