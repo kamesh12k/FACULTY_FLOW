@@ -18,6 +18,7 @@ from app.schemas.staff_leave import (
 )
 
 from app.services.admin_service import log_audit_event
+from app.services import notification_service
 
 DEFAULT_OPENING_BALANCE = 12.0
 
@@ -86,6 +87,33 @@ def apply_staff_leave(
     db.add(leave)
     db.commit()
     db.refresh(leave)
+
+    # Notify managers of the department
+    managers = db.query(User).filter(
+        User.role.in_([Role.manager, Role.admin, Role.system_admin]),
+        (User.department_id == staff.department_id) | (User.role == Role.system_admin),
+        User.is_active == True,
+    ).all() if staff else []
+
+    staff_name = staff.full_name if staff else f"Staff #{staff.id}"
+    for mgr in managers:
+        notification_service.create_notification(
+            db, mgr.id,
+            title=f"Staff Leave Request: {staff_name}",
+            body=f"{staff_name} requested {data.leave_type} leave from {data.start_date} to {data.end_date} ({days_count} day(s)).",
+            event_type="staff_leave_submitted",
+        )
+
+    # Notify staff user if they have an active account
+    if staff and staff.user_id:
+        notification_service.create_notification(
+            db, staff.user_id,
+            title="Leave Request Submitted",
+            body=f"Your {data.leave_type} leave request from {data.start_date} to {data.end_date} was submitted for approval.",
+            event_type="staff_leave_submitted",
+        )
+    db.commit()
+
     return leave
 
 
@@ -154,6 +182,17 @@ def approve_staff_leave(
 
     db.commit()
     db.refresh(leave)
+
+    # Notify staff member if they have an active user account
+    if staff.user_id:
+        notification_service.create_notification(
+            db, staff.user_id,
+            title="Staff Leave Approved",
+            body=f"Your {leave.leave_type} leave request from {leave.start_date} to {leave.end_date} was approved." + (f" Remarks: {approval_remarks}" if approval_remarks else ""),
+            event_type="staff_leave_approved",
+        )
+        db.commit()
+
     return leave
 
 
@@ -190,6 +229,17 @@ def reject_staff_leave(
 
     db.commit()
     db.refresh(leave)
+
+    # Notify staff member if they have an active user account
+    if staff and staff.user_id:
+        notification_service.create_notification(
+            db, staff.user_id,
+            title="Staff Leave Rejected",
+            body=f"Your {leave.leave_type} leave request from {leave.start_date} to {leave.end_date} was rejected." + (f" Remarks: {approval_remarks}" if approval_remarks else ""),
+            event_type="staff_leave_rejected",
+        )
+        db.commit()
+
     return leave
 
 

@@ -82,6 +82,29 @@ def submit_leave(teacher_id: int, data: LeaveCreate, db: Session) -> LeaveReques
 
         substitution_service.auto_process_approved_leave(db, leave)
         db.refresh(leave)
+    else:
+        teacher_name = teacher.name if teacher else f"Teacher #{teacher_id}"
+        admins = db.query(User).filter(
+            User.role.in_([Role.admin, Role.system_admin]),
+            (User.department_id == teacher_dept_id) | (User.role == Role.system_admin),
+            User.is_active == True,
+        ).all()
+        for adm in admins:
+            notification_service.create_notification(
+                db, adm.id,
+                title=f"New Leave Request: {teacher_name}",
+                body=f"{teacher_name} requested leave on {leave.date} (Day Order {leave.day_order}, period {leave.period_number}). Reason: {leave.reason or 'Not specified'}",
+                event_type="leave_submitted",
+                related_leave_id=leave.id,
+            )
+        notification_service.create_notification(
+            db, leave.teacher_id,
+            title="Leave Request Submitted",
+            body=f"Your leave request for {leave.date} (Period {leave.period_number}) was submitted for approval.",
+            event_type="leave_submitted",
+            related_leave_id=leave.id,
+        )
+        db.commit()
 
     return leave
 
@@ -196,6 +219,30 @@ def submit_leave_batch(teacher_id: int, data: LeaveBatchCreate, db: Session) -> 
             db.commit()
             for leave in leaves:
                 db.refresh(leave)
+        else:
+            teacher_name = teacher.name if teacher else f"Teacher #{teacher_id}"
+            periods_str = ", ".join(str(p) for p in periods)
+            admins = db.query(User).filter(
+                User.role.in_([Role.admin, Role.system_admin]),
+                (User.department_id == teacher_dept_id) | (User.role == Role.system_admin),
+                User.is_active == True,
+            ).all()
+            for adm in admins:
+                notification_service.create_notification(
+                    db, adm.id,
+                    title=f"New Leave Request: {teacher_name}",
+                    body=f"{teacher_name} requested leave on {data.date} for Period(s) {periods_str}. Reason: {data.reason or 'Not specified'}",
+                    event_type="leave_submitted",
+                    related_leave_id=leaves[0].id if leaves else None,
+                )
+            notification_service.create_notification(
+                db, teacher_id,
+                title="Leave Request Submitted",
+                body=f"Your leave request for {data.date} (Period(s) {periods_str}) was submitted for approval.",
+                event_type="leave_submitted",
+                related_leave_id=leaves[0].id if leaves else None,
+            )
+            db.commit()
 
         logger.info(
             "submit_leave_batch: created %d leave row(s) batch_id=%s teacher_id=%s date=%s",

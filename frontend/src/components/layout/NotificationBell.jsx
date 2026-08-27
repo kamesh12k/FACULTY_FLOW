@@ -12,6 +12,13 @@ import { BellIcon, CheckCircleIcon, SwapIcon, CalIcon, XCircleIcon } from '../ic
 const EVENT_ICON = {
   leave_approved: CheckCircleIcon,
   leave_rejected: XCircleIcon,
+  leave_submitted: CalIcon,
+  timetable_submitted: CalIcon,
+  timetable_approved: CheckCircleIcon,
+  timetable_rejected: XCircleIcon,
+  staff_leave_submitted: CalIcon,
+  staff_leave_approved: CheckCircleIcon,
+  staff_leave_rejected: XCircleIcon,
   substitute_assigned: SwapIcon,
   holiday_reminder: CalIcon,
   system_test: BellIcon,

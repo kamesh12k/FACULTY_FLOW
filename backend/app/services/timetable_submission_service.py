@@ -5,9 +5,9 @@ from sqlalchemy.orm import Session
 
 from app.models.class_ import Class
 from app.models.timetable_submission import TimetableSubmission, TimetableSubmissionStatus
-from app.models.user import User
+from app.models.user import User, Role
 from app.schemas.timetable import TimetableSubmissionCreate, TimetableSlotCreate
-from app.services import timetable_service
+from app.services import timetable_service, notification_service
 from app.services.admin_service import log_audit_event
 from app.services.system_setting_service import get_setting
 
@@ -28,6 +28,30 @@ def submit(db: Session, teacher: User, data: TimetableSubmissionCreate) -> Timet
     log_audit_event(db, teacher.id, "timetable.submitted", "timetable_submission", None, data.model_dump())
     db.commit()
     db.refresh(submission)
+
+    # Notify Admins / HODs of the department
+    admins = db.query(User).filter(
+        User.role.in_([Role.admin, Role.system_admin]),
+        (User.department_id == teacher.department_id) | (User.role == Role.system_admin),
+        User.is_active == True,
+    ).all()
+    for adm in admins:
+        notification_service.create_notification(
+            db, adm.id,
+            title=f"Timetable Request: {teacher.name}",
+            body=f"{teacher.name} submitted a timetable slot for Day Order {data.day_order}, Period {data.period_number}.",
+            event_type="timetable_submitted",
+        )
+
+    # Notify the teacher
+    notification_service.create_notification(
+        db, teacher.id,
+        title="Timetable Slot Submitted",
+        body=f"Your timetable slot for Day Order {data.day_order}, Period {data.period_number} was submitted for approval.",
+        event_type="timetable_submitted",
+    )
+    db.commit()
+
     return submission
 
 
@@ -66,6 +90,16 @@ def review(db: Session, submission_id: int, admin: User, approved: bool, note: s
     log_audit_event(db, admin.id, "timetable.submission_approved" if approved else "timetable.submission_rejected", "timetable_submission", submission.id, {"note": note})
     db.commit()
     db.refresh(submission)
+
+    # Notify teacher of review decision
+    notification_service.create_notification(
+        db, submission.teacher_id,
+        title=f"Timetable Slot {'Approved' if approved else 'Rejected'}",
+        body=f"Your timetable slot for Day Order {submission.day_order}, Period {submission.period_number} was {'approved' if approved else 'rejected'}" + (f": {note}" if note else "."),
+        event_type="timetable_approved" if approved else "timetable_rejected",
+    )
+    db.commit()
+
     return submission
 
 
