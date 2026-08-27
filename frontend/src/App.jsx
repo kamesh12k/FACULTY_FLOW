@@ -15,6 +15,7 @@ const FirstLoginSetup = lazy(() => import('./pages/auth/FirstLoginSetup'))
 
 // Governance Command Center (lazy loaded)
 const GovernanceDashboard = lazy(() => import('./pages/governance/Dashboard'))
+const HodTimetable = lazy(() => import('./pages/governance/HodTimetable'))
 
 // Admin pages (lazy loaded)
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'))
@@ -31,6 +32,7 @@ const AdminRooms = lazy(() => import('./pages/admin/Rooms'))
 const AdminDepartments = lazy(() => import('./pages/admin/Departments'))
 const ResourceAvailability = lazy(() => import('./pages/admin/ResourceAvailability'))
 const AdminSettings = lazy(() => import('./pages/admin/Settings'))
+const SetupGuide = lazy(() => import('./pages/admin/SetupGuide'))
 const AcademicCalendar = lazy(() => import('./pages/admin/AcademicCalendar'))
 const AcademicCalendarReports = lazy(() => import('./pages/admin/AcademicCalendarReports'))
 const SystemMetrics = lazy(() => import('./pages/admin/SystemMetrics'))
@@ -91,6 +93,7 @@ export default function App() {
             <Route element={<RequireCredentialsSet />}>
               <Route element={<AppShell />}>
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                <Route path="/admin/setup" element={<SetupGuide />} />
                 <Route path="/admin/academic-calendar" element={<AcademicCalendar />} />
                 <Route path="/admin/academic-calendar/reports" element={<AcademicCalendarReports />} />
                 <Route path="/admin/teachers" element={<Teachers />} />
@@ -125,6 +128,7 @@ export default function App() {
             <Route element={<RequireCredentialsSet />}>
               <Route element={<AppShell />}>
                 <Route path="/governance" element={<GovernanceDashboard />} />
+                <Route path="/governance/timetable" element={<HodTimetable />} />
               </Route>
             </Route>
           </Route>

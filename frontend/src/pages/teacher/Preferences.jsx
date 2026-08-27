@@ -103,6 +103,13 @@ export default function SubstitutionPreferences() {
           onChange={toggle('allow_emergency_assignments')}
           disabled={saving || !prefs.accept_auto_assignments}
         />
+        <PreferenceRow
+          title="Only substitute for my regularly assigned classes"
+          description="When this is on, your name will only appear as a substitute candidate for a class that is already assigned to you in the timetable. This is a hard restriction — you will never be shown for any other class, regardless of other settings."
+          checked={prefs.only_my_classes}
+          onChange={toggle('only_my_classes')}
+          disabled={saving}
+        />
         {/* Commented out as they no longer affect scoring
         <PreferenceRow
           title="Prefer morning classes"

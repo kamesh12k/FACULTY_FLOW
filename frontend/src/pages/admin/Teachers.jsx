@@ -147,6 +147,58 @@ export default function Teachers() {
   const [prefError, setPrefError] = useState('')
   const [prefSuccess, setPrefSuccess] = useState('')
 
+  // Bulk Import Modal State
+  const [bulkModalOpen, setBulkModalOpen] = useState(false)
+  const [bulkInput, setBulkInput] = useState('')
+  const [bulkDeptId, setBulkDeptId] = useState('')
+  const [bulkSaving, setBulkSaving] = useState(false)
+  const [bulkError, setBulkError] = useState('')
+  const [bulkResult, setBulkResult] = useState(null)
+
+  const handleBulkSubmit = async (e) => {
+    e.preventDefault()
+    setBulkError('')
+    setBulkResult(null)
+    const lines = bulkInput.split('\n').map(l => l.trim()).filter(Boolean)
+    if (lines.length === 0) {
+      setBulkError('Please paste or type at least one teacher record (Name, Email).')
+      return
+    }
+
+    const items = []
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const parts = line.split(/[,;\t]+/).map(p => p.trim()).filter(Boolean)
+      if (parts.length < 2) {
+        setBulkError(`Line ${i + 1} is invalid: "${line}". Expected format: Name, Email`)
+        return
+      }
+      const [name, email, deptName] = parts
+      let targetDeptId = bulkDeptId ? Number(bulkDeptId) : null
+      if (deptName) {
+        const found = departments.find(d => d.name?.toLowerCase() === deptName.toLowerCase() || d.code?.toLowerCase() === deptName.toLowerCase())
+        if (found) targetDeptId = found.id
+      }
+      items.push({ name, email, department_id: targetDeptId })
+    }
+
+    setBulkSaving(true)
+    try {
+      const res = await teachersApi.bulkCreate({
+        department_id: bulkDeptId ? Number(bulkDeptId) : undefined,
+        teachers: items,
+      })
+      setBulkResult(res.data)
+      showBanner('success', `Imported ${res.data.created_count} teachers successfully!`)
+      load()
+    } catch (err) {
+      setBulkError(err.response?.data?.detail || 'Failed to bulk import teachers.')
+    } finally {
+      setBulkSaving(false)
+    }
+  }
+
+
   const handleOpenPreferencesModal = async (teacher) => {
     setSelectedTeacherPref(teacher)
     setPrefError('')
@@ -416,9 +468,22 @@ export default function Teachers() {
           <h1 className="text-xl font-bold text-gray-900">Teachers</h1>
           <p className="text-sm text-gray-500">Manage teaching staff, departments, and account access.</p>
         </div>
-        <button onClick={() => setModalOpen(true)} className="btn-primary text-sm inline-flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
-          <IconPlus className="h-4 w-4" /> Add Teacher
-        </button>
+        <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+          <button
+            onClick={() => {
+              setBulkModalOpen(true)
+              setBulkInput('')
+              setBulkError('')
+              setBulkResult(null)
+            }}
+            className="btn-secondary text-sm inline-flex items-center gap-1.5"
+          >
+            <IconCopy className="h-4 w-4" /> Bulk Import
+          </button>
+          <button onClick={() => setModalOpen(true)} className="btn-primary text-sm inline-flex items-center gap-1.5">
+            <IconPlus className="h-4 w-4" /> Add Teacher
+          </button>
+        </div>
       </div>
 
       {banner && (
@@ -831,6 +896,64 @@ export default function Teachers() {
             </div>
           </form>
         )}
+      </Modal>
+
+      {/* Bulk Import Faculty Modal */}
+      <Modal open={bulkModalOpen} onClose={() => setBulkModalOpen(false)} title="Bulk Import Faculty (CSV / Paste)">
+        <form onSubmit={handleBulkSubmit} className="space-y-4">
+          <ErrorAlert message={bulkError} />
+          {bulkResult && (
+            <div className="p-3 bg-green-50 border border-green-200 text-green-800 rounded-xl text-xs space-y-1">
+              <p className="font-bold">✓ Successfully created {bulkResult.created_count} faculty accounts.</p>
+              {bulkResult.skipped_count > 0 && (
+                <p className="text-amber-700">Skipped {bulkResult.skipped_count} items (already registered or invalid).</p>
+              )}
+              {bulkResult.errors?.length > 0 && (
+                <ul className="list-disc pl-4 text-[11px] text-red-600 mt-1">
+                  {bulkResult.errors.map((e, idx) => <li key={idx}>{e}</li>)}
+                </ul>
+              )}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1">Default Department (Fallback)</label>
+            <select
+              value={bulkDeptId}
+              onChange={e => setBulkDeptId(e.target.value)}
+              className="input text-xs"
+            >
+              <option value="">Select fallback department…</option>
+              {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1">
+              Paste Faculty Records (one per line)
+            </label>
+            <p className="text-[11px] text-gray-500 mb-1.5">
+              Format: <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-800 font-mono">Full Name, email@college.edu</code>
+            </p>
+            <textarea
+              rows={6}
+              required
+              value={bulkInput}
+              onChange={e => setBulkInput(e.target.value)}
+              placeholder={"Dr. Jane Doe, jane.doe@college.edu\nProf. John Smith, john.smith@college.edu"}
+              className="input font-mono text-xs"
+            />
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={() => setBulkModalOpen(false)} className="btn-secondary flex-1">
+              Cancel
+            </button>
+            <button type="submit" disabled={bulkSaving} className="btn-primary flex-1">
+              {bulkSaving ? 'Importing…' : 'Import Faculty'}
+            </button>
+          </div>
+        </form>
       </Modal>
     </div>
   )

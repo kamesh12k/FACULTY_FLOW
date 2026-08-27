@@ -70,3 +70,23 @@ class UserUpdate(BaseModel):
     is_active: bool
     password: str | None = None
 
+
+class TeacherBulkItem(BaseModel):
+    name: str
+    email: EmailStr
+    department_id: int | None = None
+    default_password: str | None = "Password123!"
+
+
+class TeacherBulkCreate(BaseModel):
+    teachers: list[TeacherBulkItem]
+    department_id: int | None = None
+
+
+class TeacherBulkCreateOut(BaseModel):
+    created_count: int
+    skipped_count: int
+    errors: list[str] = []
+    teachers: list[UserOut]
+
+

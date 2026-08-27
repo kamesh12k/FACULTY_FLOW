@@ -1,5 +1,6 @@
 import logging
 
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -94,6 +95,36 @@ def reject_leave(
     tenant_department_id: int | None = Depends(get_tenant_department_id),
 ):
     return leave_service.reject_leave(leave_id, db, tenant_department_id)
+
+
+class LeaveStatusUpdate(BaseModel):
+    status: str
+    admin_notes: str | None = None
+
+
+@router.patch("/{leave_id}/status")
+def update_leave_status(
+    leave_id: int,
+    data: LeaveStatusUpdate,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    tenant_department_id: int | None = Depends(get_tenant_department_id),
+):
+    if data.status == "approved":
+        leave, free_teachers = leave_service.approve_leave(leave_id, db, tenant_department_id)
+        return {
+            "leave": LeaveOut.model_validate(leave),
+            "free_teachers": free_teachers,
+        }
+    elif data.status == "rejected":
+        leave = leave_service.reject_leave(leave_id, db, tenant_department_id)
+        return {
+            "leave": LeaveOut.model_validate(leave),
+            "free_teachers": [],
+        }
+    else:
+        raise HTTPException(status_code=400, detail="Status must be 'approved' or 'rejected'")
+
 
 
 @router.post("/bulk-approve", response_model=list[LeaveOut])
@@ -267,20 +298,6 @@ def free_teachers(
         teacher_ids = {row[0] for row in db.query(TimetableSlot.teacher_id).filter(TimetableSlot.class_id == affected.class_id).all()}
         candidates = [candidate for candidate in candidates if candidate.id in teacher_ids]
     return candidates
-@router.get("/debug-batch-test")
-def debug_batch_test(
-    current_user: User = Depends(require_teacher),
-    db: Session = Depends(get_db),
-):
-    import traceback
-    from datetime import date as date_type
-    from app.schemas.leave import LeaveBatchCreate
-    try:
-        data = LeaveBatchCreate(date=date_type(2026, 6, 28), whole_day=True, reason="test")
-        result = leave_service.submit_leave_batch(current_user.id, data, db)
-        return {"ok": True, "count": len(result), "ids": [r.id for r in result]}
-    except Exception as e:
-        return {"ok": False, "error": str(e), "trace": traceback.format_exc()}
 
 
 @router.post("/{leave_id}/cancel", response_model=LeaveOut)

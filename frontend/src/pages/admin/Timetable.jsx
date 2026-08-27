@@ -40,6 +40,15 @@ function getColor(classId) {
   return colorMap[classId]
 }
 
+function getSubjectColor(subjectId) {
+  if (subjectId === null || subjectId === undefined) {
+    return { bg: '#F8FAFC', text: '#475569', border: '#CBD5E1' }
+  }
+  const key = `subj_${subjectId}`
+  if (!colorMap[key]) colorMap[key] = SUBJECT_COLORS[colorIdx++ % SUBJECT_COLORS.length]
+  return colorMap[key]
+}
+
 function abbrev(name) {
   if (!name) return '?'
   return name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 3)
@@ -117,25 +126,33 @@ export default function AdminTimetable() {
   const [masterReady, setMasterReady] = useState(false)
 
   // ── UI state ──────────────────────────────────────────────────────────────
+  const [leftTab, setLeftTab] = useState('classes')
   const [selectedTeacherId, setSelectedTeacherId] = useState('')
   const [teacherSearch, setTeacherSearch] = useState('')
-  const [teacherDepartmentFilter, setTeacherDepartmentFilter] = useState('')
+  const [teacherDepartmentFilter, setTeacherDepartmentFilter] = useState(user?.department_id ? String(user.department_id) : '')
   const [classSearch, setClassSearch] = useState('')
-  const [classDepartmentFilter, setClassDepartmentFilter] = useState('')
+  const [classDepartmentFilter, setClassDepartmentFilter] = useState(user?.department_id ? String(user.department_id) : '')
+  const [subjectSearch, setSubjectSearch] = useState('')
+  const [subjectDepartmentFilter, setSubjectDepartmentFilter] = useState(user?.department_id ? String(user.department_id) : '')
   const [roomFilter, setRoomFilter] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [activeClass, setActiveClass] = useState(null)
+  const [activeSubject, setActiveSubject] = useState(null)
   const [selectedCell, setSelectedCell] = useState(null)
   const [paintMode, setPaintMode] = useState(false)
   const [isPainting, setIsPainting] = useState(false)
   const [paintHover, setPaintHover] = useState(null)
   const [dragClass, setDragClass] = useState(null)
+  const [dragSubject, setDragSubject] = useState(null)
   const [dragOver, setDragOver] = useState(null)
   const [conflicts, setConflicts] = useState({})
   const [conflictDetail, setConflictDetail] = useState(null)
   const [toasts, setToasts] = useState([])
   const [editRoom, setEditRoom] = useState('')
+  const [editSubject, setEditSubject] = useState('')
+  const [editClass, setEditClass] = useState('')
+  const [editSubjectSearch, setEditSubjectSearch] = useState('')
   const [poppedCells, setPoppedCells] = useState(new Set())
   const [confirmClearOpen, setConfirmClearOpen] = useState(false)
 
@@ -166,8 +183,14 @@ export default function AdminTimetable() {
     setSelectedRoomId('')
     if (selectedCell?.slot) {
       setEditRoom(selectedCell.slot.room_id ? String(selectedCell.slot.room_id) : '')
+      setEditSubject(selectedCell.slot.subject_id ? String(selectedCell.slot.subject_id) : '')
+      setEditClass(selectedCell.slot.class_id ? String(selectedCell.slot.class_id) : '')
+      setEditSubjectSearch('')
     } else {
       setEditRoom('')
+      setEditSubject('')
+      setEditClass('')
+      setEditSubjectSearch('')
     }
   }, [selectedCell])
 
@@ -203,6 +226,15 @@ export default function AdminTimetable() {
       .catch(() => toast('Failed to load master data', 'error'))
   }, [])
 
+  // Auto-sync HOD/Department Admin department defaults
+  useEffect(() => {
+    if (user?.department_id) {
+      setClassDepartmentFilter(prev => prev === '' ? String(user.department_id) : prev)
+      setSubjectDepartmentFilter(prev => prev === '' ? String(user.department_id) : prev)
+      setTeacherDepartmentFilter(prev => (!isSystemAdmin && prev === '') ? String(user.department_id) : prev)
+    }
+  }, [user, isSystemAdmin])
+
   // Auto-select first available teacher if none selected
   useEffect(() => {
     if (masterReady && teachers.length > 0 && !selectedTeacherId) {
@@ -225,7 +257,7 @@ export default function AdminTimetable() {
     timetableApi.getByTeacher(selectedTeacherId)
       .then(r => {
         dispatch({ type: 'INIT', payload: r.data.map(s => enrich(s, subjs, clss, rms)) })
-        setSelectedCell(null); setActiveClass(null)
+        setSelectedCell(null); setActiveClass(null); setActiveSubject(null)
       })
       .catch(() => toast('Failed to load timetable', 'error'))
       .finally(() => setLoading(false))
@@ -247,7 +279,7 @@ export default function AdminTimetable() {
       } else if (e.key === 'p' || e.key === 'P') {
         setPaintMode(m => !m)
       } else if (e.key === 'Escape') {
-        setActiveClass(null); setSelectedCell(null)
+        setActiveClass(null); setActiveSubject(null); setSelectedCell(null)
       }
     }
     window.addEventListener('keydown', handler)
@@ -271,12 +303,24 @@ export default function AdminTimetable() {
   }
 
   // ── Assign slot ───────────────────────────────────────────────────────────
-  const assignSlot = useCallback(async (day, period, classOverride) => {
-    const sel = classOverride || activeClass
-    if (!sel) return
+  const assignSlot = useCallback(async (day, period, overridePayload) => {
+    let targetClass = overridePayload?.cls || activeClass?.cls
+    let targetSubject = overridePayload?.sub || activeSubject?.sub
+    const targetRoomId = overridePayload?.roomId !== undefined ? overridePayload.roomId : quickRoomId
+
+    if (!targetClass && targetSubject) {
+      targetClass = classes.find(c => c.department_id === targetSubject.department_id && c.semester === targetSubject.semester)
+        || classes.find(c => c.department_id === targetSubject.department_id)
+        || classes[0]
+    }
+
+    if (!targetClass) {
+      toast('Please select a class section to assign', 'warn')
+      return
+    }
+
     const occupiedSlot = slotAt(day, period)
     if (occupiedSlot) {
-      const requestedClass = (classOverride || activeClass)?.cls
       const requestedTeacher = teachers.find(t => t.id === Number(selectedTeacherId))
       showConflict({
         title: 'Teacher already scheduled',
@@ -286,8 +330,10 @@ export default function AdminTimetable() {
         requested: {
           teacher_id: Number(selectedTeacherId),
           teacher_name: requestedTeacher?.name || `Teacher #${selectedTeacherId}`,
-          class_id: requestedClass?.id,
-          class_name: requestedClass ? `${requestedClass.name}-${requestedClass.section}` : 'Not selected',
+          class_id: targetClass?.id,
+          class_name: targetClass ? `${targetClass.name}-${targetClass.section}` : 'Not selected',
+          subject_id: targetSubject?.id || null,
+          subject_name: targetSubject?.name || 'Assigned',
           day_order: day,
           period_number: period,
         },
@@ -302,16 +348,13 @@ export default function AdminTimetable() {
       return
     }
 
-    const cls = sel.cls
-    if (!cls) { toast('No class found — add a class first', 'error'); return }
-    const roomId = sel.roomId !== undefined ? sel.roomId : quickRoomId
     setSaving(true)
     try {
       const res = await timetableApi.createSlot({
         teacher_id: Number(selectedTeacherId),
-        subject_id: null,
-        class_id: cls.id,
-        room_id: roomId ? Number(roomId) : null,
+        subject_id: targetSubject ? targetSubject.id : null,
+        class_id: targetClass.id,
+        room_id: targetRoomId ? Number(targetRoomId) : null,
         day_order: day,
         period_number: period,
         allow_combined_class: combineClassMode,
@@ -323,7 +366,8 @@ export default function AdminTimetable() {
       // Clear any outstanding conflict entry for this slot on success
       setConflicts(c => { const n = { ...c }; delete n[`${day}-${period}`]; return n })
       const hourTag = enriched.hour_type ? ` · ${enriched.hour_type}` : ''
-      toast(`${cls.name}-${cls.section} → ${DAY_SHORT[day]} P${period}${hourTag}`)
+      const subTag = targetSubject ? `${targetSubject.code} · ` : ''
+      toast(`${subTag}${targetClass.name}-${targetClass.section} → ${DAY_SHORT[day]} P${period}${hourTag}`)
 
     } catch (err) {
       const rawDetail = err.response?.data?.detail || 'Failed to assign slot'
@@ -340,8 +384,10 @@ export default function AdminTimetable() {
           requested: {
             teacher_id: Number(selectedTeacherId),
             teacher_name: teacher?.name || `Teacher #${selectedTeacherId}`,
-            class_id: cls?.id,
-            class_name: cls ? `${cls.name}-${cls.section}` : 'Not selected',
+            class_id: targetClass?.id,
+            class_name: targetClass ? `${targetClass.name}-${targetClass.section}` : 'Not selected',
+            subject_id: targetSubject?.id || null,
+            subject_name: targetSubject?.name || 'Assigned',
             day_order: day,
             period_number: period,
           },
@@ -371,11 +417,15 @@ export default function AdminTimetable() {
           const c = classes.find(c => c.id === detail.requested.class_id)
           if (c) detail.requested.class_name = `${c.name}-${c.section}`
         }
+        if (detail.requested && !detail.requested.subject_name && detail.requested.subject_id) {
+          const s = subjects.find(s => s.id === detail.requested.subject_id)
+          if (s) detail.requested.subject_name = s.name
+        }
       }
       toast(typeof detail === 'string' ? detail : (detail.title || 'Timetable conflict'), 'error')
       showConflict(detail, day, period)
     } finally { setSaving(false) }
-  }, [activeClass, selectedTeacherId, slots, subjects, classes, rooms, teachers, enrich, toast, quickRoomId, showConflict])
+  }, [activeClass, activeSubject, selectedTeacherId, slots, subjects, classes, rooms, teachers, enrich, toast, quickRoomId, showConflict, combineClassMode])
 
 
   // ── Remove slot ───────────────────────────────────────────────────────────
@@ -468,24 +518,39 @@ export default function AdminTimetable() {
     finally { setSaving(false) }
   }, [selectedTeacherId, toast])
 
-  // ── Update room ───────────────────────────────────────────────────────────
-  const updateRoom = useCallback(async (slotObj, roomId) => {
+  // ── Update slot ───────────────────────────────────────────────────────────
+  const updateSlot = useCallback(async (slotObj, updates = {}) => {
+    if (!slotObj) return
     setSaving(true)
     try {
       await timetableApi.deleteSlot(slotObj.id)
+      const nextClassId = updates.class_id !== undefined ? updates.class_id : slotObj.class_id
+      const nextSubjectId = updates.subject_id !== undefined ? updates.subject_id : slotObj.subject_id
+      const nextRoomId = updates.room_id !== undefined ? updates.room_id : slotObj.room_id
+
       const res = await timetableApi.createSlot({
-        teacher_id: slotObj.teacher_id, subject_id: slotObj.subject_id,
-        class_id: slotObj.class_id, room_id: roomId ? Number(roomId) : null,
-        day_order: slotObj.day_order, period_number: slotObj.period_number,
+        teacher_id: slotObj.teacher_id,
+        subject_id: nextSubjectId ? Number(nextSubjectId) : null,
+        class_id: Number(nextClassId),
+        room_id: nextRoomId ? Number(nextRoomId) : null,
+        day_order: slotObj.day_order,
+        period_number: slotObj.period_number,
+        allow_combined_class: updates.allow_combined_class !== undefined ? updates.allow_combined_class : combineClassMode,
       })
       const updated = enrich(res.data, subjects, classes, rooms)
       dispatch({ type: 'SET', payload: slots.map(s => s.id === slotObj.id ? updated : s) })
       setSelectedCell(prev => prev ? { ...prev, slot: updated } : prev)
-      toast('Room updated')
+      if (updates.subject_id !== undefined) setEditSubject(updates.subject_id ? String(updates.subject_id) : '')
+      if (updates.class_id !== undefined) setEditClass(String(updates.class_id))
+      if (updates.room_id !== undefined) setEditRoom(updates.room_id ? String(updates.room_id) : '')
+      toast('Slot updated successfully')
     } catch (err) {
-      toast(err.response?.data?.detail || 'Failed to update room', 'error')
+      toast(err.response?.data?.detail || 'Failed to update slot', 'error')
+      loadSlots(subjects, classes, rooms)
     } finally { setSaving(false) }
-  }, [slots, subjects, classes, rooms, enrich, toast])
+  }, [slots, subjects, classes, rooms, enrich, toast, combineClassMode, loadSlots])
+
+  const updateRoom = (slotObj, roomId) => updateSlot(slotObj, { room_id: roomId })
 
   const handleAssignFromPanel = async () => {
     if (!selectedCell || !selectedClassId || !selectedTeacherId) return
@@ -554,18 +619,22 @@ export default function AdminTimetable() {
   // ── Cell click ────────────────────────────────────────────────────────────
   const handleCellClick = useCallback((day, period) => {
     const slot = slotAt(day, period)
-    if (activeClass && !slot) { assignSlot(day, period); return }
+    if ((activeClass || activeSubject) && !slot) { assignSlot(day, period); return }
     setSelectedCell({ day_order: day, period_number: period, slot })
     if (slot) setEditRoom(slot.room_id ? String(slot.room_id) : '')
-  }, [activeClass, assignSlot, slots])
+  }, [activeClass, activeSubject, assignSlot, slots])
 
   // ── Drag handlers ─────────────────────────────────────────────────────────
   const handleDrop = useCallback((day, period) => {
     setDragOver(null)
-    if (!dragClass) return
-    assignSlot(day, period, dragClass)
-    setDragClass(null)
-  }, [dragClass, assignSlot, slots, toast])
+    if (dragClass) {
+      assignSlot(day, period, { cls: dragClass.cls })
+      setDragClass(null)
+    } else if (dragSubject) {
+      assignSlot(day, period, { sub: dragSubject.sub })
+      setDragSubject(null)
+    }
+  }, [dragClass, dragSubject, assignSlot])
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const filteredTeachers = teachers.filter(t => {
@@ -581,9 +650,35 @@ export default function AdminTimetable() {
     return true
   })
 
-  const filteredClasses = classes.filter(c =>
-    (!classDepartmentFilter || String(c.department_id) === classDepartmentFilter) &&
-    (!classSearch || c.name.toLowerCase().includes(classSearch.toLowerCase()) || (c.section || '').toLowerCase().includes(classSearch.toLowerCase())))
+  const filteredClasses = classes
+    .filter(c =>
+      (!classDepartmentFilter || String(c.department_id) === String(classDepartmentFilter)) &&
+      (!classSearch || c.name.toLowerCase().includes(classSearch.toLowerCase()) || (c.section || '').toLowerCase().includes(classSearch.toLowerCase()))
+    )
+    .sort((a, b) => {
+      if (user?.department_id) {
+        const aIsMine = a.department_id === user.department_id
+        const bIsMine = b.department_id === user.department_id
+        if (aIsMine && !bIsMine) return -1
+        if (!aIsMine && bIsMine) return 1
+      }
+      return `${a.name}-${a.section}`.localeCompare(`${b.name}-${b.section}`)
+    })
+
+  const filteredSubjects = subjects
+    .filter(s =>
+      (!subjectDepartmentFilter || String(s.department_id) === String(subjectDepartmentFilter)) &&
+      (!subjectSearch || s.name.toLowerCase().includes(subjectSearch.toLowerCase()) || s.code.toLowerCase().includes(subjectSearch.toLowerCase()))
+    )
+    .sort((a, b) => {
+      if (user?.department_id) {
+        const aIsMine = a.department_id === user.department_id
+        const bIsMine = b.department_id === user.department_id
+        if (aIsMine && !bIsMine) return -1
+        if (!aIsMine && bIsMine) return 1
+      }
+      return (a.code || '').localeCompare(b.code || '')
+    })
   const selectedTeacher = teachers.find(t => t.id === Number(selectedTeacherId))
   const conflictRequested = conflictDetail?.requested
   const requestedTeacherName = conflictRequested?.teacher_name
@@ -732,73 +827,199 @@ export default function AdminTimetable() {
       {/* ── Three-panel body ── */}
       <div className="tt-body">
 
-        {/* ── LEFT: class panel ── */}
+        {/* ── LEFT: class / subject panel ── */}
         <aside className="tt-left">
-          <div className="tt-input-icon-wrap" style={{ width: '100%' }}>
-            <IconSearch />
-            <input
-              className="tt-input tt-input--icon tt-input--sm"
-              placeholder="Filter classes…"
-              value={classSearch}
-              onChange={e => setClassSearch(e.target.value)}
-              style={{ width: '100%', boxSizing: 'border-box' }}
-            />
-          </div>
-          <select
-            className="tt-select"
-            value={classDepartmentFilter}
-            onChange={e => setClassDepartmentFilter(e.target.value)}
-            style={{ width: '100%', marginTop: 8 }}
-          >
-            <option value="">All departments</option>
-            {departments.map(department => <option key={department.id} value={department.id}>{department.name}</option>)}
-          </select>
-
-          <div className="tt-panel-label">
-            Classes
-            <span className="tt-badge">{classes.length}</span>
+          {/* Tab switcher: Classes | Subjects */}
+          <div className="tt-left-nav">
+            <button
+              type="button"
+              className={`tt-left-nav-btn ${leftTab === 'classes' ? 'tt-left-nav-btn--active' : ''}`}
+              onClick={() => setLeftTab('classes')}
+            >
+              Classes
+              <span className="tt-badge" style={{ marginLeft: 4 }}>{filteredClasses.length}</span>
+            </button>
+            <button
+              type="button"
+              className={`tt-left-nav-btn ${leftTab === 'subjects' ? 'tt-left-nav-btn--active' : ''}`}
+              onClick={() => setLeftTab('subjects')}
+            >
+              Subjects
+              <span className="tt-badge" style={{ marginLeft: 4 }}>{filteredSubjects.length}</span>
+            </button>
           </div>
 
-          {/* Class cards */}
-          <div className="tt-subject-list">
-            {filteredClasses.map(c => {
-              const color = getColor(c.id)
-              const isActive = activeClass?.cls?.id === c.id
-              const slotCount = slots.filter(sl => sl.class_id === c.id).length
-              const subjectCount = subjects.filter(s => s.class_id === c.id).length
+          {leftTab === 'classes' ? (
+            <>
+              <div className="tt-input-icon-wrap" style={{ width: '100%' }}>
+                <IconSearch />
+                <input
+                  className="tt-input tt-input--icon tt-input--sm"
+                  placeholder="Filter classes…"
+                  value={classSearch}
+                  onChange={e => setClassSearch(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+              <select
+                className="tt-select"
+                value={classDepartmentFilter}
+                onChange={e => setClassDepartmentFilter(e.target.value)}
+                style={{ width: '100%', marginTop: 8 }}
+              >
+                <option value="">All departments</option>
+                {departments.map(dept => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name} {user?.department_id === dept.id ? ' (My Dept)' : ''}
+                  </option>
+                ))}
+              </select>
 
-              return (
-                <div
-                  key={c.id}
-                  draggable
-                  onDragStart={() => setDragClass({ cls: c, color })}
-                  onDragEnd={() => setDragClass(null)}
-                  onClick={() => setActiveClass(isActive ? null : { cls: c, color })}
-                  className={`tt-subject-card ${isActive ? 'tt-subject-card--active' : ''}`}
-                  style={{ '--sc': color.border, '--sc-bg': color.bg, '--sc-text': color.text }}
-                >
-                  <div className="sc-stripe" />
-                  <div className="sc-body">
-                    <div className="sc-code">{c.name}-{c.section}</div>
-                    {subjectCount > 0 && (
-                      <div className="sc-name">{subjectCount} subject{subjectCount !== 1 ? 's' : ''}</div>
-                    )}
-                  </div>
-                  {slotCount > 0 && (
-                    <div className="sc-count" style={{ color: isActive ? color.text : undefined }}>
-                      {slotCount}
+              <div className="tt-panel-label">
+                Classes
+                <span className="tt-badge">{filteredClasses.length}</span>
+              </div>
+
+              {/* Class cards */}
+              <div className="tt-subject-list">
+                {filteredClasses.map(c => {
+                  const color = getColor(c.id)
+                  const isActive = activeClass?.cls?.id === c.id
+                  const slotCount = slots.filter(sl => sl.class_id === c.id).length
+                  const subjectCount = subjects.filter(s => s.department_id === c.department_id && s.semester === c.semester).length
+
+                  return (
+                    <div
+                      key={c.id}
+                      draggable
+                      onDragStart={() => setDragClass({ cls: c, color })}
+                      onDragEnd={() => setDragClass(null)}
+                      onClick={() => setActiveClass(isActive ? null : { cls: c, color })}
+                      className={`tt-subject-card ${isActive ? 'tt-subject-card--active' : ''}`}
+                      style={{ '--sc': color.border, '--sc-bg': color.bg, '--sc-text': color.text }}
+                    >
+                      <div className="sc-stripe" />
+                      <div className="sc-body">
+                        <div className="sc-code">{c.name}-{c.section}</div>
+                        <div className="sc-name">
+                          Sem {c.semester} {c.department_id === user?.department_id ? '· Dept' : ''}
+                          {subjectCount > 0 ? ` · ${subjectCount} subj` : ''}
+                        </div>
+                      </div>
+                      {slotCount > 0 && (
+                        <div className="sc-count" style={{ color: isActive ? color.text : undefined }}>
+                          {slotCount}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              )
-            })}
+                  )
+                })}
 
-            {filteredClasses.length === 0 && (
-              <div className="tt-empty-list">No classes found</div>
-            )}
-          </div>
+                {filteredClasses.length === 0 && (
+                  <div className="tt-empty-list">No classes found</div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Subjects View */}
+              <div className="tt-input-icon-wrap" style={{ width: '100%' }}>
+                <IconSearch />
+                <input
+                  className="tt-input tt-input--icon tt-input--sm"
+                  placeholder="Filter subjects…"
+                  value={subjectSearch}
+                  onChange={e => setSubjectSearch(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
 
-          {/* Quick room chips — one click sets what class-cell clicks/drags will use */}
+              <select
+                className="tt-select"
+                value={subjectDepartmentFilter}
+                onChange={e => setSubjectDepartmentFilter(e.target.value)}
+                style={{ width: '100%', marginTop: 8 }}
+              >
+                <option value="">All departments</option>
+                {departments.map(dept => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name} {user?.department_id === dept.id ? ' (My Dept)' : ''}
+                  </option>
+                ))}
+              </select>
+
+              <div className="tt-panel-label">
+                Subjects
+                <span className="tt-badge">{filteredSubjects.length}</span>
+              </div>
+
+              <div className="tt-subject-list">
+                {filteredSubjects.map(s => {
+                  const color = getSubjectColor(s.id)
+                  const isActive = activeSubject?.sub?.id === s.id
+                  const slotCount = slots.filter(sl => sl.subject_id === s.id).length
+                  const isLab = s.subject_type === 'lab'
+
+                  return (
+                    <div
+                      key={s.id}
+                      draggable
+                      onDragStart={() => setDragSubject({ sub: s, color })}
+                      onDragEnd={() => setDragSubject(null)}
+                      onClick={() => {
+                        if (isActive) {
+                          setActiveSubject(null)
+                        } else {
+                          setActiveSubject({ sub: s, color })
+                          if (!activeClass) {
+                            const matchedClass = classes.find(c => c.department_id === s.department_id && c.semester === s.semester) || classes.find(c => c.department_id === s.department_id) || classes[0]
+                            if (matchedClass) {
+                              setActiveClass({ cls: matchedClass, color: getColor(matchedClass.id) })
+                            }
+                          }
+                        }
+                      }}
+                      className={`tt-subject-card ${isActive ? 'tt-subject-card--active' : ''}`}
+                      style={{ '--sc': color.border, '--sc-bg': color.bg, '--sc-text': color.text }}
+                    >
+                      <div className="sc-stripe" />
+                      <div className="sc-body">
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+                          <div className="sc-code">{s.code}</div>
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontWeight: '700',
+                              padding: '1px 5px',
+                              borderRadius: '4px',
+                              background: isLab ? '#FEF3C7' : '#EEF2FF',
+                              color: isLab ? '#92400E' : '#3730A3',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {isLab ? 'Lab' : 'Theory'}
+                          </span>
+                        </div>
+                        <div className="sc-name" title={s.name}>{s.name}</div>
+                        <div className="sc-class">Sem {s.semester} · {s.credits} cr</div>
+                      </div>
+                      {slotCount > 0 && (
+                        <div className="sc-count" style={{ color: isActive ? color.text : undefined }}>
+                          {slotCount}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+
+                {filteredSubjects.length === 0 && (
+                  <div className="tt-empty-list">No subjects found</div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Quick room chips */}
           <div className="tt-panel-label" style={{ marginTop: 4 }}>Assign as</div>
           <div className="tt-quickroom-row">
             <button
@@ -825,13 +1046,33 @@ export default function AdminTimetable() {
             )}
           </div>
 
-          {/* Active class indicator */}
-          {activeClass && (
-            <div className="tt-active-hint" style={{ '--hint-border': activeClass.color.border, '--hint-bg': activeClass.color.bg, '--hint-text': activeClass.color.text }}>
+          {/* Active selection indicator */}
+          {(activeClass || activeSubject) && (
+            <div
+              className="tt-active-hint"
+              style={{
+                '--hint-border': (activeSubject?.color || activeClass?.color)?.border || '#C7D2FE',
+                '--hint-bg': (activeSubject?.color || activeClass?.color)?.bg || '#EEF2FF',
+                '--hint-text': (activeSubject?.color || activeClass?.color)?.text || '#4338CA',
+              }}
+            >
               <IconCheck />
               <span>
-                <strong>{activeClass.cls.name}-{activeClass.cls.section}</strong> selected — click empty cells to assign
-                {' '}as {quickRoomId ? <><strong>Lab</strong> ({rooms.find(r => r.id === Number(quickRoomId))?.room_number})</> : <strong>Theory</strong>}
+                {activeSubject && activeClass ? (
+                  <>
+                    <strong>{activeSubject.sub.code} ({activeSubject.sub.name})</strong> for <strong>{activeClass.cls.name}-{activeClass.cls.section}</strong>
+                  </>
+                ) : activeSubject ? (
+                  <>
+                    <strong>{activeSubject.sub.code} ({activeSubject.sub.name})</strong> selected
+                  </>
+                ) : (
+                  <>
+                    <strong>{activeClass.cls.name}-{activeClass.cls.section}</strong> selected
+                  </>
+                )}
+                {' '}— click empty cells to assign as{' '}
+                {quickRoomId ? <><strong>Lab</strong> ({rooms.find(r => r.id === Number(quickRoomId))?.room_number})</> : <strong>Theory</strong>}
               </span>
             </div>
           )}
@@ -839,7 +1080,7 @@ export default function AdminTimetable() {
 
         {/* ── CENTER: grid ── */}
         <main
-          className={`tt-center ${paintMode && activeClass ? 'tt-center--paint' : ''}`}
+          className={`tt-center ${paintMode && (activeClass || activeSubject) ? 'tt-center--paint' : ''}`}
           onMouseDown={() => { if (paintMode) setIsPainting(true) }}
           onMouseUp={() => setIsPainting(false)}
           onMouseLeave={() => { setIsPainting(false); setPaintHover(null) }}
@@ -900,7 +1141,7 @@ export default function AdminTimetable() {
                     let cellBg = '#FAFAFA'
                     if (slot) cellBg = isSelected ? (color?.border || '#E5E7EB') : (color?.bg || '#F9FAFB')
                     else if (isDragOver) cellBg = '#EEF2FF'
-                    else if (isPaintHov && activeClass) cellBg = '#F5F3FF'
+                    else if (isPaintHov && (activeClass || activeSubject)) cellBg = '#F5F3FF'
                     else if (isSelected) cellBg = '#F0F9FF'
 
                     let borderColor = '#E4E7EC'
@@ -929,7 +1170,7 @@ export default function AdminTimetable() {
                         onClick={() => handleCellClick(day, period)}
                         onMouseEnter={() => {
                           setPaintHover({ day, period })
-                          if (paintMode && isPainting && activeClass && !slot) assignSlot(day, period)
+                          if (paintMode && isPainting && (activeClass || activeSubject) && !slot) assignSlot(day, period)
                         }}
                         onMouseLeave={() => setPaintHover(null)}
                         onDragOver={e => { e.preventDefault(); setDragOver({ day, period }) }}
@@ -1016,10 +1257,114 @@ export default function AdminTimetable() {
 
               {selectedCell.slot ? (
                 <>
-                  <div className="cd-subject">{selectedCell.slot.subject_name}</div>
+                  <div className="cd-subject" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                    <span>{selectedCell.slot.subject_name}</span>
+                    {selectedCell.slot.subject_id && (
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: '700',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: '#EEF2FF',
+                          color: '#4338CA',
+                        }}
+                      >
+                        {selectedCell.slot.subject_code}
+                      </span>
+                    )}
+                  </div>
                   <div className="cd-class">{selectedCell.slot.class_name}</div>
 
-                  <div className="cd-section">
+                  {/* Change Subject */}
+                  <div className="cd-section" style={{ marginTop: 8 }}>
+                    <label className="cd-label">
+                      Subject
+                      <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: '500', marginLeft: 4 }}>
+                        (Change / Assign)
+                      </span>
+                    </label>
+                    <input
+                      className="tt-input tt-input--sm"
+                      placeholder="Filter subjects…"
+                      value={editSubjectSearch}
+                      onChange={e => setEditSubjectSearch(e.target.value)}
+                      style={{ width: '100%', boxSizing: 'border-box', marginBottom: 5 }}
+                    />
+                    <select
+                      className="tt-select tt-select--sm"
+                      value={editSubject}
+                      onChange={e => {
+                        const val = e.target.value
+                        setEditSubject(val)
+                        updateSlot(selectedCell.slot, { subject_id: val || null })
+                      }}
+                      style={{ width: '100%', boxSizing: 'border-box' }}
+                    >
+                      <option value="">None / General Duty</option>
+                      {(() => {
+                        const q = editSubjectSearch.toLowerCase()
+                        const filtered = subjects.filter(s =>
+                          !q || s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q)
+                        )
+                        // Group into matching current department / other
+                        const currentClass = classes.find(c => c.id === selectedCell.slot.class_id)
+                        const deptId = currentClass?.department_id || user?.department_id
+
+                        const deptSubjects = filtered.filter(s => s.department_id === deptId)
+                        const otherSubjects = filtered.filter(s => s.department_id !== deptId)
+
+                        return (
+                          <>
+                            {deptSubjects.length > 0 && (
+                              <optgroup label="Department Subjects">
+                                {deptSubjects.map(s => (
+                                  <option key={s.id} value={s.id}>
+                                    {s.code} · {s.name} ({s.subject_type === 'lab' ? 'Lab' : 'Theory'}, Sem {s.semester})
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
+                            {otherSubjects.length > 0 && (
+                              <optgroup label="Other Subjects">
+                                {otherSubjects.map(s => (
+                                  <option key={s.id} value={s.id}>
+                                    {s.code} · {s.name} ({s.subject_type === 'lab' ? 'Lab' : 'Theory'}, Sem {s.semester})
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
+                          </>
+                        )
+                      })()}
+                    </select>
+                  </div>
+
+                  {/* Change Class Section */}
+                  <div className="cd-section" style={{ marginTop: 8 }}>
+                    <label className="cd-label">
+                      Class Section
+                    </label>
+                    <select
+                      className="tt-select tt-select--sm"
+                      value={editClass}
+                      onChange={e => {
+                        const val = e.target.value
+                        setEditClass(val)
+                        updateSlot(selectedCell.slot, { class_id: val })
+                      }}
+                      style={{ width: '100%', boxSizing: 'border-box' }}
+                    >
+                      {classes.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} - {c.section} (Sem {c.semester})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Change Room */}
+                  <div className="cd-section" style={{ marginTop: 8 }}>
                     <label className="cd-label">
                       Room
                       {(() => {
@@ -1039,10 +1384,14 @@ export default function AdminTimetable() {
                     <select
                       className="tt-select tt-select--sm"
                       value={editRoom}
-                      onChange={e => { setEditRoom(e.target.value); updateRoom(selectedCell.slot, e.target.value) }}
+                      onChange={e => {
+                        const val = e.target.value
+                        setEditRoom(val)
+                        updateSlot(selectedCell.slot, { room_id: val || null })
+                      }}
                       style={{ width: '100%', boxSizing: 'border-box' }}
                     >
-                      <option value="">No room</option>
+                      <option value="">No room (Theory)</option>
                       {(() => {
                         const filtered = rooms.filter(r => !roomFilter || r.room_number.toLowerCase().includes(roomFilter.toLowerCase()))
                         const labs = filtered.filter(isLabRoom)
@@ -1069,6 +1418,7 @@ export default function AdminTimetable() {
                     className="tt-remove-btn"
                     onClick={() => removeSlot(selectedCell.slot)}
                     disabled={saving}
+                    style={{ marginTop: 12 }}
                   >
                     <IconTrash /> Remove this slot
                   </button>
@@ -1816,13 +2166,50 @@ const CSS = `
 
 /* ─── Left panel ─────────────────────────────────────────────────────────── */
 .tt-left {
-  width: 200px;
+  width: 210px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 7px;
   overflow-y: auto;
   padding-right: 2px;
+}
+
+.tt-left-nav {
+  display: flex;
+  background: #E2E8F0;
+  border-radius: 9px;
+  padding: 3px;
+  gap: 3px;
+  margin-bottom: 2px;
+}
+
+.tt-left-nav-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748B;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all .15s ease;
+  font-family: inherit;
+}
+
+.tt-left-nav-btn:hover {
+  color: #1E2532;
+}
+
+.tt-left-nav-btn--active {
+  background: #fff;
+  color: #4F46E5;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  font-weight: 700;
 }
 
 .tt-panel-label {

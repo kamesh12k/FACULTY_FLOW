@@ -556,6 +556,32 @@ def _is_hard_eligible(
         if recent >= pref.max_weekly_substitutions:
             return False, f"at weekly substitution cap ({pref.max_weekly_substitutions})"
 
+    # Hard gate: teacher wants to substitute only for their regularly assigned classes.
+    # Applies in all modes — the teacher's explicit opt-in to this restriction
+    # means they should never appear for a class they don't already teach.
+    if pref.only_my_classes:
+        affected_slot = (
+            db.query(TimetableSlot)
+            .filter(
+                TimetableSlot.teacher_id == leave.teacher_id,
+                TimetableSlot.day_order == leave.day_order,
+                TimetableSlot.period_number == leave.period_number,
+            )
+            .first()
+        )
+        if not affected_slot:
+            return False, "class preference: affected slot not found in timetable"
+        teaches_this_class = (
+            db.query(TimetableSlot)
+            .filter(
+                TimetableSlot.teacher_id == candidate.id,
+                TimetableSlot.class_id == affected_slot.class_id,
+            )
+            .first()
+        )
+        if not teaches_this_class:
+            return False, "only substitutes for regularly assigned classes"
+
     return True, None
 
 
@@ -598,6 +624,31 @@ def _is_hard_eligible_bulk(
         recent = recent_sub_counts.get(candidate.id, 0)
         if recent >= pref.max_weekly_substitutions:
             return False, f"at weekly substitution cap ({pref.max_weekly_substitutions})"
+
+    # Hard gate: teacher wants to substitute only for their regularly assigned classes.
+    # Applies in all modes (same logic as _is_hard_eligible).
+    if pref.only_my_classes:
+        affected_slot = (
+            db.query(TimetableSlot)
+            .filter(
+                TimetableSlot.teacher_id == leave.teacher_id,
+                TimetableSlot.day_order == leave.day_order,
+                TimetableSlot.period_number == leave.period_number,
+            )
+            .first()
+        )
+        if not affected_slot:
+            return False, "class preference: affected slot not found in timetable"
+        teaches_this_class = (
+            db.query(TimetableSlot)
+            .filter(
+                TimetableSlot.teacher_id == candidate.id,
+                TimetableSlot.class_id == affected_slot.class_id,
+            )
+            .first()
+        )
+        if not teaches_this_class:
+            return False, "only substitutes for regularly assigned classes"
 
     return True, None
 

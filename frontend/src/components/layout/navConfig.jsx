@@ -52,6 +52,7 @@ export const ADMIN_NAV = [
   {
     section: 'Setup',
     items: [
+      { to: '/admin/setup', label: 'Setup Guide', icon: <DocIcon /> },
       { to: '/admin/teachers', label: 'Teachers', icon: <UsersIcon /> },
       { to: '/admin/subjects', label: 'Subjects', icon: <BookIcon /> },
       { to: '/admin/classes', label: 'Classes', icon: <UsersIcon /> },
@@ -97,6 +98,7 @@ export const SYSTEM_ADMIN_NAV = [
   {
     section: 'System Setup',
     items: [
+      { to: '/admin/setup', label: 'Setup Guide', icon: <DocIcon /> },
       { to: '/admin/departments', label: 'Departments', icon: <UsersIcon />, end: true },
       { to: '/admin/managers', label: 'Managers', icon: <UsersIcon /> },
       { to: '/admin/classes', label: 'Classes', icon: <UsersIcon /> },

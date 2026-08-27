@@ -62,6 +62,7 @@ export const dataRetentionApi = {
 export const teachersApi = {
   list: (includeCrossDepartment = false) => api.get('/teachers/', { params: { include_cross_department: includeCrossDepartment } }),
   create: (data) => api.post('/teachers/', data),
+  bulkCreate: (data) => api.post('/teachers/bulk', data),
   update: (id, data) => api.put(`/teachers/${id}`, data),
   me: () => api.get('/teachers/me'),
   credits: (id) => api.get(`/teachers/${id}/credits`),

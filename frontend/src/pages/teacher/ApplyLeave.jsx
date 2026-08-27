@@ -184,6 +184,7 @@ export default function ApplyLeave() {
   }
 
   const dateShortcuts = [
+    { label: 'Today', value: isoFor(0) },
     { label: 'Tomorrow', value: isoFor(1) },
     { label: 'In 2 days', value: isoFor(2) },
     { label: 'Next week', value: isoFor(7) },
@@ -324,11 +325,29 @@ export default function ApplyLeave() {
                 <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200/80 space-y-2.5 mt-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-700">Select Periods</span>
-                    {form.period_numbers.length > 0 && (
-                      <span className="text-[11px] font-bold text-primary-700">
-                        Selected: Periods {form.period_numbers.join(', ')}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, period_numbers: [1, 2, 3] })}
+                        className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 text-slate-600 rounded hover:bg-slate-100"
+                      >
+                        Morning (P1–P3)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, period_numbers: [4, 5] })}
+                        className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 text-slate-600 rounded hover:bg-slate-100"
+                      >
+                        Afternoon (P4–P5)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, period_numbers: [1, 2, 3, 4, 5] })}
+                        className="px-2 py-0.5 text-[10px] font-semibold bg-white border border-slate-200 text-slate-600 rounded hover:bg-slate-100"
+                      >
+                        All (P1–P5)
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-5 gap-2">

@@ -149,6 +149,18 @@ export default function AdminLeaves() {
   const [limitWarning, setLimitWarning] = useState(null) // { payload, warningData }
   const [actionLoading, setActionLoading] = useState(null)
   const [candidateFilters, setCandidateFilters] = useState({ crossDepartment: false, handlesClass: false, department: '', search: '' })
+  
+  // High-frequency queue filters
+  const [filterTab, setFilterTab] = useState('all') // 'all' | 'pending' | 'needs_sub' | 'approved' | 'rejected'
+  const [searchQuery, setSearchQuery] = useState('')
+  const [dateFilter, setDateFilter] = useState('')
+  const [toast, setToast] = useState(null) // { type: 'success'|'error', message, undo }
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = setTimeout(() => setToast(null), 6000)
+    return () => clearTimeout(timer)
+  }, [toast])
 
   const loadCandidates = async (request, filters = candidateFilters) => {
     const params = { include_cross_department: filters.crossDepartment, only_handles_class: filters.handlesClass }
@@ -200,7 +212,46 @@ export default function AdminLeaves() {
     return list
   }
 
-  const groupedLeavesList = useMemo(() => groupLeaves(leaves), [leaves])
+  const allGroupedLeaves = useMemo(() => groupLeaves(leaves), [leaves])
+
+  const counts = useMemo(() => {
+    return {
+      all: allGroupedLeaves.length,
+      pending: allGroupedLeaves.filter(g => g.status === 'pending').length,
+      needs_sub: allGroupedLeaves.filter(g => g.status === 'approved' && g.requests.some(r => !r.alter_assignment)).length,
+      approved: allGroupedLeaves.filter(g => g.status === 'approved').length,
+      rejected: allGroupedLeaves.filter(g => g.status === 'rejected' || g.status === 'cancelled').length,
+    }
+  }, [allGroupedLeaves])
+
+  const groupedLeavesList = useMemo(() => {
+    let list = allGroupedLeaves
+
+    if (filterTab === 'pending') {
+      list = list.filter(g => g.status === 'pending')
+    } else if (filterTab === 'needs_sub') {
+      list = list.filter(g => g.status === 'approved' && g.requests.some(r => !r.alter_assignment))
+    } else if (filterTab === 'approved') {
+      list = list.filter(g => g.status === 'approved')
+    } else if (filterTab === 'rejected') {
+      list = list.filter(g => g.status === 'rejected' || g.status === 'cancelled')
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      list = list.filter(g =>
+        (g.teacher?.name || '').toLowerCase().includes(q) ||
+        (g.teacher?.department || '').toLowerCase().includes(q) ||
+        (g.requests[0]?.reason || '').toLowerCase().includes(q)
+      )
+    }
+
+    if (dateFilter) {
+      list = list.filter(g => g.date === dateFilter)
+    }
+
+    return list
+  }, [allGroupedLeaves, filterTab, searchQuery, dateFilter])
 
   const load = () => {
     setLoading(true)
@@ -211,7 +262,7 @@ export default function AdminLeaves() {
         return r.data
       })
       .catch(err => {
-        alert('Failed to load leave requests.')
+        setToast({ type: 'error', message: 'Failed to load leave requests.' })
         return []
       })
       .finally(() => setLoading(false))
@@ -227,8 +278,9 @@ export default function AdminLeaves() {
     try {
       await adminApi.clearLeavesHistory()
       load()
+      setToast({ type: 'success', message: 'Leave history cleared successfully.' })
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to clear leaves history.')
+      setToast({ type: 'error', message: err.response?.data?.detail || 'Failed to clear leaves history.' })
     } finally {
       setActionLoading(null)
     }
@@ -252,12 +304,25 @@ export default function AdminLeaves() {
 
   const handleApproveGroup = async (group) => {
     setActionLoading(group.key + '_approve')
+    const prevLeaves = leaves
+    // Optimistic UI update
+    const pendingReqs = group.requests.filter(r => r.status === 'pending')
+    const pendingIds = new Set(pendingReqs.map(r => r.id))
+    setLeaves(prev => prev.map(l => pendingIds.has(l.id) ? { ...l, status: 'approved' } : l))
+
     try {
-      const pendingReqs = group.requests.filter(r => r.status === 'pending')
       const results = await Promise.all(pendingReqs.map(r => leavesApi.approve(r.id).then(res => res.data.leave)))
-      
       const updatedList = await load()
       
+      setToast({
+        type: 'success',
+        message: `Approved leave for ${group.teacher?.name || 'teacher'} (${group.date})`,
+        undo: async () => {
+          await Promise.all(pendingReqs.map(r => leavesApi.reject(r.id)))
+          load()
+        }
+      })
+
       const unassigned = results.find(r => !r.alter_assignment)
       if (unassigned) {
         const freshGroup = groupLeaves(updatedList).find(g => g.key === group.key)
@@ -266,7 +331,8 @@ export default function AdminLeaves() {
         }
       }
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to approve leaves.')
+      setLeaves(prevLeaves)
+      setToast({ type: 'error', message: err.response?.data?.detail || 'Failed to approve leave.' })
     } finally {
       setActionLoading(null)
     }
@@ -274,12 +340,26 @@ export default function AdminLeaves() {
 
   const handleRejectGroup = async (group) => {
     setActionLoading(group.key + '_reject')
+    const prevLeaves = leaves
+    const pendingReqs = group.requests.filter(r => r.status === 'pending')
+    const pendingIds = new Set(pendingReqs.map(r => r.id))
+    // Optimistic UI update
+    setLeaves(prev => prev.map(l => pendingIds.has(l.id) ? { ...l, status: 'rejected' } : l))
+
     try {
-      const pendingReqs = group.requests.filter(r => r.status === 'pending')
       await Promise.all(pendingReqs.map(r => leavesApi.reject(r.id)))
       load()
+      setToast({
+        type: 'success',
+        message: `Rejected leave for ${group.teacher?.name || 'teacher'} (${group.date})`,
+        undo: async () => {
+          await Promise.all(pendingReqs.map(r => leavesApi.approve(r.id)))
+          load()
+        }
+      })
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to reject leaves.')
+      setLeaves(prevLeaves)
+      setToast({ type: 'error', message: err.response?.data?.detail || 'Failed to reject leave.' })
     } finally {
       setActionLoading(null)
     }
@@ -596,9 +676,42 @@ export default function AdminLeaves() {
   }, [allDepartments, subModal, candidateFilters.crossDepartment])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Toast Alert with Undo Action */}
+      {toast && (
+        <div
+          className={`p-3.5 rounded-xl border flex items-center justify-between text-xs font-semibold shadow-md transition-all ${
+            toast.type === 'success'
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              : 'bg-rose-50 text-rose-800 border-rose-200'
+          }`}
+        >
+          <span>{toast.message}</span>
+          <div className="flex items-center gap-2">
+            {toast.undo && (
+              <button
+                onClick={() => {
+                  toast.undo()
+                  setToast(null)
+                }}
+                className="px-2.5 py-1 bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold shadow-xs cursor-pointer"
+              >
+                Undo
+              </button>
+            )}
+            <button onClick={() => setToast(null)} className="text-gray-400 hover:text-gray-600 font-bold ml-1">
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Header with Title & Clear History */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h1 className="text-xl font-bold text-gray-900">Leave Requests</h1>
+        <div>
+          <h1 className="text-xl font-black text-gray-900 tracking-tight">Leave Requests Queue</h1>
+          <p className="text-xs text-gray-500 mt-0.5">Approve or reject faculty leave requests and allocate classroom substitutes.</p>
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
           {selected.size === 0 && (
             <button
@@ -611,21 +724,96 @@ export default function AdminLeaves() {
           )}
           {selected.size > 0 && (
             <div className="flex gap-2">
-              <button onClick={handleBulkApprove} disabled={actionLoading === 'bulk'} className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
-                Approve {selected.size} selected
+              <button onClick={handleBulkApprove} disabled={actionLoading === 'bulk'} className="text-xs px-3.5 py-1.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 disabled:opacity-50 shadow-xs cursor-pointer">
+                ✓ Approve ({selected.size})
               </button>
-              <button onClick={handleBulkReject} disabled={actionLoading === 'bulk'} className="text-xs px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
-                Reject {selected.size} selected
+              <button onClick={handleBulkReject} disabled={actionLoading === 'bulk'} className="text-xs px-3.5 py-1.5 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 disabled:opacity-50 shadow-xs cursor-pointer">
+                ✕ Reject ({selected.size})
               </button>
             </div>
           )}
         </div>
       </div>
 
+      {/* Fast Tab Filters */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {[
+          { id: 'all', label: 'All Requests', count: counts.all },
+          { id: 'pending', label: 'Pending Review', count: counts.pending, badgeColor: 'bg-amber-100 text-amber-800' },
+          { id: 'needs_sub', label: 'Needs Substitute', count: counts.needs_sub, badgeColor: 'bg-rose-100 text-rose-800' },
+          { id: 'approved', label: 'Approved', count: counts.approved, badgeColor: 'bg-emerald-100 text-emerald-800' },
+          { id: 'rejected', label: 'Rejected', count: counts.rejected, badgeColor: 'bg-gray-100 text-gray-700' },
+        ].map(tab => {
+          const active = filterTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setFilterTab(tab.id)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition inline-flex items-center gap-2 shrink-0 cursor-pointer ${
+                active
+                  ? 'bg-primary-600 text-white shadow-xs'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              <span>{tab.label}</span>
+              <span
+                className={`text-[11px] px-1.5 py-0.2 rounded-md font-bold ${
+                  active ? 'bg-primary-800 text-white' : tab.badgeColor || 'bg-gray-100 text-gray-700'
+                }`}
+              >
+                {tab.count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Search & Date Filter Bar */}
+      <div className="card p-2.5 bg-white border border-gray-200 rounded-xl flex flex-col sm:flex-row items-center gap-2">
+        <div className="relative flex-1 w-full">
+          <SearchIcon className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Filter by faculty name, department, or reason…"
+            className="input !py-1.5 pl-9 text-xs w-full"
+          />
+        </div>
+        <input
+          type="date"
+          value={dateFilter}
+          onChange={e => setDateFilter(e.target.value)}
+          className="input !py-1.5 text-xs w-full sm:w-44 shrink-0"
+        />
+        {(searchQuery || dateFilter || filterTab !== 'all') && (
+          <button
+            onClick={() => {
+              setSearchQuery('')
+              setDateFilter('')
+              setFilterTab('all')
+            }}
+            className="btn-secondary !py-1.5 !px-3 text-xs shrink-0"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+
       <div className="card overflow-hidden bg-white border border-slate-200 shadow-xs rounded-xl">
         {loading ? (
           <div className="flex justify-center py-12"><Spinner /></div>
-        ) : leaves.length === 0 ? <EmptyState message="No leave requests yet." /> : (
+        ) : groupedLeavesList.length === 0 ? (
+          <div className="py-12 px-4 text-center">
+            <p className="text-sm text-slate-500 font-medium">No leave requests match the current queue filters.</p>
+            <button
+              onClick={() => { setFilterTab('all'); setSearchQuery(''); setDateFilter(''); }}
+              className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition cursor-pointer"
+            >
+              Clear Filters
+            </button>
+          </div>
+        ) : (
           <div className="w-full overflow-x-auto">
             <table className="w-full text-xs text-left border-collapse">
               <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 select-none">

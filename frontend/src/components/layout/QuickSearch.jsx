@@ -38,6 +38,7 @@ export default function QuickSearch({ open, onClose }) {
   // Filter commands
   const COMMANDS = [
     { category: 'Navigation', label: 'Go to Dashboard', to: isAdmin ? '/admin/dashboard' : '/teacher/dashboard' },
+    { category: 'Navigation', label: 'Go to System Setup & Readiness Guide', to: '/admin/setup', adminOnly: true },
     { category: 'Navigation', label: 'Go to Calendar & Day Order', to: '/admin/academic-calendar', adminOnly: true },
     { category: 'Navigation', label: 'Go to Timetable Control', to: '/admin/timetable', adminOnly: true },
     { category: 'Navigation', label: 'Go to Leave Requests Center', to: '/admin/leaves', adminOnly: true },

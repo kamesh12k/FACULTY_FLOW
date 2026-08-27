@@ -6,7 +6,7 @@ from app.core.dependencies import require_admin, get_current_user, get_tenant_de
 from app.models.user import User, Role
 from app.models.timetable import TimetableSlot
 from app.models.leave import LeaveRequest, AlterAssignment
-from app.schemas.user import UserOut, UserCreate, UserUpdate
+from app.schemas.user import UserOut, UserCreate, UserUpdate, TeacherBulkCreate, TeacherBulkCreateOut
 from app.schemas.credit import CreditBalanceOut
 from app.services import auth_service
 from app.services.credit_service import get_balance
@@ -40,6 +40,17 @@ def create_teacher(
     return auth_service.create_user_by_admin(data, db, tenant_department_id)
 
 
+@router.post("/bulk", response_model=TeacherBulkCreateOut, status_code=201)
+def bulk_create_teachers(
+    data: TeacherBulkCreate,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    tenant_department_id: int | None = Depends(get_tenant_department_id),
+):
+    return auth_service.bulk_create_teachers(data, db, tenant_department_id)
+
+
+
 @router.get("/me", response_model=UserOut)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
@@ -50,9 +61,22 @@ def get_teacher_credits(
     teacher_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    tenant_department_id: int | None = Depends(get_tenant_department_id),
 ):
+    target_teacher = db.query(User).filter(User.id == teacher_id, User.role == Role.teacher).first()
+    if not target_teacher:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+
+    if current_user.role == Role.teacher:
+        if current_user.id != teacher_id:
+            raise HTTPException(status_code=403, detail="Not authorized to access another teacher's credit information")
+    elif tenant_department_id is not None:
+        if target_teacher.department_id != tenant_department_id:
+            raise HTTPException(status_code=403, detail="Not authorized to access credits of a teacher in another department")
+
     balance = get_balance(teacher_id, db)
     return CreditBalanceOut(teacher_id=teacher_id, balance=balance)
+
 
 
 @router.put("/{teacher_id}", response_model=UserOut)

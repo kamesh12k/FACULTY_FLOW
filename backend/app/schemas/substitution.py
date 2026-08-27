@@ -60,6 +60,7 @@ class SubstitutionPreferenceOut(BaseModel):
     max_weekly_substitutions: int | None
     prefer_morning_classes: bool
     prefer_same_department: bool
+    only_my_classes: bool
 
     model_config = {"from_attributes": True}
 
@@ -70,6 +71,7 @@ class SubstitutionPreferenceUpdate(BaseModel):
     max_weekly_substitutions: int | None = None
     prefer_morning_classes: bool | None = None
     prefer_same_department: bool | None = None
+    only_my_classes: bool | None = None
 
     @field_validator("max_weekly_substitutions")
     @classmethod

@@ -31,4 +31,10 @@ class SubstitutionPreference(Base):
     prefer_morning_classes = Column(Boolean, default=False, nullable=False)
     prefer_same_department = Column(Boolean, default=True, nullable=False)
 
+    # Hard eligibility gate — when True the teacher is only surfaced as a
+    # substitute candidate for a class they are already assigned to in the
+    # timetable (i.e. they appear in timetable_slots for that class_id).
+    # Checked in _is_hard_eligible / _is_hard_eligible_bulk before scoring.
+    only_my_classes = Column(Boolean, default=False, nullable=False)
+
     teacher = relationship("User", backref="substitution_preference", uselist=False)

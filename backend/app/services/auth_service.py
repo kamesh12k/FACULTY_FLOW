@@ -75,6 +75,53 @@ def create_user_by_admin(data: UserCreate, db: Session, tenant_department_id: in
     return user
 
 
+def bulk_create_teachers(data, db: Session, tenant_department_id: int | None = None) -> dict:
+    created = []
+    skipped = 0
+    errors = []
+
+    for item in data.teachers:
+        email = item.email.strip().lower()
+        if db.query(User).filter(func.lower(User.email) == email).first():
+            skipped += 1
+            errors.append(f"Email already registered: {email}")
+            continue
+
+        dept_id = tenant_department_id if tenant_department_id is not None else (item.department_id or data.department_id)
+        if not dept_id:
+            skipped += 1
+            errors.append(f"Missing department_id for teacher: {item.name} ({email})")
+            continue
+
+        pwd = item.default_password or "Password123!"
+        pwd_hash = _hash_password_or_400(pwd)
+
+        user = User(
+            name=item.name.strip(),
+            email=email,
+            password_hash=pwd_hash,
+            role=Role.teacher,
+            department_id=dept_id,
+            must_change_credentials=True,
+        )
+        db.add(user)
+        db.flush()
+        db.add(TeacherCredit(teacher_id=user.id, balance=0))
+        created.append(user)
+
+    db.commit()
+    for u in created:
+        db.refresh(u)
+
+    return {
+        "created_count": len(created),
+        "skipped_count": skipped,
+        "errors": errors,
+        "teachers": created,
+    }
+
+
+
 
 def login(identifier: str, password: str, db: Session) -> dict:
     cleaned_identifier = (identifier or "").strip()

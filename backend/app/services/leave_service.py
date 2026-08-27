@@ -231,7 +231,7 @@ def get_teacher_leaves(teacher_id: int, db: Session) -> list[LeaveRequest]:
 
 
 def approve_leave(leave_id: int, db: Session, tenant_department_id: int | None = None) -> tuple[LeaveRequest, list[FreeTeacherOut]]:
-    leave = _get_leave_or_404(leave_id, db, tenant_department_id)
+    leave = _get_leave_or_404(leave_id, db, tenant_department_id, for_update=True)
 
     if leave.status != LeaveStatus.pending:
         raise HTTPException(status_code=400, detail="Only pending requests can be approved")
@@ -278,7 +278,7 @@ def bulk_approve(leave_ids: list[int], db: Session, tenant_department_id: int | 
 
 
 def reject_leave(leave_id: int, db: Session, tenant_department_id: int | None = None) -> LeaveRequest:
-    leave = _get_leave_or_404(leave_id, db, tenant_department_id)
+    leave = _get_leave_or_404(leave_id, db, tenant_department_id, for_update=True)
 
     if leave.status != LeaveStatus.pending:
         raise HTTPException(status_code=400, detail="Only pending requests can be rejected")

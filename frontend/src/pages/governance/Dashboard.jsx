@@ -336,6 +336,7 @@ function AssignModal({ item, candidates, loading, onClose, onConfirm, submitting
 /* ─ More Drawer ──────────────────────────────────────── */
 function MoreDrawer({ open, onClose, onNavigate, onLogout }) {
   const ITEMS = [
+    { label: "Feed Timetable",  Icon: CalIcon,   to: "/governance/timetable" },
     { label: "Campus Calendar", Icon: CalIcon,   to: "/admin/academic-calendar" },
     { label: "Timetables",      Icon: CalIcon,   to: "/admin/class-timetable" },
     { label: "Live Substitutions", Icon: SwapIcon, to: "/admin/today-substitutions" },
@@ -440,6 +441,16 @@ function HomeTab({ data, refreshing, onOpenAssign, onOpenOverride, onSwitchTab }
       <div>
         <p className="text-xs font-black text-slate-700 uppercase tracking-wide mb-2">Quick Actions</p>
         <div className="space-y-2">
+          {/* Feed Timetable — featured prominently */}
+          <button onClick={() => onNavigate({ to: "/governance/timetable" })} className="w-full text-left p-3.5 rounded-xl border bg-indigo-600 border-indigo-700 text-white active:bg-indigo-700 touch-manipulation">
+            <div className="flex items-center gap-2">
+              <CalIcon className="w-4 h-4" />
+              <div>
+                <p className="font-black text-sm uppercase tracking-wide">Feed Timetable</p>
+                <p className="text-[11px] text-indigo-200 mt-0.5">Quickly fill class schedules — class-first view</p>
+              </div>
+            </div>
+          </button>
           {[
             { label: "View Needs Cover",     desc: "Classes awaiting substitution", tab: "subs",   cls: "bg-red-50 border-red-200 text-red-700" },
             { label: "Faculty Availability", desc: "Check who is available today",  tab: "alerts", cls: "bg-emerald-50 border-emerald-200 text-emerald-700" },
