@@ -210,6 +210,8 @@ export const notificationsApi = {
   markAllRead: () => api.patch('/notifications/read-all'),
   vapidPublicKey: () => api.get('/notifications/vapid-public-key'),
   subscribe: (subscription) => api.post('/notifications/subscribe', subscription),
+  unsubscribe: (payload) => api.post('/notifications/unsubscribe', payload),
+  testPush: () => api.post('/notifications/test-push'),
 }
 
 export const creditsApi = {

@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
+from app.models.notification import PushSubscription
 from app.services import notification_service
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
@@ -44,22 +46,60 @@ def mark_all_read(current_user: User = Depends(get_current_user), db: Session = 
 
 @router.get("/vapid-public-key")
 def vapid_public_key():
-    import os
-    return {"key": os.environ.get("VAPID_PUBLIC_KEY", "")}
+    return {"key": settings.VAPID_PUBLIC_KEY}
 
 
 @router.post("/subscribe")
 def subscribe(subscription: dict, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    from app.models.notification import PushSubscription
-    existing = db.query(PushSubscription).filter(PushSubscription.endpoint == subscription.get("endpoint")).first()
+    endpoint = subscription.get("endpoint")
+    if not endpoint:
+        raise HTTPException(status_code=400, detail="Invalid push subscription payload: missing endpoint")
+    
+    p256dh = subscription.get("keys", {}).get("p256dh", "")
+    auth = subscription.get("keys", {}).get("auth", "")
+
+    existing = db.query(PushSubscription).filter(PushSubscription.endpoint == endpoint).first()
     if existing:
-        return {"ok": True}
+        existing.user_id = current_user.id
+        existing.p256dh_key = p256dh
+        existing.auth_key = auth
+        db.commit()
+        return {"ok": True, "status": "updated"}
+
     sub = PushSubscription(
         user_id=current_user.id,
-        endpoint=subscription.get("endpoint", ""),
-        p256dh_key=subscription.get("keys", {}).get("p256dh", ""),
-        auth_key=subscription.get("keys", {}).get("auth", ""),
+        endpoint=endpoint,
+        p256dh_key=p256dh,
+        auth_key=auth,
     )
     db.add(sub)
     db.commit()
+    return {"ok": True, "status": "created"}
+
+
+@router.post("/unsubscribe")
+def unsubscribe(payload: dict, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    endpoint = payload.get("endpoint")
+    if endpoint:
+        db.query(PushSubscription).filter(
+            PushSubscription.user_id == current_user.id,
+            PushSubscription.endpoint == endpoint
+        ).delete(synchronize_session=False)
+        db.commit()
     return {"ok": True}
+
+
+@router.post("/test-push")
+def test_push_notification(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Triggers an immediate test notification and push delivery to the user's active device."""
+    note = notification_service.create_notification(
+        db=db,
+        user_id=current_user.id,
+        title="🔔 FAFLOW Web Push Active",
+        body="Congratulations! You are now connected to receive real-time notifications on this device.",
+        event_type="system_test",
+        send_push=True,
+    )
+    db.commit()
+    return {"ok": True, "notification_id": note.id}
+

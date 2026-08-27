@@ -247,6 +247,14 @@ if [ "$FRONTEND_CHANGED" = true ] || [ ! -d "dist" ]; then
             exit 1
         }
         log "INFO" "Frontend build completed successfully."
+
+        # If Nginx web root directory exists (e.g. /var/www/faflow), sync compiled dist files
+        for web_root in "/var/www/faflow" "/var/www/credits"; do
+            if [ -d "$web_root" ] && [ ! -L "$web_root" ]; then
+                log "INFO" "Syncing compiled assets to $web_root..."
+                cp -r "$REPO_ROOT/frontend/dist/"* "$web_root/" 2>/dev/null || true
+            fi
+        done
     else
         log "ERROR" "Node.js/npm not found. Could not build frontend."
     fi

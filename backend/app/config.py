@@ -56,6 +56,11 @@ class Settings(BaseSettings):
     # Maximum allowed backup file size in megabytes.
     BACKUP_MAX_SIZE_MB: int = 500
 
+    # ---------- Web Push (VAPID) ----------
+    VAPID_PUBLIC_KEY: str = ""
+    VAPID_PRIVATE_KEY: str = ""
+    VAPID_CLAIM_EMAIL: str = "mailto:admin@faflow.local"
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

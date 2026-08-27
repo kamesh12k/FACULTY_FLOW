@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { DepartmentProvider } from './context/DepartmentContext'
@@ -7,6 +7,7 @@ import AppShell from './components/layout/AppShell'
 import PageLoader from './components/common/PageLoader'
 import ScrollToTop from './components/common/ScrollToTop'
 import { ToastProvider } from './components/ui/Toast'
+import { registerServiceWorker } from './utils/pushNotifications'
 
 // Auth pages (lazy loaded)
 const Login = lazy(() => import('./pages/auth/Login'))
@@ -68,6 +69,10 @@ const SubstitutionPreferences = lazy(() => import('./pages/teacher/Preferences')
 const TeacherSubstitution = lazy(() => import('./pages/teacher/Substitution'))
 
 export default function App() {
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
+
   return (
     <AuthProvider>
     <DepartmentProvider>
