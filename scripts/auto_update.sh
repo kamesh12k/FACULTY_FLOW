@@ -226,13 +226,19 @@ if [ "$PYTHON_CHANGED" = true ] && [ -f "requirements.txt" ]; then
     }
 fi
 
-# Run preflight checks if present
-if [ -f "preflight_check.py" ]; then
-    log "INFO" "Running backend pre-flight configuration checks..."
-    $PYTHON_BIN preflight_check.py || {
-        log "WARN" "Preflight check warning encountered. Please verify .env settings."
-    }
-fi
+    # Ensure VAPID keys exist in .env for Web Push Notifications
+    if ! grep -q "VAPID_PUBLIC_KEY=" .env 2>/dev/null || [ -z "$(grep "VAPID_PUBLIC_KEY=" .env 2>/dev/null | cut -d= -f2)" ]; then
+        log "INFO" "Generating Web Push VAPID keys..."
+        $PYTHON_BIN scripts/generate_vapid_keys.py 2>/dev/null || true
+    fi
+
+    # Run preflight checks if present
+    if [ -f "preflight_check.py" ]; then
+        log "INFO" "Running backend pre-flight configuration checks..."
+        $PYTHON_BIN preflight_check.py || {
+            log "WARN" "Preflight check warning encountered. Please verify .env settings."
+        }
+    fi
 
 # Step 6: Update & Build Frontend
 log "STEP" "[5/7] Checking frontend build..."
