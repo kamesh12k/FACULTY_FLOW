@@ -789,7 +789,7 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
                 />
                 <div>
                   <span className="font-bold block">💬 Allow Conversation Replies</span>
-                  <span className="text-[10px] text-slate-600">Enables threaded Teams-style Q&A</span>
+                  <span className="text-[10px] text-slate-600">Enables threaded discussion & Q&A</span>
                 </div>
               </label>
 

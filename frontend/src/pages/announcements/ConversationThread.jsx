@@ -465,7 +465,7 @@ export default function ConversationThread({
 
           <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-200/80">
             <span className="text-[11px] text-slate-600 font-medium">
-              Teams-style thread • Type @ to mention
+              Discussion thread • Type @ to mention
             </span>
             <button
               type="submit"
