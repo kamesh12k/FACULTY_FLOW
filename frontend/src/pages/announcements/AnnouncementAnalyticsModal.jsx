@@ -11,20 +11,32 @@ export default function AnnouncementAnalyticsModal({ announcementId, onClose }) 
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all') // all, viewed, unread, ack, pending
 
+  const [fetchError, setFetchError] = useState(null)
+
   useEffect(() => {
+    let isMounted = true
     const fetchAnalytics = async () => {
       setLoading(true)
+      setFetchError(null)
       try {
         const res = await announcementApi.getAnnouncementAnalytics(announcementId)
-        setData(res.data)
+        if (isMounted) {
+          setData(res.data)
+        }
       } catch (err) {
-        showToast(err.response?.data?.detail || 'Failed to load analytics', 'error')
-        onClose()
+        if (isMounted) {
+          const msg = err.response?.data?.detail || 'Failed to load analytics'
+          setFetchError(msg)
+          showToast(msg, 'error')
+        }
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
     fetchAnalytics()
+    return () => { isMounted = false }
   }, [announcementId])
 
   const exportCSV = () => {
@@ -99,37 +111,49 @@ export default function AnnouncementAnalyticsModal({ announcementId, onClose }) 
             <Spinner size="lg" />
             <p className="text-xs text-slate-600 font-semibold">Aggregating delivery metrics...</p>
           </div>
+        ) : !data ? (
+          <div className="py-24 flex flex-col items-center justify-center gap-3 px-6 text-center">
+            <p className="text-sm font-bold text-slate-800">Unable to load analytics data.</p>
+            <p className="text-xs text-slate-500 max-w-md">{fetchError || 'You may not have authorization to view analytics for this announcement, or the record is pending.'}</p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors"
+            >
+              Close
+            </button>
+          </div>
         ) : (
           <div className="p-6 overflow-y-auto space-y-6">
             {/* KPI Cards Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
                 <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Recipients</span>
-                <p className="text-2xl font-black text-slate-900 mt-1">{data.total_recipients}</p>
+                <p className="text-2xl font-black text-slate-900 mt-1">{data?.total_recipients ?? 0}</p>
                 <p className="text-[11px] text-slate-600 mt-0.5">Audience Total</p>
               </div>
 
               <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-xl p-3.5">
                 <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Viewed</span>
-                <p className="text-2xl font-black text-emerald-900 mt-1">{data.viewed_count}</p>
-                <p className="text-[11px] text-emerald-700 font-bold mt-0.5">{data.view_rate_pct}% read rate</p>
+                <p className="text-2xl font-black text-emerald-900 mt-1">{data?.viewed_count ?? 0}</p>
+                <p className="text-[11px] text-emerald-700 font-bold mt-0.5">{data?.view_rate_pct ?? 0}% read rate</p>
               </div>
 
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
                 <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Unread</span>
-                <p className="text-2xl font-black text-slate-700 mt-1">{data.unread_count}</p>
+                <p className="text-2xl font-black text-slate-700 mt-1">{data?.unread_count ?? 0}</p>
                 <p className="text-[11px] text-slate-600 mt-0.5">Pending opens</p>
               </div>
 
               <div className="bg-blue-50/80 border border-blue-200/80 rounded-xl p-3.5">
                 <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wider">Acknowledged</span>
-                <p className="text-2xl font-black text-blue-900 mt-1">{data.acknowledged_count}</p>
-                <p className="text-[11px] text-blue-700 font-bold mt-0.5">{data.acknowledgement_rate_pct}% compliance</p>
+                <p className="text-2xl font-black text-blue-900 mt-1">{data?.acknowledged_count ?? 0}</p>
+                <p className="text-[11px] text-blue-700 font-bold mt-0.5">{data?.acknowledgement_rate_pct ?? 0}% compliance</p>
               </div>
 
               <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-3.5">
                 <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">Pending Ack</span>
-                <p className="text-2xl font-black text-amber-900 mt-1">{data.pending_acknowledgement_count}</p>
+                <p className="text-2xl font-black text-amber-900 mt-1">{data?.pending_acknowledgement_count ?? 0}</p>
                 <p className="text-[11px] text-amber-700 mt-0.5">Action required</p>
               </div>
             </div>
@@ -139,13 +163,13 @@ export default function AnnouncementAnalyticsModal({ announcementId, onClose }) 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {[
-                    { key: 'all', label: `All (${data.total_recipients})` },
-                    { key: 'viewed', label: `Viewed (${data.viewed_count})` },
-                    { key: 'unread', label: `Unread (${data.unread_count})` },
-                    ...(data.requires_acknowledgement
+                    { key: 'all', label: `All (${data?.total_recipients ?? 0})` },
+                    { key: 'viewed', label: `Viewed (${data?.viewed_count ?? 0})` },
+                    { key: 'unread', label: `Unread (${data?.unread_count ?? 0})` },
+                    ...(data?.requires_acknowledgement
                       ? [
-                          { key: 'ack', label: `Acknowledged (${data.acknowledged_count})` },
-                          { key: 'pending', label: `Pending Ack (${data.pending_acknowledgement_count})` },
+                          { key: 'ack', label: `Acknowledged (${data?.acknowledged_count ?? 0})` },
+                          { key: 'pending', label: `Pending Ack (${data?.pending_acknowledgement_count ?? 0})` },
                         ]
                       : []),
                   ].map((tab) => (

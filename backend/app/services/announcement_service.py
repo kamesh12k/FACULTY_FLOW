@@ -1145,11 +1145,15 @@ def get_announcement_analytics(db: Session, current_user: User, announcement_id:
         raise HTTPException(status_code=404, detail="Announcement not found.")
 
     is_author = announcement.created_by_id == current_user.id
-    is_admin = current_user.role in (Role.principal, Role.system_admin)
+    is_admin = current_user.role in (Role.principal, Role.system_admin, Role.governance)
+    target_dept_ids = {t.department_id for t in announcement.targets if t.department_id is not None}
+    if announcement.department_id:
+        target_dept_ids.add(announcement.department_id)
+
     is_dept_hod = (
         current_user.role == Role.admin and
         current_user.department_id is not None and
-        announcement.department_id == current_user.department_id
+        (announcement.department_id == current_user.department_id or current_user.department_id in target_dept_ids)
     )
 
     if not (is_author or is_admin or is_dept_hod):
@@ -1183,14 +1187,16 @@ def get_announcement_analytics(db: Session, current_user: User, announcement_id:
         if has_ack:
             acknowledged_count += 1
 
-        dept_name = u.department_rel.name if u.department_rel else (u.department_old or "General")
+        dept_name = u.department_rel.name if u.department_rel else (getattr(u, "department_old", None) or "General")
+        raw_role = u.role.value if hasattr(u.role, "value") else str(u.role)
+        role_label = raw_role.replace("_", " ").title()
 
         recipient_stats.append(
             RecipientStatItem(
                 user_id=u.id,
                 name=u.name,
                 email=u.email or u.username,
-                role=u.role.value.replace("_", " ").title(),
+                role=role_label,
                 department=dept_name,
                 has_viewed=has_viewed,
                 first_viewed_at=first_view,
