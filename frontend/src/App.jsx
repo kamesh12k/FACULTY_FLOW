@@ -59,6 +59,10 @@ const TodaySubstitutions = lazy(() => import('./pages/common/TodaySubstitutions'
 const ClassFacultyDirectory = lazy(() => import('./pages/common/ClassFacultyDirectory'))
 const ClasswiseTimetable = lazy(() => import('./pages/common/ClasswiseTimetable'))
 
+// Announcements pages (lazy loaded)
+const Announcements = lazy(() => import('./pages/announcements/index'))
+const AnnouncementDetail = lazy(() => import('./pages/announcements/AnnouncementDetail'))
+
 // Teacher pages (lazy loaded)
 const TeacherDashboard = lazy(() => import('./pages/teacher/Dashboard'))
 const MyTimetable = lazy(() => import('./pages/teacher/Timetable'))
@@ -184,6 +188,16 @@ export default function App() {
                 <Route path="/teacher/today-coverage" element={<TodaySubstitutions />} />
                 <Route path="/teacher/credits" element={<MyCredits />} />
                 <Route path="/teacher/preferences" element={<SubstitutionPreferences />} />
+              </Route>
+            </Route>
+          </Route>
+
+          {/* Universal Authenticated routes — Announcements & Circulars */}
+          <Route element={<ProtectedRoute />}>
+            <Route element={<RequireCredentialsSet />}>
+              <Route element={<AppShell />}>
+                <Route path="/announcements" element={<Announcements />} />
+                <Route path="/announcements/:id" element={<AnnouncementDetail />} />
               </Route>
             </Route>
           </Route>

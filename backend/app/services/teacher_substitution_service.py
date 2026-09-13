@@ -43,13 +43,13 @@ def check_teacher_self_management_allowed(db: Session, teacher_id: int | None = 
 
 def teacher_get_leave_requests(db: Session, teacher_id: int, include_expired: bool = False) -> list[LeaveRequest]:
     check_teacher_self_management_allowed(db, teacher_id)
-    # Returns approved leaves needing substitutes (no alter_assignment) belonging to teacher
+    # Returns approved or pending leaves needing substitutes (no alter_assignment) belonging to teacher
     leaves = (
         db.query(LeaveRequest)
         .outerjoin(AlterAssignment)
         .filter(
             LeaveRequest.teacher_id == teacher_id,
-            LeaveRequest.status == LeaveStatus.approved,
+            LeaveRequest.status.in_([LeaveStatus.approved, LeaveStatus.pending]),
             AlterAssignment.id == None
         )
         .order_by(LeaveRequest.date.desc(), LeaveRequest.period_number)
@@ -67,15 +67,15 @@ def teacher_get_candidates(
     only_handles_class: bool = False,
 ) -> list:
     check_teacher_self_management_allowed(db, teacher_id)
-    # Verify leave request belongs to teacher and is approved
+    # Verify leave request belongs to teacher and is valid
     leave = db.query(LeaveRequest).filter(
         LeaveRequest.id == leave_id,
         LeaveRequest.teacher_id == teacher_id
     ).first()
     if not leave:
         raise HTTPException(status_code=404, detail="Leave request not found or does not belong to you")
-    if leave.status != LeaveStatus.approved:
-        raise HTTPException(status_code=400, detail="Leave request is not approved yet")
+    if leave.status not in (LeaveStatus.approved, LeaveStatus.pending):
+        raise HTTPException(status_code=400, detail="Leave request is not active")
     if is_substitution_expired(leave.date):
         raise HTTPException(status_code=400, detail="Cannot find candidates for an expired substitution (cutoff is 5:00 PM on the substitution date)")
     
@@ -104,8 +104,8 @@ def teacher_get_free_teachers(
     ).first()
     if not leave:
         raise HTTPException(status_code=404, detail="Leave request not found or does not belong to you")
-    if leave.status != LeaveStatus.approved:
-        raise HTTPException(status_code=400, detail="Leave request is not approved yet")
+    if leave.status not in (LeaveStatus.approved, LeaveStatus.pending):
+        raise HTTPException(status_code=400, detail="Leave request is not active")
     if is_substitution_expired(leave.date):
         raise HTTPException(status_code=400, detail="Cannot find free teachers for an expired substitution (cutoff is 5:00 PM on the substitution date)")
 

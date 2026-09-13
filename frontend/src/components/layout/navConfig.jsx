@@ -1,6 +1,6 @@
 import {
   GridIcon, UsersIcon, CalIcon, BookIcon, DoorIcon, DocIcon, ChartIcon,
-  PlusIcon, SwapIcon,
+  PlusIcon, SwapIcon, MegaphoneIcon,
 } from '../icons'
 
 function DatabaseIcon() {
@@ -27,6 +27,7 @@ export const ADMIN_NAV = [
     section: null,
     items: [
       { to: '/admin/dashboard', label: 'Home', icon: <GridIcon />, end: true },
+      { to: '/announcements', label: 'Announcements', icon: <MegaphoneIcon /> },
     ],
   },
   {
@@ -64,14 +65,19 @@ export const ADMIN_NAV = [
 
 export const TEACHER_NAV = [
   {
-    section: 'Timetable & Classes',
+    section: null,
     items: [
       { to: '/teacher/dashboard', label: 'Home', icon: <GridIcon />, end: true },
+      { to: '/announcements', label: 'Announcements', icon: <MegaphoneIcon /> },
+    ],
+  },
+  {
+    section: 'Timetable & Classes',
+    items: [
       { to: '/teacher/timetable', label: 'My Timetable', icon: <CalIcon /> },
       { to: '/teacher/class-timetable', label: 'Classwise Timetable', icon: <CalIcon /> },
     ],
   },
-
   {
     section: 'Leaves & Substitutions',
     items: [
@@ -84,8 +90,14 @@ export const TEACHER_NAV = [
   },
 ]
 
-
 export const SYSTEM_ADMIN_NAV = [
+  {
+    section: null,
+    items: [
+      { to: '/admin/dashboard', label: 'Home', icon: <GridIcon />, end: true },
+      { to: '/announcements', label: 'Announcements', icon: <MegaphoneIcon /> },
+    ],
+  },
   {
     section: 'Calendar & Timetable',
     items: [
@@ -128,6 +140,7 @@ export const MANAGER_NAV = [
     section: null,
     items: [
       { to: '/manager/dashboard', label: 'Home', icon: <GridIcon />, end: true },
+      { to: '/announcements', label: 'Announcements', icon: <MegaphoneIcon /> },
     ],
   },
   {
@@ -146,6 +159,7 @@ export const PRINCIPAL_NAV = [
     section: null,
     items: [
       { to: '/principal/dashboard', label: 'Home', icon: <GridIcon />, end: true },
+      { to: '/announcements', label: 'Announcements', icon: <MegaphoneIcon /> },
       { to: '/principal/class-timetable', label: 'Classwise Timetable', icon: <CalIcon /> },
     ],
   },
@@ -156,6 +170,7 @@ export const STAFF_NAV = [
     section: 'Workspace',
     items: [
       { to: '/staff/dashboard', label: 'Lab & Duty Workspace', icon: <GridIcon />, end: true },
+      { to: '/announcements', label: 'Announcements', icon: <MegaphoneIcon /> },
     ],
   },
   {
@@ -171,6 +186,7 @@ export const GOVERNANCE_NAV = [
     section: 'Governance',
     items: [
       { to: '/governance', label: 'Command Center', icon: <GridIcon />, end: true },
+      { to: '/announcements', label: 'Announcements', icon: <MegaphoneIcon /> },
     ],
   },
   {
@@ -185,8 +201,3 @@ export const GOVERNANCE_NAV = [
     ],
   },
 ]
-
-
-
-
-

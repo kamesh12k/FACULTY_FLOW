@@ -54,6 +54,13 @@ FAFLOW is engineered as a high-throughput, multi-tenant academic workload, timet
    - Row-level locking (`with_for_update`) for credit mutations and atomic substitution allocation.
    - Batch query prefetching eliminating N+1 database round-trips.
 
+5. **Communication & Announcement Subsystem**:
+   - Institutional circulars and Microsoft Teams-style threaded conversation channels.
+   - Workload-isolated binary attachment storage via pluggable `StorageService` (zero binary data in PostgreSQL).
+   - Non-blocking background notification fanout with 500-recipient batching to protect connection pools.
+   - Formal audit-compliant mandatory acknowledgement tracking.
+   - For complete details, see [docs/ANNOUNCEMENTS.md](file:///c:/Users/kames/Downloads/FACREDIT-enhanced-20260724-v5/docs/ANNOUNCEMENTS.md).
+
 ---
 
 ## 3. Horizontal Scalability Strategy

@@ -15,5 +15,11 @@ from app.models.substitution_preference import SubstitutionPreference
 from app.models.timetable_submission import TimetableSubmission, TimetableSubmissionStatus
 from app.models.operational_staff import OperationalStaff, StaffCategory, EmploymentStatus, ShiftType
 from app.models.staff_leave import StaffLeaveRequest, StaffCredit, StaffCreditTransaction, StaffLeaveType, StaffLeaveStatus
+from app.models.announcement import (
+    Announcement, AnnouncementTarget, AnnouncementAttachment,
+    AnnouncementRead, AnnouncementAcknowledgement, AnnouncementMessage,
+    MessageReaction, MessageMention, AnnouncementType, AnnouncementPriority,
+    AnnouncementStatus, TargetType,
+)
 
 

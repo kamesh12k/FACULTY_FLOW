@@ -99,7 +99,7 @@ export default function TeacherDashboard() {
         {/* Header with greeting */}
         <div className="space-y-1.5">
           <h1 className="text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">
-            Welcome back, {user.name.split(' ')[0]}
+            Welcome back, {user.name ? user.name.replace(/^(Dr\.|Prof\.|Mr\.|Ms\.|Mrs\.)\s*/i, '').split(' ')[0] : 'Faculty'}
           </h1>
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
             {user.department || 'Faculty Member'} · Personal Dashboard
@@ -157,49 +157,64 @@ export default function TeacherDashboard() {
         )}
 
         {/* Quick Actions Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+          <Link
+            to="/announcements"
+            className="group rounded-2xl border border-primary-100 bg-gradient-to-br from-primary-50/50 to-white p-4 sm:p-5 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 relative overflow-hidden"
+          >
+            <div className="flex flex-col items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary-100/80 flex items-center justify-center border border-primary-200/60 text-primary-700 text-lg shadow-2xs">
+                📢
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Notices</h4>
+                <p className="text-[10px] text-slate-500 mt-0.5 font-bold">Circulars & chat</p>
+              </div>
+            </div>
+          </Link>
+
           <Link
             to="/teacher/leave/apply"
-            className="group rounded-2xl border border-slate-100 bg-white p-6 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
+            className="group rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
           >
-            <div className="flex flex-col items-start gap-4">
-              <div className="w-11 h-11 rounded-xl bg-teal-50 flex items-center justify-center border border-teal-100">
+            <div className="flex flex-col items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center border border-teal-100">
                 <PlusIcon className="w-5 h-5 text-teal-700" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Apply for Leave</h4>
-                <p className="text-[10px] text-slate-400 mt-1 font-bold">Takes less than a minute</p>
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Apply Leave</h4>
+                <p className="text-[10px] text-slate-400 mt-0.5 font-bold">&lt; 1 min</p>
               </div>
             </div>
           </Link>
 
           <Link
             to="/teacher/timetable"
-            className="group rounded-2xl border border-slate-100 bg-white p-6 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
+            className="group rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
           >
-            <div className="flex flex-col items-start gap-4">
-              <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100">
+            <div className="flex flex-col items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100">
                 <CalIcon className="w-5 h-5 text-blue-700" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">My Timetable</h4>
-                <p className="text-[10px] text-slate-400 mt-1 font-bold">View full day schedules</p>
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Timetable</h4>
+                <p className="text-[10px] text-slate-400 mt-0.5 font-bold">Class schedules</p>
               </div>
             </div>
           </Link>
 
           <Link
             to="/teacher/leaves"
-            className="group rounded-2xl border border-slate-100 bg-white p-6 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
+            className="group rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
           >
-            <div className="flex flex-col items-start gap-4">
-              <div className="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center border border-amber-100">
+            <div className="flex flex-col items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center border border-amber-100">
                 <DocIcon className="w-5 h-5 text-amber-700" />
               </div>
               <div>
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Leave History</h4>
-                <p className="text-[10px] text-slate-400 mt-1 font-bold">
-                  {pendingDays > 0 ? `${pendingDays} pending request${pendingDays > 1 ? 's' : ''}` : 'View all requests'}
+                <p className="text-[10px] text-slate-400 mt-0.5 font-bold">
+                  {pendingDays > 0 ? `${pendingDays} pending` : 'All requests'}
                 </p>
               </div>
             </div>

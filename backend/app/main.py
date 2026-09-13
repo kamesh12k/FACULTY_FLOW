@@ -17,7 +17,7 @@ from app.routes import (
     auth, teachers, timetable, leaves, credits, notifications,
     departments, subjects, classes, rooms, day_order, admin, academic_calendar,
     campus_operations, teacher_substitution, substitutions, principal, manager, staff,
-    backup, governance, data_retention,
+    backup, governance, data_retention, announcements,
 )
 from app.services.admin_service import bootstrap_default_super_admin
 from app.services.governance_service import bootstrap_governance_user
@@ -358,6 +358,7 @@ app.include_router(staff.router)
 app.include_router(backup.router)
 app.include_router(governance.router)
 app.include_router(data_retention.router)
+app.include_router(announcements.router)
 
 
 

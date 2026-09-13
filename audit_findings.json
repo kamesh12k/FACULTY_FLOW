@@ -1,0 +1,2882 @@
+[
+  {
+    "type": "SECURITY_SQL_INJECTION",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\scripts\\factory_reset.py",
+    "line": 36,
+    "col": 0,
+    "code": "WARNING_BANNER = f\"\"\"",
+    "message": "Dangerous raw SQL string formatting via 'WARNING_BANNER'. Use parameterized queries (:param) instead of string concatenation/f-strings."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\scripts\\performance_benchmark.py",
+    "line": 78,
+    "col": 0,
+    "code": "password = \"SuperSecurePassword123\"...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_SQL_INJECTION",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\scripts\\performance_benchmark.py",
+    "line": 191,
+    "col": 4,
+    "code": "report_content = f\"\"\"# FACREDIT \u2014 Performance & Benchmarking Report",
+    "message": "Dangerous raw SQL string formatting via 'report_content'. Use parameterized queries (:param) instead of string concatenation/f-strings."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_admin_service.py",
+    "line": 39,
+    "col": 30,
+    "code": "new_username=\"realadmin\", new_password=\"Newpass123\", confirm...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_admin_service.py",
+    "line": 48,
+    "col": 28,
+    "code": "new_username=\"newname\", new_password=\"Newpass123\", confirm_p...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_admin_service.py",
+    "line": 63,
+    "col": 29,
+    "code": "new_username=\"existing\", new_password=\"Newpass123\", confirm_...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_admin_service.py",
+    "line": 72,
+    "col": 62,
+    "code": "data = SecondaryAdminCreate(name=\"Sec\", username=\"secadmin2\"...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_admin_service.py",
+    "line": 83,
+    "col": 60,
+    "code": "data = SecondaryAdminCreate(name=\"Extra\", username=\"extra\", ...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_admin_service.py",
+    "line": 92,
+    "col": 58,
+    "code": "data = SecondaryAdminCreate(name=\"Dup\", username=\"taken\", pa...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_auth_service.py",
+    "line": 15,
+    "col": 54,
+    "code": "data = UserRegister(name=\"New\", email=\"new@test.com\", passwo...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_auth_service.py",
+    "line": 25,
+    "col": 58,
+    "code": "data = UserRegister(name=\"Dup\", email=\"teacher@test.com\", pa...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_auth_service.py",
+    "line": 35,
+    "col": 60,
+    "code": "data = UserCreate(name=\"AdminCreated\", email=\"ac@test.com\", ...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_auth_service.py",
+    "line": 41,
+    "col": 56,
+    "code": "data = UserCreate(name=\"Dup\", email=\"teacher@test.com\", pass...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_schemas.py",
+    "line": 89,
+    "col": 29,
+    "code": "new_username=\"newadmin\", new_password=\"Secure123\", confirm_p...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_schemas.py",
+    "line": 95,
+    "col": 23,
+    "code": "new_username=\"ab\", new_password=\"Secure123\", confirm_passwor...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_schemas.py",
+    "line": 101,
+    "col": 26,
+    "code": "new_username=\"admin\", new_password=\"Secure123\", confirm_pass...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_schemas.py",
+    "line": 143,
+    "col": 34,
+    "code": "name=\"Bad\", email=\"bad@test.com\", password=\"Test1234\", role=...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_services_admin_service.py",
+    "line": 21,
+    "col": 57,
+    "code": "data = FirstLoginSetupRequest(new_username=\"admin2\", new_pas...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_services_admin_service.py",
+    "line": 30,
+    "col": 57,
+    "code": "data = FirstLoginSetupRequest(new_username=\"admin2\", new_pas...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_services_admin_service.py",
+    "line": 45,
+    "col": 64,
+    "code": "FirstLoginSetupRequest(new_email=\"new_teacher@college.edu\", ...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_services_admin_service.py",
+    "line": 62,
+    "col": 114,
+    "code": "result = admin_service.complete_first_login_setup(current_us...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_services_admin_service.py",
+    "line": 73,
+    "col": 61,
+    "code": "data = SecondaryAdminCreate(name=\"Admin\", username=\"admin2\",...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_services_admin_service.py",
+    "line": 83,
+    "col": 61,
+    "code": "data = SecondaryAdminCreate(name=\"Admin\", username=\"admin2\",...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "SECURITY_HARDCODED_SECRET",
+    "severity": "CRITICAL",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\tests\\test_services_admin_service.py",
+    "line": 96,
+    "col": 61,
+    "code": "data = SecondaryAdminCreate(name=\"Admin\", username=\"admin2\",...",
+    "message": "Potential hardcoded secret, token, or private key discovered in source code."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\main.py",
+    "line": 52,
+    "col": 24,
+    "code": "conn.execute(text(\"ALTER TYPE role ADD VALUE IF NOT EXISTS 'governance'\"))",
+    "message": "Potential N+1 query: database call 'conn.execute()' executed inside loop (loop started line 46). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\main.py",
+    "line": 57,
+    "col": 24,
+    "code": "conn.execute(text(\"ALTER TYPE assignment_type ADD VALUE IF NOT EXISTS 'combined_class'\"))",
+    "message": "Potential N+1 query: database call 'conn.execute()' executed inside loop (loop started line 46). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\main.py",
+    "line": 63,
+    "col": 24,
+    "code": "conn.execute(text(\"\"\"",
+    "message": "Potential N+1 query: database call 'conn.execute()' executed inside loop (loop started line 46). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\academic_calendar.py",
+    "line": 46,
+    "col": 0,
+    "code": "def create_academic_year(...)",
+    "message": "Route handler 'create_academic_year' (router.post('/academic-years', response_model=AcademicYearOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\academic_calendar.py",
+    "line": 66,
+    "col": 0,
+    "code": "def create_semester(...)",
+    "message": "Route handler 'create_semester' (router.post('/semesters', response_model=SemesterOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\academic_calendar.py",
+    "line": 100,
+    "col": 0,
+    "code": "def mark_day(...)",
+    "message": "Route handler 'mark_day' (router.post('/days/mark', response_model=CalendarDayOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\academic_calendar.py",
+    "line": 117,
+    "col": 0,
+    "code": "def bulk_mark_days(...)",
+    "message": "Route handler 'bulk_mark_days' (router.post('/days/bulk-mark', response_model=list[CalendarDayOut], status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\academic_calendar.py",
+    "line": 129,
+    "col": 0,
+    "code": "def assign_day_order(...)",
+    "message": "Route handler 'assign_day_order' (router.post('/days/day-order/assign', response_model=CalendarDayOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\academic_calendar.py",
+    "line": 141,
+    "col": 0,
+    "code": "def skip_day_order(...)",
+    "message": "Route handler 'skip_day_order' (router.post('/days/day-order/skip', response_model=CalendarDayOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\academic_calendar.py",
+    "line": 152,
+    "col": 0,
+    "code": "def clear_override(...)",
+    "message": "Route handler 'clear_override' (router.delete('/days/{the_date}/override', response_model=CalendarDayOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\academic_calendar.py",
+    "line": 164,
+    "col": 0,
+    "code": "def delete_calendar_day(...)",
+    "message": "Route handler 'delete_calendar_day' (router.delete('/days/{the_date}', status_code=204)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\academic_calendar.py",
+    "line": 194,
+    "col": 0,
+    "code": "def today_summary(...)",
+    "message": "Route handler 'today_summary' (router.get('/today-summary', response_model=TodaySummary)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\academic_calendar.py",
+    "line": 207,
+    "col": 0,
+    "code": "def my_today_summary(...)",
+    "message": "Route handler 'my_today_summary' (router.get('/my-today-summary', response_model=TeacherTodaySummary)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\academic_calendar.py",
+    "line": 221,
+    "col": 0,
+    "code": "def working_day_report(...)",
+    "message": "Route handler 'working_day_report' (router.get('/reports/working-days', response_model=list[WorkingDayReportEntry])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\academic_calendar.py",
+    "line": 229,
+    "col": 0,
+    "code": "def holiday_report(...)",
+    "message": "Route handler 'holiday_report' (router.get('/reports/holidays', response_model=list[HolidayReportEntry])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\academic_calendar.py",
+    "line": 237,
+    "col": 0,
+    "code": "def day_order_report(...)",
+    "message": "Route handler 'day_order_report' (router.get('/reports/day-orders', response_model=list[DayOrderReportEntry])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\academic_calendar.py",
+    "line": 245,
+    "col": 0,
+    "code": "def faculty_workload_report(...)",
+    "message": "Route handler 'faculty_workload_report' (router.get('/reports/faculty-workload', response_model=list[FacultyWorkloadReportEntry])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 23,
+    "col": 0,
+    "code": "def master_export(...)",
+    "message": "Route handler 'master_export' (router.get('/master-export')) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 44,
+    "col": 0,
+    "code": "def list_secondary_admins(...)",
+    "message": "Route handler 'list_secondary_admins' (router.get('/secondary-admins', response_model=list[UserOut])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 53,
+    "col": 0,
+    "code": "def create_secondary_admin(...)",
+    "message": "Route handler 'create_secondary_admin' (router.post('/secondary-admins', response_model=UserOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 63,
+    "col": 0,
+    "code": "def enable_secondary_admin(...)",
+    "message": "Route handler 'enable_secondary_admin' (router.patch('/secondary-admins/{admin_id}/enable', response_model=UserOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 73,
+    "col": 0,
+    "code": "def disable_secondary_admin(...)",
+    "message": "Route handler 'disable_secondary_admin' (router.patch('/secondary-admins/{admin_id}/disable', response_model=UserOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 83,
+    "col": 0,
+    "code": "def get_audit_logs(...)",
+    "message": "Route handler 'get_audit_logs' (router.get('/audit-logs', response_model=list[AuditLogOut])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 102,
+    "col": 0,
+    "code": "def factory_reset(...)",
+    "message": "Route handler 'factory_reset' (router.post('/factory-reset', response_model=FactoryResetResponse)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 122,
+    "col": 0,
+    "code": "def clear_credits_history(...)",
+    "message": "Route handler 'clear_credits_history' (router.post('/clear-credits-history')) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 147,
+    "col": 0,
+    "code": "def clear_leaves_history(...)",
+    "message": "Route handler 'clear_leaves_history' (router.post('/clear-leaves-history')) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 174,
+    "col": 0,
+    "code": "def create_principal(...)",
+    "message": "Route handler 'create_principal' (router.post('/principal', response_model=UserOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 187,
+    "col": 0,
+    "code": "def list_global_users(...)",
+    "message": "Route handler 'list_global_users' (router.get('/global-users', response_model=list[UserOut])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 262,
+    "col": 0,
+    "code": "def clear_traffic_logs(...)",
+    "message": "Route handler 'clear_traffic_logs' (router.post('/system-metrics/clear-traffic')) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 276,
+    "col": 0,
+    "code": "def list_managers(...)",
+    "message": "Route handler 'list_managers' (router.get('/managers', response_model=list[ManagerOut])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 299,
+    "col": 0,
+    "code": "def create_manager(...)",
+    "message": "Route handler 'create_manager' (router.post('/managers', response_model=ManagerOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 327,
+    "col": 0,
+    "code": "def get_manager(...)",
+    "message": "Route handler 'get_manager' (router.get('/managers/{manager_id}', response_model=ManagerOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 348,
+    "col": 0,
+    "code": "def update_manager(...)",
+    "message": "Route handler 'update_manager' (router.put('/managers/{manager_id}', response_model=ManagerOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 378,
+    "col": 0,
+    "code": "def delete_manager(...)",
+    "message": "Route handler 'delete_manager' (router.delete('/managers/{manager_id}', status_code=204)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\auth.py",
+    "line": 17,
+    "col": 0,
+    "code": "def register(...)",
+    "message": "Route handler 'register' (router.post('/register', response_model=Token, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\backup.py",
+    "line": 51,
+    "col": 0,
+    "code": "def get_backup_schedule(...)",
+    "message": "Route handler 'get_backup_schedule' (router.get('/schedule', response_model=BackupScheduleSettingsOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\backup.py",
+    "line": 65,
+    "col": 0,
+    "code": "def update_backup_schedule(...)",
+    "message": "Route handler 'update_backup_schedule' (router.put('/schedule', response_model=BackupScheduleSettingsOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\backup.py",
+    "line": 81,
+    "col": 0,
+    "code": "def run_auto_backup_now(...)",
+    "message": "Route handler 'run_auto_backup_now' (router.post('/schedule/run-now', response_model=BackupMetaOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\backup.py",
+    "line": 96,
+    "col": 0,
+    "code": "def import_backup_file(...)",
+    "message": "Route handler 'import_backup_file' (router.post('/import', response_model=BackupMetaOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\backup.py",
+    "line": 128,
+    "col": 0,
+    "code": "def create_backup(...)",
+    "message": "Route handler 'create_backup' (router.post('', response_model=BackupMetaOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\backup.py",
+    "line": 151,
+    "col": 0,
+    "code": "def get_summary(...)",
+    "message": "Route handler 'get_summary' (router.get('/summary', response_model=BackupSummaryOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\backup.py",
+    "line": 165,
+    "col": 0,
+    "code": "def list_backups(...)",
+    "message": "Route handler 'list_backups' (router.get('', response_model=list[BackupMetaOut])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\backup.py",
+    "line": 180,
+    "col": 0,
+    "code": "def get_backup(...)",
+    "message": "Route handler 'get_backup' (router.get('/{backup_id}', response_model=BackupMetaOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\backup.py",
+    "line": 193,
+    "col": 0,
+    "code": "def download_backup(...)",
+    "message": "Route handler 'download_backup' (router.get('/{backup_id}/download')) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\backup.py",
+    "line": 233,
+    "col": 0,
+    "code": "def validate_backup(...)",
+    "message": "Route handler 'validate_backup' (router.post('/{backup_id}/validate', response_model=BackupMetaOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\backup.py",
+    "line": 267,
+    "col": 0,
+    "code": "def restore_backup(...)",
+    "message": "Route handler 'restore_backup' (router.post('/{backup_id}/restore', response_model=RestoreResultOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\backup.py",
+    "line": 299,
+    "col": 0,
+    "code": "def delete_backup(...)",
+    "message": "Route handler 'delete_backup' (router.delete('/{backup_id}', status_code=204)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 24,
+    "col": 0,
+    "code": "def get_cross_department_substitutions(...)",
+    "message": "Route handler 'get_cross_department_substitutions' (router.get('/cross-department-substitutions')) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 30,
+    "col": 0,
+    "code": "def set_cross_department_substitutions(...)",
+    "message": "Route handler 'set_cross_department_substitutions' (router.put('/cross-department-substitutions')) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 60,
+    "col": 0,
+    "code": "def set_mode(...)",
+    "message": "Route handler 'set_mode' (router.put('/mode', response_model=CampusOperationsModeOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 94,
+    "col": 0,
+    "code": "def get_my_preferences(...)",
+    "message": "Route handler 'get_my_preferences' (router.get('/preferences/me', response_model=SubstitutionPreferenceOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 102,
+    "col": 0,
+    "code": "def update_my_preferences(...)",
+    "message": "Route handler 'update_my_preferences' (router.put('/preferences/me', response_model=SubstitutionPreferenceOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 111,
+    "col": 0,
+    "code": "def get_teacher_preferences(...)",
+    "message": "Route handler 'get_teacher_preferences' (router.get('/preferences/{teacher_id}', response_model=SubstitutionPreferenceOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 129,
+    "col": 0,
+    "code": "def get_system_analytics(...)",
+    "message": "Route handler 'get_system_analytics' (router.get('/system-analytics', response_model=SystemAnalyticsOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 175,
+    "col": 15,
+    "code": "mode = substitution_service.get_mode(db, dept.id)",
+    "message": "Potential N+1 query: database call 'substitution_service.get_mode()' executed inside loop (loop started line 174). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 179,
+    "col": 29,
+    "code": "dept_active_leaves = db.query(LeaveRequest).join(User).filter(",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).join(User).filter(LeaveRequest.date == today_date, LeaveRequest.status == LeaveStatus.approved, User.department_id == dept.id).count()' executed inside loop (loop started line 174). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 179,
+    "col": 29,
+    "code": "dept_active_leaves = db.query(LeaveRequest).join(User).filter(",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).join(User).filter()' executed inside loop (loop started line 174). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 179,
+    "col": 29,
+    "code": "dept_active_leaves = db.query(LeaveRequest).join(User).filter(",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).join()' executed inside loop (loop started line 174). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 179,
+    "col": 29,
+    "code": "dept_active_leaves = db.query(LeaveRequest).join(User).filter(",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 174). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 186,
+    "col": 30,
+    "code": "dept_covered_leaves = db.query(LeaveRequest).join(AlterAssignment).join(User, LeaveRequest.teacher_id == User.id).filter(",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).join(AlterAssignment).join(User, LeaveRequest.teacher_id == User.id).filter(LeaveRequest.date == today_date, LeaveRequest.status == LeaveStatus.approved, User.department_id == dept.id).count()' executed inside loop (loop started line 174). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 186,
+    "col": 30,
+    "code": "dept_covered_leaves = db.query(LeaveRequest).join(AlterAssignment).join(User, LeaveRequest.teacher_id == User.id).filter(",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).join(AlterAssignment).join(User, LeaveRequest.teacher_id == User.id).filter()' executed inside loop (loop started line 174). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 186,
+    "col": 30,
+    "code": "dept_covered_leaves = db.query(LeaveRequest).join(AlterAssignment).join(User, LeaveRequest.teacher_id == User.id).filter(",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).join(AlterAssignment).join()' executed inside loop (loop started line 174). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 186,
+    "col": 30,
+    "code": "dept_covered_leaves = db.query(LeaveRequest).join(AlterAssignment).join(User, LeaveRequest.teacher_id == User.id).filter(",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).join()' executed inside loop (loop started line 174). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 186,
+    "col": 30,
+    "code": "dept_covered_leaves = db.query(LeaveRequest).join(AlterAssignment).join(User, LeaveRequest.teacher_id == User.id).filter(",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 174). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 193,
+    "col": 33,
+    "code": "dept_teachers_on_leave = db.query(LeaveRequest.teacher_id).join(User).filter(",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest.teacher_id).join(User).filter(LeaveRequest.date == today_date, LeaveRequest.status == LeaveStatus.approved, User.department_id == dept.id).distinct().count()' executed inside loop (loop started line 174). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 193,
+    "col": 33,
+    "code": "dept_teachers_on_leave = db.query(LeaveRequest.teacher_id).join(User).filter(",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest.teacher_id).join(User).filter(LeaveRequest.date == today_date, LeaveRequest.status == LeaveStatus.approved, User.department_id == dept.id).distinct()' executed inside loop (loop started line 174). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 193,
+    "col": 33,
+    "code": "dept_teachers_on_leave = db.query(LeaveRequest.teacher_id).join(User).filter(",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest.teacher_id).join(User).filter()' executed inside loop (loop started line 174). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 193,
+    "col": 33,
+    "code": "dept_teachers_on_leave = db.query(LeaveRequest.teacher_id).join(User).filter(",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest.teacher_id).join()' executed inside loop (loop started line 174). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 193,
+    "col": 33,
+    "code": "dept_teachers_on_leave = db.query(LeaveRequest.teacher_id).join(User).filter(",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 174). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 233,
+    "col": 0,
+    "code": "def run_dry_run(...)",
+    "message": "Route handler 'run_dry_run' (router.post('/dry-run', response_model=DryRunResponse)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 254,
+    "col": 15,
+    "code": "dept = db.query(Department).filter(Department.id == dept_id).first()",
+    "message": "Potential N+1 query: database call 'db.query(Department).filter(Department.id == dept_id).first()' executed inside loop (loop started line 253). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 254,
+    "col": 15,
+    "code": "dept = db.query(Department).filter(Department.id == dept_id).first()",
+    "message": "Potential N+1 query: database call 'db.query(Department).filter()' executed inside loop (loop started line 253). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 254,
+    "col": 15,
+    "code": "dept = db.query(Department).filter(Department.id == dept_id).first()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 253). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 272,
+    "col": 0,
+    "code": "def bulk_override_preferences(...)",
+    "message": "Route handler 'bulk_override_preferences' (router.put('/preferences/bulk-override')) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 293,
+    "col": 0,
+    "code": "def update_teacher_preferences(...)",
+    "message": "Route handler 'update_teacher_preferences' (router.put('/preferences/{teacher_id}', response_model=SubstitutionPreferenceOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\classes.py",
+    "line": 38,
+    "col": 0,
+    "code": "def create_class(...)",
+    "message": "Route handler 'create_class' (router.post('/', response_model=ClassOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\classes.py",
+    "line": 49,
+    "col": 0,
+    "code": "def bulk_create_classes(...)",
+    "message": "Route handler 'bulk_create_classes' (router.post('/bulk', response_model=BulkClassCreateOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\classes.py",
+    "line": 61,
+    "col": 0,
+    "code": "def update_class(...)",
+    "message": "Route handler 'update_class' (router.patch('/{class_id}', response_model=ClassOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\classes.py",
+    "line": 73,
+    "col": 0,
+    "code": "def delete_class(...)",
+    "message": "Route handler 'delete_class' (router.delete('/{class_id}', status_code=204)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\credits.py",
+    "line": 15,
+    "col": 0,
+    "code": "def adjust_credits(...)",
+    "message": "Route handler 'adjust_credits' (router.post('/adjust')) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\credits.py",
+    "line": 47,
+    "col": 0,
+    "code": "def all_transactions(...)",
+    "message": "Route handler 'all_transactions' (router.get('/transactions', response_model=list[CreditTransactionOut])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\credits.py",
+    "line": 56,
+    "col": 0,
+    "code": "def credit_report(...)",
+    "message": "Route handler 'credit_report' (router.get('/report', response_model=list[CreditReportEntry])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\data_retention.py",
+    "line": 27,
+    "col": 0,
+    "code": "def get_storage_stats(...)",
+    "message": "Route handler 'get_storage_stats' (router.get('/stats', response_model=StorageStatsOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\data_retention.py",
+    "line": 40,
+    "col": 0,
+    "code": "def get_retention_policy(...)",
+    "message": "Route handler 'get_retention_policy' (router.get('/policy', response_model=RetentionPolicySettingsOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\data_retention.py",
+    "line": 57,
+    "col": 0,
+    "code": "def update_retention_policy(...)",
+    "message": "Route handler 'update_retention_policy' (router.put('/policy', response_model=RetentionPolicySettingsOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\data_retention.py",
+    "line": 75,
+    "col": 0,
+    "code": "def run_auto_cleanup_now(...)",
+    "message": "Route handler 'run_auto_cleanup_now' (router.post('/run-auto-cleanup', response_model=SelectivePurgeExecuteResponse)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\data_retention.py",
+    "line": 100,
+    "col": 0,
+    "code": "def preview_selective_purge(...)",
+    "message": "Route handler 'preview_selective_purge' (router.post('/preview', response_model=SelectivePurgePreviewResponse)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\data_retention.py",
+    "line": 114,
+    "col": 0,
+    "code": "def execute_selective_purge(...)",
+    "message": "Route handler 'execute_selective_purge' (router.post('/purge', response_model=SelectivePurgeExecuteResponse)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\day_order.py",
+    "line": 36,
+    "col": 0,
+    "code": "def bulk_set(...)",
+    "message": "Route handler 'bulk_set' (router.post('/bulk-set', response_model=list[CalendarDayOut])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\departments.py",
+    "line": 29,
+    "col": 0,
+    "code": "def create_department(...)",
+    "message": "Route handler 'create_department' (router.post('/', response_model=DepartmentOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\departments.py",
+    "line": 38,
+    "col": 0,
+    "code": "def update_department(...)",
+    "message": "Route handler 'update_department' (router.patch('/{dept_id}', response_model=DepartmentOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\departments.py",
+    "line": 49,
+    "col": 0,
+    "code": "def delete_department(...)",
+    "message": "Route handler 'delete_department' (router.delete('/{dept_id}', status_code=204)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\departments.py",
+    "line": 59,
+    "col": 0,
+    "code": "def create_department_admin(...)",
+    "message": "Route handler 'create_department_admin' (router.post('/{dept_id}/admin', response_model=UserOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\leaves.py",
+    "line": 60,
+    "col": 0,
+    "code": "def list_all_leaves(...)",
+    "message": "Route handler 'list_all_leaves' (router.get('/', response_model=list[LeaveOut])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\leaves.py",
+    "line": 77,
+    "col": 0,
+    "code": "def approve_leave(...)",
+    "message": "Route handler 'approve_leave' (router.patch('/{leave_id}/approve')) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\leaves.py",
+    "line": 91,
+    "col": 0,
+    "code": "def reject_leave(...)",
+    "message": "Route handler 'reject_leave' (router.patch('/{leave_id}/reject', response_model=LeaveOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\leaves.py",
+    "line": 106,
+    "col": 0,
+    "code": "def update_leave_status(...)",
+    "message": "Route handler 'update_leave_status' (router.patch('/{leave_id}/status')) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\leaves.py",
+    "line": 131,
+    "col": 0,
+    "code": "def bulk_approve(...)",
+    "message": "Route handler 'bulk_approve' (router.post('/bulk-approve', response_model=list[LeaveOut])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\leaves.py",
+    "line": 141,
+    "col": 0,
+    "code": "def bulk_reject(...)",
+    "message": "Route handler 'bulk_reject' (router.post('/bulk-reject', response_model=list[LeaveOut])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\leaves.py",
+    "line": 151,
+    "col": 0,
+    "code": "def assign_substitute(...)",
+    "message": "Route handler 'assign_substitute' (router.post('/{leave_id}/assign', response_model=AlterAssignmentOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\leaves.py",
+    "line": 174,
+    "col": 0,
+    "code": "def get_recommendations(...)",
+    "message": "Route handler 'get_recommendations' (router.get('/{leave_id}/recommendations', response_model=list[RecommendationOut])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\leaves.py",
+    "line": 198,
+    "col": 0,
+    "code": "def assign_recommended_substitute(...)",
+    "message": "Route handler 'assign_recommended_substitute' (router.post('/{leave_id}/assign-recommended', response_model=AlterAssignmentOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\leaves.py",
+    "line": 224,
+    "col": 0,
+    "code": "def override_substitute(...)",
+    "message": "Route handler 'override_substitute' (router.post('/{leave_id}/override', response_model=AlterAssignmentOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\leaves.py",
+    "line": 243,
+    "col": 0,
+    "code": "def undo_assignment(...)",
+    "message": "Route handler 'undo_assignment' (router.post('/{leave_id}/undo-assignment', response_model=LeaveOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\leaves.py",
+    "line": 255,
+    "col": 0,
+    "code": "def set_assignment_lock(...)",
+    "message": "Route handler 'set_assignment_lock' (router.post('/{leave_id}/lock', response_model=AlterAssignmentOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\leaves.py",
+    "line": 270,
+    "col": 0,
+    "code": "def free_teachers(...)",
+    "message": "Route handler 'free_teachers' (router.get('/{leave_id}/free-teachers', response_model=list[FreeTeacherOut])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\leaves.py",
+    "line": 316,
+    "col": 0,
+    "code": "def admin_cancel_leave(...)",
+    "message": "Route handler 'admin_cancel_leave' (router.post('/{leave_id}/admin-cancel', response_model=LeaveOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\leaves.py",
+    "line": 329,
+    "col": 0,
+    "code": "def cancel_impact(...)",
+    "message": "Route handler 'cancel_impact' (router.get('/{leave_id}/cancel-impact', response_model=CancelImpactOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\principal.py",
+    "line": 14,
+    "col": 0,
+    "code": "def get_principal_overview(...)",
+    "message": "Route handler 'get_principal_overview' (router.get('/overview', response_model=PrincipalOverviewOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\rooms.py",
+    "line": 23,
+    "col": 0,
+    "code": "def create_room(...)",
+    "message": "Route handler 'create_room' (router.post('/', response_model=RoomOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\rooms.py",
+    "line": 32,
+    "col": 0,
+    "code": "def bulk_create_rooms(...)",
+    "message": "Route handler 'bulk_create_rooms' (router.post('/bulk', response_model=BulkRoomCreateOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\rooms.py",
+    "line": 42,
+    "col": 0,
+    "code": "def update_room(...)",
+    "message": "Route handler 'update_room' (router.patch('/{room_id}', response_model=RoomOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\rooms.py",
+    "line": 52,
+    "col": 0,
+    "code": "def delete_room(...)",
+    "message": "Route handler 'delete_room' (router.delete('/{room_id}', status_code=204)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\subjects.py",
+    "line": 25,
+    "col": 0,
+    "code": "def create_subject(...)",
+    "message": "Route handler 'create_subject' (router.post('/', response_model=SubjectOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\subjects.py",
+    "line": 36,
+    "col": 0,
+    "code": "def update_subject(...)",
+    "message": "Route handler 'update_subject' (router.patch('/{subject_id}', response_model=SubjectOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\subjects.py",
+    "line": 48,
+    "col": 0,
+    "code": "def archive_subject(...)",
+    "message": "Route handler 'archive_subject' (router.patch('/{subject_id}/archive', response_model=SubjectOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\subjects.py",
+    "line": 59,
+    "col": 0,
+    "code": "def unarchive_subject(...)",
+    "message": "Route handler 'unarchive_subject' (router.patch('/{subject_id}/unarchive', response_model=SubjectOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\subjects.py",
+    "line": 70,
+    "col": 0,
+    "code": "def delete_subject(...)",
+    "message": "Route handler 'delete_subject' (router.delete('/{subject_id}', status_code=204)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\teacher_substitution.py",
+    "line": 130,
+    "col": 0,
+    "code": "def get_config(...)",
+    "message": "Route handler 'get_config' (router.get('/config', response_model=TeacherSubstitutionConfigOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\teacher_substitution.py",
+    "line": 141,
+    "col": 0,
+    "code": "def update_config(...)",
+    "message": "Route handler 'update_config' (router.put('/config', response_model=TeacherSubstitutionConfigOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\teachers.py",
+    "line": 34,
+    "col": 0,
+    "code": "def create_teacher(...)",
+    "message": "Route handler 'create_teacher' (router.post('/', response_model=UserOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\teachers.py",
+    "line": 44,
+    "col": 0,
+    "code": "def bulk_create_teachers(...)",
+    "message": "Route handler 'bulk_create_teachers' (router.post('/bulk', response_model=TeacherBulkCreateOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\teachers.py",
+    "line": 83,
+    "col": 0,
+    "code": "def update_teacher(...)",
+    "message": "Route handler 'update_teacher' (router.put('/{teacher_id}', response_model=UserOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\teachers.py",
+    "line": 127,
+    "col": 0,
+    "code": "def delete_teacher(...)",
+    "message": "Route handler 'delete_teacher' (router.delete('/{teacher_id}', status_code=204)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\timetable.py",
+    "line": 25,
+    "col": 0,
+    "code": "def submit_my_timetable_entry(...)",
+    "message": "Route handler 'submit_my_timetable_entry' (router.post('/submissions', response_model=TimetableSubmissionOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\timetable.py",
+    "line": 31,
+    "col": 0,
+    "code": "def my_timetable_submissions(...)",
+    "message": "Route handler 'my_timetable_submissions' (router.get('/submissions/my', response_model=list[TimetableSubmissionOut])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\timetable.py",
+    "line": 37,
+    "col": 0,
+    "code": "def pending_timetable_submissions(...)",
+    "message": "Route handler 'pending_timetable_submissions' (router.get('/submissions/pending', response_model=list[TimetableSubmissionOut])) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\timetable.py",
+    "line": 43,
+    "col": 0,
+    "code": "def review_timetable_submission(...)",
+    "message": "Route handler 'review_timetable_submission' (router.post('/submissions/{submission_id}/review', response_model=TimetableSubmissionOut)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\timetable.py",
+    "line": 49,
+    "col": 0,
+    "code": "def bulk_review_timetable_submissions(...)",
+    "message": "Route handler 'bulk_review_timetable_submissions' (router.post('/submissions/bulk-review')) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\timetable.py",
+    "line": 63,
+    "col": 0,
+    "code": "def create_slot(...)",
+    "message": "Route handler 'create_slot' (router.post('/slot', response_model=TimetableSlotOut, status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\timetable.py",
+    "line": 73,
+    "col": 0,
+    "code": "def upload_timetable(...)",
+    "message": "Route handler 'upload_timetable' (router.post('/', response_model=list[TimetableSlotOut], status_code=201)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\timetable.py",
+    "line": 103,
+    "col": 0,
+    "code": "def delete_slot(...)",
+    "message": "Route handler 'delete_slot' (router.delete('/{slot_id}', status_code=204)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\timetable.py",
+    "line": 113,
+    "col": 0,
+    "code": "def delete_teacher_timetable(...)",
+    "message": "Route handler 'delete_teacher_timetable' (router.delete('/teacher/{teacher_id}', status_code=204)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "SECURITY_UNPROTECTED_ROUTE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\timetable.py",
+    "line": 123,
+    "col": 0,
+    "code": "def reset_timetable(...)",
+    "message": "Route handler 'reset_timetable' (router.post('/reset', response_model=TimetableResetResponse)) has no visible authentication dependency (e.g., Depends(get_current_user))."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\schemas\\timetable_import_json.py",
+    "line": 50,
+    "col": 17,
+    "code": "origin = typing.get_origin(annotation)",
+    "message": "Potential N+1 query: database call 'typing.get_origin()' executed inside loop (loop started line 47). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\schemas\\timetable_import_json.py",
+    "line": 51,
+    "col": 15,
+    "code": "args = typing.get_args(annotation)",
+    "message": "Potential N+1 query: database call 'typing.get_args()' executed inside loop (loop started line 47). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\auth_service.py",
+    "line": 85,
+    "col": 11,
+    "code": "if db.query(User).filter(func.lower(User.email) == email).first():",
+    "message": "Potential N+1 query: database call 'db.query(User).filter(func.lower(User.email) == email).first()' executed inside loop (loop started line 83). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\auth_service.py",
+    "line": 85,
+    "col": 11,
+    "code": "if db.query(User).filter(func.lower(User.email) == email).first():",
+    "message": "Potential N+1 query: database call 'db.query(User).filter()' executed inside loop (loop started line 83). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\auth_service.py",
+    "line": 85,
+    "col": 11,
+    "code": "if db.query(User).filter(func.lower(User.email) == email).first():",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 83). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 343,
+    "col": 23,
+    "code": "rows = db.execute(text(f\"SELECT * FROM {table}\")).mappings().all()",
+    "message": "Potential N+1 query: database call 'db.execute(text(f'SELECT * FROM {table}')).mappings().all()' executed inside loop (loop started line 341). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 343,
+    "col": 23,
+    "code": "rows = db.execute(text(f\"SELECT * FROM {table}\")).mappings().all()",
+    "message": "Potential N+1 query: database call 'db.execute(text(f'SELECT * FROM {table}')).mappings()' executed inside loop (loop started line 341). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 343,
+    "col": 23,
+    "code": "rows = db.execute(text(f\"SELECT * FROM {table}\")).mappings().all()",
+    "message": "Potential N+1 query: database call 'db.execute()' executed inside loop (loop started line 341). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 467,
+    "col": 23,
+    "code": "rows = db.execute(text(f\"SELECT * FROM {shared_table}\")).mappings().all()",
+    "message": "Potential N+1 query: database call 'db.execute(text(f'SELECT * FROM {shared_table}')).mappings().all()' executed inside loop (loop started line 465). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 467,
+    "col": 23,
+    "code": "rows = db.execute(text(f\"SELECT * FROM {shared_table}\")).mappings().all()",
+    "message": "Potential N+1 query: database call 'db.execute(text(f'SELECT * FROM {shared_table}')).mappings()' executed inside loop (loop started line 465). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 467,
+    "col": 23,
+    "code": "rows = db.execute(text(f\"SELECT * FROM {shared_table}\")).mappings().all()",
+    "message": "Potential N+1 query: database call 'db.execute()' executed inside loop (loop started line 465). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 559,
+    "col": 52,
+    "code": "if tenant_department_id is not None and entry.get(\"department_id\") != tenant_department_id:",
+    "message": "Potential N+1 query: database call 'entry.get()' executed inside loop (loop started line 557). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 575,
+    "col": 11,
+    "code": "if e.get(\"restored_at\"):",
+    "message": "Potential N+1 query: database call 'e.get()' executed inside loop (loop started line 574). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 734,
+    "col": 20,
+    "code": "db.execute(text(f\"DELETE FROM {table}\"))",
+    "message": "Potential N+1 query: database call 'db.execute()' executed inside loop (loop started line 732). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 758,
+    "col": 20,
+    "code": "db.execute(text(stmt), {\"dept_id\": dept_id, \"actor_id\": actor_user_id})",
+    "message": "Potential N+1 query: database call 'db.execute()' executed inside loop (loop started line 756). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 765,
+    "col": 19,
+    "code": "rows = data.get(table, [])",
+    "message": "Potential N+1 query: database call 'data.get()' executed inside loop (loop started line 764). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 774,
+    "col": 33,
+    "code": "row_id = row.get(\"id\")",
+    "message": "Potential N+1 query: database call 'row.get()' executed inside loop (loop started line 768). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 776,
+    "col": 39,
+    "code": "existing = db.execute(text(f'SELECT id FROM \"{table}\" WHERE id = :id'), {\"id\": row_id}).first()",
+    "message": "Potential N+1 query: database call 'db.execute(text(f'SELECT id FROM \"{table}\" WHERE id = :id'), {'id': row_id}).first()' executed inside loop (loop started line 768). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 776,
+    "col": 39,
+    "code": "existing = db.execute(text(f'SELECT id FROM \"{table}\" WHERE id = :id'), {\"id\": row_id}).first()",
+    "message": "Potential N+1 query: database call 'db.execute()' executed inside loop (loop started line 768). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 780,
+    "col": 33,
+    "code": "row_id = row.get(\"id\")",
+    "message": "Potential N+1 query: database call 'row.get()' executed inside loop (loop started line 768). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 782,
+    "col": 39,
+    "code": "existing = db.execute(text('SELECT id FROM \"departments\" WHERE id = :id'), {\"id\": row_id}).first()",
+    "message": "Potential N+1 query: database call 'db.execute(text('SELECT id FROM \"departments\" WHERE id = :id'), {'id': row_id}).first()' executed inside loop (loop started line 768). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 782,
+    "col": 39,
+    "code": "existing = db.execute(text('SELECT id FROM \"departments\" WHERE id = :id'), {\"id\": row_id}).first()",
+    "message": "Potential N+1 query: database call 'db.execute()' executed inside loop (loop started line 768). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 785,
+    "col": 46,
+    "code": "elif table == \"users\" and row.get(\"id\") == actor_user_id:",
+    "message": "Potential N+1 query: database call 'row.get()' executed inside loop (loop started line 768). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 788,
+    "col": 33,
+    "code": "row_id = row.get(\"id\")",
+    "message": "Potential N+1 query: database call 'row.get()' executed inside loop (loop started line 768). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 790,
+    "col": 39,
+    "code": "existing = db.execute(text('SELECT id FROM \"rooms\" WHERE id = :id'), {\"id\": row_id}).first()",
+    "message": "Potential N+1 query: database call 'db.execute(text('SELECT id FROM \"rooms\" WHERE id = :id'), {'id': row_id}).first()' executed inside loop (loop started line 768). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 790,
+    "col": 39,
+    "code": "existing = db.execute(text('SELECT id FROM \"rooms\" WHERE id = :id'), {\"id\": row_id}).first()",
+    "message": "Potential N+1 query: database call 'db.execute()' executed inside loop (loop started line 768). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 806,
+    "col": 20,
+    "code": "db.execute(stmt, cleaned_row)",
+    "message": "Potential N+1 query: database call 'db.execute()' executed inside loop (loop started line 768). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 954,
+    "col": 31,
+    "code": "seq_name = db.execute(seq_query).scalar()",
+    "message": "Potential N+1 query: database call 'db.execute(seq_query).scalar()' executed inside loop (loop started line 951). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 954,
+    "col": 31,
+    "code": "seq_name = db.execute(seq_query).scalar()",
+    "message": "Potential N+1 query: database call 'db.execute()' executed inside loop (loop started line 951). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\backup_service.py",
+    "line": 956,
+    "col": 24,
+    "code": "db.execute(text(f\"\"\"",
+    "message": "Potential N+1 query: database call 'db.execute()' executed inside loop (loop started line 951). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\class_directory_service.py",
+    "line": 11,
+    "col": 16,
+    "code": "slots = db.query(TimetableSlot).filter(TimetableSlot.class_id == cls.id).all()",
+    "message": "Potential N+1 query: database call 'db.query(TimetableSlot).filter(TimetableSlot.class_id == cls.id).all()' executed inside loop (loop started line 10). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\class_directory_service.py",
+    "line": 11,
+    "col": 16,
+    "code": "slots = db.query(TimetableSlot).filter(TimetableSlot.class_id == cls.id).all()",
+    "message": "Potential N+1 query: database call 'db.query(TimetableSlot).filter()' executed inside loop (loop started line 10). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\class_directory_service.py",
+    "line": 11,
+    "col": 16,
+    "code": "slots = db.query(TimetableSlot).filter(TimetableSlot.class_id == cls.id).all()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 10). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\credit_service.py",
+    "line": 102,
+    "col": 54,
+    "code": "working_day_orders_count[day.day_order] = working_day_orders_count.get(day.day_order, 0) + 1",
+    "message": "Potential N+1 query: database call 'working_day_orders_count.get()' executed inside loop (loop started line 100). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\credit_service.py",
+    "line": 125,
+    "col": 16,
+    "code": "slots = slots_by_teacher.get(teacher.id, [])",
+    "message": "Potential N+1 query: database call 'slots_by_teacher.get()' executed inside loop (loop started line 124). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\credit_service.py",
+    "line": 129,
+    "col": 26,
+    "code": "occurrences = working_day_orders_count.get(slot.day_order, 0)",
+    "message": "Potential N+1 query: database call 'working_day_orders_count.get()' executed inside loop (loop started line 128). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\credit_service.py",
+    "line": 133,
+    "col": 18,
+    "code": "balance = balance_by_teacher.get(teacher.id, 0)",
+    "message": "Potential N+1 query: database call 'balance_by_teacher.get()' executed inside loop (loop started line 124). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\data_retention_service.py",
+    "line": 179,
+    "col": 16,
+    "code": "q = db.query(model)",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 177). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\data_retention_service.py",
+    "line": 181,
+    "col": 20,
+    "code": "q = q.filter(dept_col == tenant_department_id)",
+    "message": "Potential N+1 query: database call 'q.filter()' executed inside loop (loop started line 177). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\data_retention_service.py",
+    "line": 187,
+    "col": 25,
+    "code": "oldest = db.query(func.min(date_col)).scalar()",
+    "message": "Potential N+1 query: database call 'db.query(func.min(date_col)).scalar()' executed inside loop (loop started line 177). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\data_retention_service.py",
+    "line": 187,
+    "col": 25,
+    "code": "oldest = db.query(func.min(date_col)).scalar()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 177). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\data_retention_service.py",
+    "line": 188,
+    "col": 25,
+    "code": "newest = db.query(func.max(date_col)).scalar()",
+    "message": "Potential N+1 query: database call 'db.query(func.max(date_col)).scalar()' executed inside loop (loop started line 177). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\data_retention_service.py",
+    "line": 188,
+    "col": 25,
+    "code": "newest = db.query(func.max(date_col)).scalar()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 177). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\data_retention_service.py",
+    "line": 565,
+    "col": 62,
+    "code": "logger.debug(\"Failed deleting backup %s: %s\", b.get(\"backup_id\"), e)",
+    "message": "Potential N+1 query: database call 'b.get()' executed inside loop (loop started line 550). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\factory_reset_service.py",
+    "line": 51,
+    "col": 15,
+    "code": "rows = db.execute(text(f\"SELECT * FROM {table}\")).mappings().all()",
+    "message": "Potential N+1 query: database call 'db.execute(text(f'SELECT * FROM {table}')).mappings().all()' executed inside loop (loop started line 50). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\factory_reset_service.py",
+    "line": 51,
+    "col": 15,
+    "code": "rows = db.execute(text(f\"SELECT * FROM {table}\")).mappings().all()",
+    "message": "Potential N+1 query: database call 'db.execute(text(f'SELECT * FROM {table}')).mappings()' executed inside loop (loop started line 50). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\factory_reset_service.py",
+    "line": 51,
+    "col": 15,
+    "code": "rows = db.execute(text(f\"SELECT * FROM {table}\")).mappings().all()",
+    "message": "Potential N+1 query: database call 'db.execute()' executed inside loop (loop started line 50). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\factory_reset_service.py",
+    "line": 98,
+    "col": 16,
+    "code": "db.execute(text(\"DELETE FROM users WHERE id != :id\"), {\"id\": actor.id})",
+    "message": "Potential N+1 query: database call 'db.execute()' executed inside loop (loop started line 95). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\factory_reset_service.py",
+    "line": 100,
+    "col": 16,
+    "code": "db.execute(text(\"DELETE FROM users\"))",
+    "message": "Potential N+1 query: database call 'db.execute()' executed inside loop (loop started line 95). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\factory_reset_service.py",
+    "line": 102,
+    "col": 12,
+    "code": "db.execute(text(f\"DELETE FROM {table}\"))",
+    "message": "Potential N+1 query: database call 'db.execute()' executed inside loop (loop started line 95). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\factory_reset_service.py",
+    "line": 106,
+    "col": 8,
+    "code": "db.execute(text(\"INSERT INTO system_settings (key, value) VALUES (:k, :v)\"), {\"k\": key, \"v\": value})",
+    "message": "Potential N+1 query: database call 'db.execute()' executed inside loop (loop started line 105). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\governance_service.py",
+    "line": 147,
+    "col": 16,
+    "code": "db.query(TimetableSlot)",
+    "message": "Potential N+1 query: database call 'db.query(TimetableSlot).filter(TimetableSlot.teacher_id == req.teacher_id, TimetableSlot.day_order == day_order, TimetableSlot.period_number == req.period_number).first()' executed inside loop (loop started line 138). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\governance_service.py",
+    "line": 147,
+    "col": 16,
+    "code": "db.query(TimetableSlot)",
+    "message": "Potential N+1 query: database call 'db.query(TimetableSlot).filter()' executed inside loop (loop started line 138). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\governance_service.py",
+    "line": 147,
+    "col": 16,
+    "code": "db.query(TimetableSlot)",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 138). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\governance_service.py",
+    "line": 182,
+    "col": 23,
+    "code": "dept_faculty = db.query(User).filter(",
+    "message": "Potential N+1 query: database call 'db.query(User).filter(User.role == Role.teacher, User.department_id == dept.id, User.is_active == True).count()' executed inside loop (loop started line 181). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\governance_service.py",
+    "line": 182,
+    "col": 23,
+    "code": "dept_faculty = db.query(User).filter(",
+    "message": "Potential N+1 query: database call 'db.query(User).filter()' executed inside loop (loop started line 181). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\governance_service.py",
+    "line": 182,
+    "col": 23,
+    "code": "dept_faculty = db.query(User).filter(",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 181). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\governance_service.py",
+    "line": 244,
+    "col": 29,
+    "code": "t_user = db.query(User).filter(User.id == t_id).first()",
+    "message": "Potential N+1 query: database call 'db.query(User).filter(User.id == t_id).first()' executed inside loop (loop started line 239). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\governance_service.py",
+    "line": 244,
+    "col": 29,
+    "code": "t_user = db.query(User).filter(User.id == t_id).first()",
+    "message": "Potential N+1 query: database call 'db.query(User).filter()' executed inside loop (loop started line 239). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\governance_service.py",
+    "line": 244,
+    "col": 29,
+    "code": "t_user = db.query(User).filter(User.id == t_id).first()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 239). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\governance_service.py",
+    "line": 256,
+    "col": 21,
+    "code": "t_user = db.query(User).filter(User.id == t_id).first()",
+    "message": "Potential N+1 query: database call 'db.query(User).filter(User.id == t_id).first()' executed inside loop (loop started line 233). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\governance_service.py",
+    "line": 256,
+    "col": 21,
+    "code": "t_user = db.query(User).filter(User.id == t_id).first()",
+    "message": "Potential N+1 query: database call 'db.query(User).filter()' executed inside loop (loop started line 233). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\governance_service.py",
+    "line": 256,
+    "col": 21,
+    "code": "t_user = db.query(User).filter(User.id == t_id).first()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 233). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\leave_service.py",
+    "line": 172,
+    "col": 16,
+    "code": "db.query(LeaveRequest)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).filter(LeaveRequest.teacher_id == teacher_id, LeaveRequest.date == data.date, LeaveRequest.period_number == period, LeaveRequest.status.in_([LeaveStatus.pending, LeaveStatus.approved])).first()' executed inside loop (loop started line 170). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\leave_service.py",
+    "line": 172,
+    "col": 16,
+    "code": "db.query(LeaveRequest)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).filter()' executed inside loop (loop started line 170). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\leave_service.py",
+    "line": 172,
+    "col": 16,
+    "code": "db.query(LeaveRequest)",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 170). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\leave_service.py",
+    "line": 395,
+    "col": 46,
+    "code": "week_count_by_teacher[s.teacher_id] = week_count_by_teacher.get(s.teacher_id, 0) + 1",
+    "message": "Potential N+1 query: database call 'week_count_by_teacher.get()' executed inside loop (loop started line 394). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\leave_service.py",
+    "line": 401,
+    "col": 31,
+    "code": "periods_today = sorted(today_slots_by_teacher.get(t.id, []))",
+    "message": "Potential N+1 query: database call 'today_slots_by_teacher.get()' executed inside loop (loop started line 400). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\leave_service.py",
+    "line": 402,
+    "col": 21,
+    "code": "week_count = week_count_by_teacher.get(t.id, 0)",
+    "message": "Potential N+1 query: database call 'week_count_by_teacher.get()' executed inside loop (loop started line 400). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\leave_service.py",
+    "line": 935,
+    "col": 16,
+    "code": "db.query(LeaveRequest)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).filter(LeaveRequest.teacher_id == data.teacher_id, LeaveRequest.date == data.date, LeaveRequest.period_number == period, LeaveRequest.status.in_([LeaveStatus.pending, LeaveStatus.approved])).first()' executed inside loop (loop started line 932). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\leave_service.py",
+    "line": 935,
+    "col": 16,
+    "code": "db.query(LeaveRequest)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).filter()' executed inside loop (loop started line 932). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\leave_service.py",
+    "line": 935,
+    "col": 16,
+    "code": "db.query(LeaveRequest)",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 932). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\master_export_service.py",
+    "line": 35,
+    "col": 15,
+    "code": "slot = db.query(TimetableSlot).filter(TimetableSlot.teacher_id == leave.teacher_id, TimetableSlot.day_order == leave.day_order, TimetableSlot.period_number == leave.period_number).first()",
+    "message": "Potential N+1 query: database call 'db.query(TimetableSlot).filter(TimetableSlot.teacher_id == leave.teacher_id, TimetableSlot.day_order == leave.day_order, TimetableSlot.period_number == leave.period_number).first()' executed inside loop (loop started line 33). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\master_export_service.py",
+    "line": 35,
+    "col": 15,
+    "code": "slot = db.query(TimetableSlot).filter(TimetableSlot.teacher_id == leave.teacher_id, TimetableSlot.day_order == leave.day_order, TimetableSlot.period_number == leave.period_number).first()",
+    "message": "Potential N+1 query: database call 'db.query(TimetableSlot).filter()' executed inside loop (loop started line 33). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\master_export_service.py",
+    "line": 35,
+    "col": 15,
+    "code": "slot = db.query(TimetableSlot).filter(TimetableSlot.teacher_id == leave.teacher_id, TimetableSlot.day_order == leave.day_order, TimetableSlot.period_number == leave.period_number).first()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 33). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\room_service.py",
+    "line": 185,
+    "col": 19,
+    "code": "t_id = leave_teacher_map.get(alt.leave_request_id)",
+    "message": "Potential N+1 query: database call 'leave_teacher_map.get()' executed inside loop (loop started line 184). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\room_service.py",
+    "line": 196,
+    "col": 19,
+    "code": "sub_info = sub_map.get((s.teacher_id, s.period_number))",
+    "message": "Potential N+1 query: database call 'sub_map.get()' executed inside loop (loop started line 195). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\room_service.py",
+    "line": 222,
+    "col": 21,
+    "code": "p_slot = slot_map.get((r.id, p))",
+    "message": "Potential N+1 query: database call 'slot_map.get()' executed inside loop (loop started line 221). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\room_service.py",
+    "line": 232,
+    "col": 19,
+    "code": "cur_slot = slot_map.get((r.id, active_period))",
+    "message": "Potential N+1 query: database call 'slot_map.get()' executed inside loop (loop started line 219). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_dashboard_service.py",
+    "line": 57,
+    "col": 15,
+    "code": "slot = slots_map.get((leave.teacher_id, leave.period_number))",
+    "message": "Potential N+1 query: database call 'slots_map.get()' executed inside loop (loop started line 55). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1118,
+    "col": 19,
+    "code": "real_sub = db.query(AlterAssignment).filter(AlterAssignment.leave_request_id == leave.id).first()",
+    "message": "Potential N+1 query: database call 'db.query(AlterAssignment).filter(AlterAssignment.leave_request_id == leave.id).first()' executed inside loop (loop started line 1116). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1118,
+    "col": 19,
+    "code": "real_sub = db.query(AlterAssignment).filter(AlterAssignment.leave_request_id == leave.id).first()",
+    "message": "Potential N+1 query: database call 'db.query(AlterAssignment).filter()' executed inside loop (loop started line 1116). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1118,
+    "col": 19,
+    "code": "real_sub = db.query(AlterAssignment).filter(AlterAssignment.leave_request_id == leave.id).first()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 1116). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1139,
+    "col": 18,
+    "code": "t_query = db.query(User).filter(User.role == Role.teacher, User.is_active == True)",
+    "message": "Potential N+1 query: database call 'db.query(User).filter()' executed inside loop (loop started line 1116). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1139,
+    "col": 18,
+    "code": "t_query = db.query(User).filter(User.role == Role.teacher, User.is_active == True)",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 1116). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1141,
+    "col": 22,
+    "code": "t_query = t_query.filter(User.department_id == leave_dept_id)",
+    "message": "Potential N+1 query: database call 't_query.filter()' executed inside loop (loop started line 1116). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1142,
+    "col": 19,
+    "code": "teachers = t_query.all()",
+    "message": "Potential N+1 query: database call 't_query.all()' executed inside loop (loop started line 1116). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1151,
+    "col": 19,
+    "code": "busy = db.query(TimetableSlot).filter(",
+    "message": "Potential N+1 query: database call 'db.query(TimetableSlot).filter(TimetableSlot.teacher_id == t.id, TimetableSlot.day_order == leave.day_order, TimetableSlot.period_number == leave.period_number).first()' executed inside loop (loop started line 1145). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1151,
+    "col": 19,
+    "code": "busy = db.query(TimetableSlot).filter(",
+    "message": "Potential N+1 query: database call 'db.query(TimetableSlot).filter()' executed inside loop (loop started line 1145). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1151,
+    "col": 19,
+    "code": "busy = db.query(TimetableSlot).filter(",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 1145). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1160,
+    "col": 23,
+    "code": "on_leave = db.query(LeaveRequest).filter(",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).filter(LeaveRequest.teacher_id == t.id, LeaveRequest.date == leave.date, LeaveRequest.period_number == leave.period_number, LeaveRequest.status == LeaveStatus.approved).first()' executed inside loop (loop started line 1145). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1160,
+    "col": 23,
+    "code": "on_leave = db.query(LeaveRequest).filter(",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).filter()' executed inside loop (loop started line 1145). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1160,
+    "col": 23,
+    "code": "on_leave = db.query(LeaveRequest).filter(",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 1145). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1170,
+    "col": 33,
+    "code": "already_subbing_db = db.query(AlterAssignment).join(LeaveRequest).filter(",
+    "message": "Potential N+1 query: database call 'db.query(AlterAssignment).join(LeaveRequest).filter(AlterAssignment.substitute_teacher_id == t.id, LeaveRequest.date == leave.date, LeaveRequest.period_number == leave.period_number).first()' executed inside loop (loop started line 1145). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1170,
+    "col": 33,
+    "code": "already_subbing_db = db.query(AlterAssignment).join(LeaveRequest).filter(",
+    "message": "Potential N+1 query: database call 'db.query(AlterAssignment).join(LeaveRequest).filter()' executed inside loop (loop started line 1145). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1170,
+    "col": 33,
+    "code": "already_subbing_db = db.query(AlterAssignment).join(LeaveRequest).filter(",
+    "message": "Potential N+1 query: database call 'db.query(AlterAssignment).join()' executed inside loop (loop started line 1145). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1170,
+    "col": 33,
+    "code": "already_subbing_db = db.query(AlterAssignment).join(LeaveRequest).filter(",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 1145). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1203,
+    "col": 27,
+    "code": "db_count = db.query(AlterAssignment).join(LeaveRequest).filter(",
+    "message": "Potential N+1 query: database call 'db.query(AlterAssignment).join(LeaveRequest).filter(AlterAssignment.substitute_teacher_id == t.id, LeaveRequest.date >= seven_days_ago, LeaveRequest.date <= leave.date).count()' executed inside loop (loop started line 1145). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1203,
+    "col": 27,
+    "code": "db_count = db.query(AlterAssignment).join(LeaveRequest).filter(",
+    "message": "Potential N+1 query: database call 'db.query(AlterAssignment).join(LeaveRequest).filter()' executed inside loop (loop started line 1145). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1203,
+    "col": 27,
+    "code": "db_count = db.query(AlterAssignment).join(LeaveRequest).filter(",
+    "message": "Potential N+1 query: database call 'db.query(AlterAssignment).join()' executed inside loop (loop started line 1145). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\substitution_service.py",
+    "line": 1203,
+    "col": 27,
+    "code": "db_count = db.query(AlterAssignment).join(LeaveRequest).filter(",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 1145). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 36,
+    "col": 22,
+    "code": "teacher = db.query(User).filter(User.id == leave.teacher_id).first()",
+    "message": "Potential N+1 query: database call 'db.query(User).filter(User.id == leave.teacher_id).first()' executed inside loop (loop started line 35). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 36,
+    "col": 22,
+    "code": "teacher = db.query(User).filter(User.id == leave.teacher_id).first()",
+    "message": "Potential N+1 query: database call 'db.query(User).filter()' executed inside loop (loop started line 35). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 36,
+    "col": 22,
+    "code": "teacher = db.query(User).filter(User.id == leave.teacher_id).first()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 35). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 39,
+    "col": 22,
+    "code": "sub = db.query(User).filter(User.id == leave.alter_assignment.substitute_teacher_id).first()",
+    "message": "Potential N+1 query: database call 'db.query(User).filter(User.id == leave.alter_assignment.substitute_teacher_id).first()' executed inside loop (loop started line 35). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 39,
+    "col": 22,
+    "code": "sub = db.query(User).filter(User.id == leave.alter_assignment.substitute_teacher_id).first()",
+    "message": "Potential N+1 query: database call 'db.query(User).filter()' executed inside loop (loop started line 35). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 39,
+    "col": 22,
+    "code": "sub = db.query(User).filter(User.id == leave.alter_assignment.substitute_teacher_id).first()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 35). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 204,
+    "col": 24,
+    "code": "teacher_count = db.query(User).filter(User.role == Role.teacher, User.department_id == dept.id).count()",
+    "message": "Potential N+1 query: database call 'db.query(User).filter(User.role == Role.teacher, User.department_id == dept.id).count()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 204,
+    "col": 24,
+    "code": "teacher_count = db.query(User).filter(User.role == Role.teacher, User.department_id == dept.id).count()",
+    "message": "Potential N+1 query: database call 'db.query(User).filter()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 204,
+    "col": 24,
+    "code": "teacher_count = db.query(User).filter(User.role == Role.teacher, User.department_id == dept.id).count()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 205,
+    "col": 22,
+    "code": "class_count = db.query(Class).filter(Class.department_id == dept.id).count()",
+    "message": "Potential N+1 query: database call 'db.query(Class).filter(Class.department_id == dept.id).count()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 205,
+    "col": 22,
+    "code": "class_count = db.query(Class).filter(Class.department_id == dept.id).count()",
+    "message": "Potential N+1 query: database call 'db.query(Class).filter()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 205,
+    "col": 22,
+    "code": "class_count = db.query(Class).filter(Class.department_id == dept.id).count()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 208,
+    "col": 12,
+    "code": "db.query(LeaveRequest)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).join(User, LeaveRequest.teacher_id == User.id).filter(User.department_id == dept.id, LeaveRequest.status == LeaveStatus.pending).count()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 208,
+    "col": 12,
+    "code": "db.query(LeaveRequest)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).join(User, LeaveRequest.teacher_id == User.id).filter()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 208,
+    "col": 12,
+    "code": "db.query(LeaveRequest)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).join()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 208,
+    "col": 12,
+    "code": "db.query(LeaveRequest)",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 215,
+    "col": 12,
+    "code": "db.query(LeaveRequest)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).join(User, LeaveRequest.teacher_id == User.id).filter(User.department_id == dept.id, LeaveRequest.date == today, LeaveRequest.status == LeaveStatus.approved).count()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 215,
+    "col": 12,
+    "code": "db.query(LeaveRequest)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).join(User, LeaveRequest.teacher_id == User.id).filter()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 215,
+    "col": 12,
+    "code": "db.query(LeaveRequest)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest).join()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 215,
+    "col": 12,
+    "code": "db.query(LeaveRequest)",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 223,
+    "col": 12,
+    "code": "db.query(LeaveRequest.teacher_id)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest.teacher_id).join(User, LeaveRequest.teacher_id == User.id).filter(User.department_id == dept.id, LeaveRequest.date == today, LeaveRequest.status == LeaveStatus.approved).distinct().count()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 223,
+    "col": 12,
+    "code": "db.query(LeaveRequest.teacher_id)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest.teacher_id).join(User, LeaveRequest.teacher_id == User.id).filter(User.department_id == dept.id, LeaveRequest.date == today, LeaveRequest.status == LeaveStatus.approved).distinct()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 223,
+    "col": 12,
+    "code": "db.query(LeaveRequest.teacher_id)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest.teacher_id).join(User, LeaveRequest.teacher_id == User.id).filter()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 223,
+    "col": 12,
+    "code": "db.query(LeaveRequest.teacher_id)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest.teacher_id).join()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 223,
+    "col": 12,
+    "code": "db.query(LeaveRequest.teacher_id)",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 231,
+    "col": 12,
+    "code": "db.query(LeaveRequest.teacher_id)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest.teacher_id).join(User, LeaveRequest.teacher_id == User.id).filter(User.department_id == dept.id, LeaveRequest.status == LeaveStatus.pending).distinct().count()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 231,
+    "col": 12,
+    "code": "db.query(LeaveRequest.teacher_id)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest.teacher_id).join(User, LeaveRequest.teacher_id == User.id).filter(User.department_id == dept.id, LeaveRequest.status == LeaveStatus.pending).distinct()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 231,
+    "col": 12,
+    "code": "db.query(LeaveRequest.teacher_id)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest.teacher_id).join(User, LeaveRequest.teacher_id == User.id).filter()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 231,
+    "col": 12,
+    "code": "db.query(LeaveRequest.teacher_id)",
+    "message": "Potential N+1 query: database call 'db.query(LeaveRequest.teacher_id).join()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\summary_service.py",
+    "line": 231,
+    "col": 12,
+    "code": "db.query(LeaveRequest.teacher_id)",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 203). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\timetable_service.py",
+    "line": 124,
+    "col": 18,
+    "code": "teacher = db.query(User).filter(User.id == slot.teacher_id, User.role == \"teacher\", User.is_active == True).first()  # noqa: E712",
+    "message": "Potential N+1 query: database call 'db.query(User).filter(User.id == slot.teacher_id, User.role == 'teacher', User.is_active == True).first()' executed inside loop (loop started line 123). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\timetable_service.py",
+    "line": 124,
+    "col": 18,
+    "code": "teacher = db.query(User).filter(User.id == slot.teacher_id, User.role == \"teacher\", User.is_active == True).first()  # noqa: E712",
+    "message": "Potential N+1 query: database call 'db.query(User).filter()' executed inside loop (loop started line 123). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\timetable_service.py",
+    "line": 124,
+    "col": 18,
+    "code": "teacher = db.query(User).filter(User.id == slot.teacher_id, User.role == \"teacher\", User.is_active == True).first()  # noqa: E712",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 123). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\timetable_service.py",
+    "line": 127,
+    "col": 15,
+    "code": "if not db.query(Class).filter(Class.id == slot.class_id).first():",
+    "message": "Potential N+1 query: database call 'db.query(Class).filter(Class.id == slot.class_id).first()' executed inside loop (loop started line 123). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\timetable_service.py",
+    "line": 127,
+    "col": 15,
+    "code": "if not db.query(Class).filter(Class.id == slot.class_id).first():",
+    "message": "Potential N+1 query: database call 'db.query(Class).filter()' executed inside loop (loop started line 123). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\services\\timetable_service.py",
+    "line": 127,
+    "col": 15,
+    "code": "if not db.query(Class).filter(Class.id == slot.class_id).first():",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 123). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\scripts\\performance_benchmark.py",
+    "line": 142,
+    "col": 8,
+    "code": "db.query(User).filter(User.username == target).first()",
+    "message": "Potential N+1 query: database call 'db.query(User).filter(User.username == target).first()' executed inside loop (loop started line 139). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\scripts\\performance_benchmark.py",
+    "line": 142,
+    "col": 8,
+    "code": "db.query(User).filter(User.username == target).first()",
+    "message": "Potential N+1 query: database call 'db.query(User).filter()' executed inside loop (loop started line 139). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\scripts\\performance_benchmark.py",
+    "line": 142,
+    "col": 8,
+    "code": "db.query(User).filter(User.username == target).first()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 139). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\seed_demo_data.py",
+    "line": 37,
+    "col": 19,
+    "code": "dept = db.query(Department).filter(Department.name == name).first()",
+    "message": "Potential N+1 query: database call 'db.query(Department).filter(Department.name == name).first()' executed inside loop (loop started line 36). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\seed_demo_data.py",
+    "line": 37,
+    "col": 19,
+    "code": "dept = db.query(Department).filter(Department.name == name).first()",
+    "message": "Potential N+1 query: database call 'db.query(Department).filter()' executed inside loop (loop started line 36). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\seed_demo_data.py",
+    "line": 37,
+    "col": 19,
+    "code": "dept = db.query(Department).filter(Department.name == name).first()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 36). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\seed_demo_data.py",
+    "line": 51,
+    "col": 19,
+    "code": "room = db.query(Room).filter(Room.room_number == room_num).first()",
+    "message": "Potential N+1 query: database call 'db.query(Room).filter(Room.room_number == room_num).first()' executed inside loop (loop started line 49). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\seed_demo_data.py",
+    "line": 51,
+    "col": 19,
+    "code": "room = db.query(Room).filter(Room.room_number == room_num).first()",
+    "message": "Potential N+1 query: database call 'db.query(Room).filter()' executed inside loop (loop started line 49). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\seed_demo_data.py",
+    "line": 51,
+    "col": 19,
+    "code": "room = db.query(Room).filter(Room.room_number == room_num).first()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 49). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\seed_demo_data.py",
+    "line": 86,
+    "col": 23,
+    "code": "subj = db.query(Subject).filter(Subject.department_id == dept.id, Subject.code == subj_code).first()",
+    "message": "Potential N+1 query: database call 'db.query(Subject).filter(Subject.department_id == dept.id, Subject.code == subj_code).first()' executed inside loop (loop started line 84). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\seed_demo_data.py",
+    "line": 86,
+    "col": 23,
+    "code": "subj = db.query(Subject).filter(Subject.department_id == dept.id, Subject.code == subj_code).first()",
+    "message": "Potential N+1 query: database call 'db.query(Subject).filter()' executed inside loop (loop started line 84). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\seed_demo_data.py",
+    "line": 86,
+    "col": 23,
+    "code": "subj = db.query(Subject).filter(Subject.department_id == dept.id, Subject.code == subj_code).first()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 84). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\seed_demo_data.py",
+    "line": 105,
+    "col": 22,
+    "code": "cls = db.query(Class).filter(Class.department_id == dept.id, Class.name == class_name).first()",
+    "message": "Potential N+1 query: database call 'db.query(Class).filter(Class.department_id == dept.id, Class.name == class_name).first()' executed inside loop (loop started line 103). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\seed_demo_data.py",
+    "line": 105,
+    "col": 22,
+    "code": "cls = db.query(Class).filter(Class.department_id == dept.id, Class.name == class_name).first()",
+    "message": "Potential N+1 query: database call 'db.query(Class).filter()' executed inside loop (loop started line 103). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\seed_demo_data.py",
+    "line": 105,
+    "col": 22,
+    "code": "cls = db.query(Class).filter(Class.department_id == dept.id, Class.name == class_name).first()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 103). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\seed_demo_data.py",
+    "line": 121,
+    "col": 26,
+    "code": "teacher = db.query(User).filter(User.email == email).first()",
+    "message": "Potential N+1 query: database call 'db.query(User).filter(User.email == email).first()' executed inside loop (loop started line 119). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\seed_demo_data.py",
+    "line": 121,
+    "col": 26,
+    "code": "teacher = db.query(User).filter(User.email == email).first()",
+    "message": "Potential N+1 query: database call 'db.query(User).filter()' executed inside loop (loop started line 119). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_N_PLUS_ONE",
+    "severity": "HIGH",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\seed_demo_data.py",
+    "line": 121,
+    "col": 26,
+    "code": "teacher = db.query(User).filter(User.email == email).first()",
+    "message": "Potential N+1 query: database call 'db.query()' executed inside loop (loop started line 119). Consider joinedload / selectinload or batch querying."
+  },
+  {
+    "type": "PERFORMANCE_UNPAGINATED_LIST",
+    "severity": "MEDIUM",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 83,
+    "col": 0,
+    "code": "def get_audit_logs(...)",
+    "message": "Route handler 'get_audit_logs' fetches collection records via .all() without explicit pagination or query limit."
+  },
+  {
+    "type": "PERFORMANCE_UNPAGINATED_LIST",
+    "severity": "MEDIUM",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\admin.py",
+    "line": 187,
+    "col": 0,
+    "code": "def list_global_users(...)",
+    "message": "Route handler 'list_global_users' fetches collection records via .all() without explicit pagination or query limit."
+  },
+  {
+    "type": "PERFORMANCE_UNPAGINATED_LIST",
+    "severity": "MEDIUM",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\campus_operations.py",
+    "line": 129,
+    "col": 0,
+    "code": "def get_system_analytics(...)",
+    "message": "Route handler 'get_system_analytics' fetches collection records via .all() without explicit pagination or query limit."
+  },
+  {
+    "type": "PERFORMANCE_UNPAGINATED_LIST",
+    "severity": "MEDIUM",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\governance.py",
+    "line": 44,
+    "col": 0,
+    "code": "def get_candidates_for_leave(...)",
+    "message": "Route handler 'get_candidates_for_leave' fetches collection records via .all() without explicit pagination or query limit."
+  },
+  {
+    "type": "PERFORMANCE_UNPAGINATED_LIST",
+    "severity": "MEDIUM",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\leaves.py",
+    "line": 270,
+    "col": 0,
+    "code": "def free_teachers(...)",
+    "message": "Route handler 'free_teachers' fetches collection records via .all() without explicit pagination or query limit."
+  },
+  {
+    "type": "PERFORMANCE_UNPAGINATED_LIST",
+    "severity": "MEDIUM",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\manager.py",
+    "line": 109,
+    "col": 0,
+    "code": "def get_available_labs(...)",
+    "message": "Route handler 'get_available_labs' fetches collection records via .all() without explicit pagination or query limit."
+  },
+  {
+    "type": "PERFORMANCE_UNPAGINATED_LIST",
+    "severity": "MEDIUM",
+    "file": "C:\\Users\\kames\\Downloads\\FACREDIT-enhanced-20260724-v5\\backend\\app\\routes\\teachers.py",
+    "line": 20,
+    "col": 0,
+    "code": "def list_teachers(...)",
+    "message": "Route handler 'list_teachers' fetches collection records via .all() without explicit pagination or query limit."
+  }
+]
