@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   SearchIcon, FilterIcon, PlusIcon, PinIcon, MessageSquareIcon,
   DownloadIcon, CheckCircleIcon, AlertTriangleIcon, CloseIcon, TrashIcon
@@ -32,6 +32,17 @@ export default function AnnouncementFeed() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [confirmationBanner, setConfirmationBanner] = useState(null)
+  const bannerTimerRef = useRef(null)
+
+  /** Show a confirmation banner that auto-dismisses after 5 seconds */
+  const showBanner = (text, type = 'success') => {
+    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current)
+    setConfirmationBanner({ type, text })
+    bannerTimerRef.current = setTimeout(() => setConfirmationBanner(null), 5000)
+  }
+
+  // Clear banner timer on unmount
+  useEffect(() => () => { if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current) }, [])
 
   const canPublish = isPrincipal || isAdmin || isSystemAdmin
 
@@ -88,10 +99,7 @@ export default function AnnouncementFeed() {
     try {
       await announcementApi.deleteAnnouncement(deleteTarget.id)
       showToast(`Announcement "${deleteTarget.title}" was permanently deleted.`, 'success')
-      setConfirmationBanner({
-        type: 'success',
-        text: `Announcement "${deleteTarget.title}" was successfully deleted.`
-      })
+      showBanner(`Announcement "${deleteTarget.title}" was successfully deleted.`)
       // Immediate optimistic update so it disappears immediately from feed
       setAnnouncements(prev => prev.filter(a => a.id !== deleteTarget.id))
       setDeleteTarget(null)
@@ -612,13 +620,8 @@ export default function AnnouncementFeed() {
           onClose={() => setShowComposer(false)}
           onCreated={(newId) => {
             fetchFeed()
-            setConfirmationBanner({
-              type: 'success',
-              text: 'Announcement broadcasted and published successfully!'
-            })
-            if (newId) {
-              setSelectedAnnouncementId(newId)
-            }
+            setShowComposer(false)
+            showBanner('✓ Announcement broadcasted and published successfully!')
           }}
         />
       )}
@@ -648,7 +651,7 @@ export default function AnnouncementFeed() {
               onRefreshList={(msg) => {
                 fetchFeed()
                 if (msg) {
-                  setConfirmationBanner({ type: 'success', text: msg })
+                  showBanner(msg)
                 }
               }}
             />
