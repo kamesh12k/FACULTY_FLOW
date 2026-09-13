@@ -242,7 +242,7 @@ export default function AnnouncementDetail({ announcementId: propId, onClose, on
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {data.attachments.map((att) => {
                 const isPdf = att.file_type.includes('pdf') || att.file_name.endsWith('.pdf')
-                const isImg = att.file_type.includes('image') || /\.(jpg|jpeg|png|webp)$/i.test(att.file_name)
+                const isImg = att.file_type.includes('image') || /\.(jpg|jpeg|jfif|png|webp|gif|bmp)$/i.test(att.file_name)
                 const sizeMb = (att.file_size / (1024 * 1024)).toFixed(2)
                 const sizeKb = Math.round(att.file_size / 1024)
                 const sizeDisplay = att.file_size > 1024 * 1024 ? `${sizeMb} MB` : `${sizeKb} KB`

@@ -82,9 +82,11 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
     if (file.type && file.type !== 'application/octet-stream') return file.type
     const ext = file.name.split('.').pop().toLowerCase()
     if (ext === 'pdf') return 'application/pdf'
-    if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg'
+    if (ext === 'jpg' || ext === 'jpeg' || ext === 'jfif') return 'image/jpeg'
     if (ext === 'png') return 'image/png'
     if (ext === 'webp') return 'image/webp'
+    if (ext === 'gif') return 'image/gif'
+    if (ext === 'bmp') return 'image/bmp'
     return 'application/octet-stream'
   }
 
@@ -105,7 +107,7 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
       }
 
       const resolvedMime = resolveMimeType(file)
-      const isImg = resolvedMime.startsWith('image/') || /\.(jpg|jpeg|png|webp)$/i.test(file.name)
+      const isImg = resolvedMime.startsWith('image/') || /\.(jpg|jpeg|jfif|png|webp|gif|bmp)$/i.test(file.name)
       const previewUrl = isImg ? URL.createObjectURL(file) : null
 
       const tempId = Math.random().toString(36).substring(7)
@@ -646,7 +648,7 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept=".pdf,.jpg,.jpeg,.png,.webp"
+                accept=".pdf,.jpg,.jpeg,.jfif,.png,.webp,.gif,.bmp"
                 onChange={handleFileSelect}
                 className="hidden"
               />
@@ -657,7 +659,7 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
                 Click to browse or drag & drop files here
               </p>
               <p className="text-[11px] text-slate-600 mt-0.5">
-                PDF, JPG, PNG, WEBP supported • Virus-safe streaming upload
+                PDF, JPG, PNG, WEBP, GIF, BMP supported • Streaming upload
               </p>
             </div>
 

@@ -17,24 +17,29 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 # Permitted MIME types and file extensions
-ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
+ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".jfif", ".png", ".webp", ".gif", ".bmp"}
 ALLOWED_MIME_TYPES = {
     "application/pdf",
     "application/x-pdf",
     "image/jpeg",
     "image/jpg",
     "image/pjpeg",
+    "image/jfif",
     "image/png",
     "image/x-png",
     "image/webp",
+    "image/gif",
+    "image/bmp",
 }
 
 # Magic bytes signatures for MIME spoofing defense
 MAGIC_SIGNATURES = {
     "application/pdf": [b"%PDF-"],
-    "image/jpeg": [b"\xFF\xD8\xFF"],
+    "image/jpeg": [b"\xFF\xD8"],
     "image/png": [b"\x89PNG\r\n\x1a\n"],
     "image/webp": [b"RIFF"],  # also checks WEBP at bytes 8..12
+    "image/gif": [b"GIF87a", b"GIF89a"],
+    "image/bmp": [b"BM"],
 }
 
 
@@ -63,8 +68,8 @@ def validate_file_metadata(file_name: str, file_type: str, file_size: int) -> No
 
     mime = (file_type or "").lower()
     # Normalize MIME type from extension if missing or generic
-    if mime in {"", "application/octet-stream", "binary/octet-stream"}:
-        if ext in {".jpg", ".jpeg"}:
+    if mime in {"", "application/octet-stream", "binary/octet-stream"} or not mime.startswith(("image/", "application/")):
+        if ext in {".jpg", ".jpeg", ".jfif"}:
             mime = "image/jpeg"
         elif ext == ".png":
             mime = "image/png"
@@ -72,11 +77,15 @@ def validate_file_metadata(file_name: str, file_type: str, file_size: int) -> No
             mime = "application/pdf"
         elif ext == ".webp":
             mime = "image/webp"
+        elif ext == ".gif":
+            mime = "image/gif"
+        elif ext == ".bmp":
+            mime = "image/bmp"
 
     if mime not in ALLOWED_MIME_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File MIME type '{file_type}' is not supported. Allowed types: PDF, JPEG, PNG, WEBP.",
+            detail=f"File MIME type '{file_type}' is not supported. Allowed types: PDF, JPEG, PNG, WEBP, GIF.",
         )
 
     max_bytes = settings.ANNOUNCEMENT_MAX_ATTACHMENT_SIZE_MB * 1024 * 1024
@@ -93,16 +102,20 @@ def validate_file_metadata(file_name: str, file_type: str, file_size: int) -> No
 
 
 def validate_file_magic_bytes(header: bytes, declared_type: str) -> bool:
-    """Inspects header bytes to confirm actual file format matches declared type."""
-    declared = declared_type.lower()
+    """Inspects header bytes to confirm actual file format matches declared type or is a safe image."""
+    declared = (declared_type or "").lower()
     if declared in {"application/pdf", "application/x-pdf"}:
         return header.startswith(b"%PDF-")
-    elif declared in {"image/jpeg", "image/jpg", "image/pjpeg"}:
-        return header.startswith(b"\xFF\xD8\xFF")
-    elif declared in {"image/png", "image/x-png"}:
-        return header.startswith(b"\x89PNG\r\n\x1a\n")
-    elif declared == "image/webp":
-        return header.startswith(b"RIFF") and len(header) >= 12 and header[8:12] == b"WEBP"
+
+    # If declared is any image type, verify that actual content is indeed a legitimate image
+    if declared.startswith("image/"):
+        is_actual_jpeg = header.startswith(b"\xFF\xD8")
+        is_actual_png = header.startswith(b"\x89PNG\r\n\x1a\n")
+        is_actual_webp = header.startswith(b"RIFF") and len(header) >= 12 and header[8:12] == b"WEBP"
+        is_actual_gif = header.startswith(b"GIF87a") or header.startswith(b"GIF89a")
+        is_actual_bmp = header.startswith(b"BM")
+        return is_actual_jpeg or is_actual_png or is_actual_webp or is_actual_gif or is_actual_bmp
+
     return False
 
 

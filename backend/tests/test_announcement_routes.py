@@ -153,3 +153,60 @@ def test_mention_candidates_department_isolation_and_security(client, db_session
     foreign_resp = client.get(f"/announcements/{aid}/mention-candidates", headers=teacher_ece_headers)
     assert foreign_resp.status_code in (403, 404)
 
+
+def test_attachment_upload_stream_pdf_and_images(client, db_session):
+    admin = _make_user(db_session, name="Admin Att", email="admin_att@test.com", username="admin_att", role=Role.admin)
+    headers = make_auth_headers(admin)
+
+    # 1. Presign and upload PDF
+    pdf_content = b"%PDF-1.4 test pdf content here"
+    presign_pdf = client.post("/announcements/attachments/presign", json={
+        "file_name": "circular.pdf",
+        "file_type": "application/pdf",
+        "file_size": len(pdf_content),
+    }, headers=headers)
+    assert presign_pdf.status_code == 200
+    pdf_data = presign_pdf.json()
+    upload_url_pdf = pdf_data["upload_url"]
+
+    upload_pdf = client.post(
+        upload_url_pdf.replace("/api", ""),
+        files={"file": ("circular.pdf", pdf_content, "application/pdf")}
+    )
+    assert upload_pdf.status_code == 200
+
+    # 2. Presign and upload PNG
+    png_content = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + b"\x00" * 20
+    presign_png = client.post("/announcements/attachments/presign", json={
+        "file_name": "photo.png",
+        "file_type": "image/png",
+        "file_size": len(png_content),
+    }, headers=headers)
+    assert presign_png.status_code == 200
+    png_data = presign_png.json()
+    upload_url_png = png_data["upload_url"]
+
+    upload_png = client.post(
+        upload_url_png.replace("/api", ""),
+        files={"file": ("photo.png", png_content, "image/png")}
+    )
+    assert upload_png.status_code == 200
+
+    # 3. Presign and upload JPEG
+    jpeg_content = b"\xFF\xD8\xFF\xE0\x00\x10JFIF\x00" + b"\x00" * 20
+    presign_jpeg = client.post("/announcements/attachments/presign", json={
+        "file_name": "photo.jpg",
+        "file_type": "image/jpeg",
+        "file_size": len(jpeg_content),
+    }, headers=headers)
+    assert presign_jpeg.status_code == 200
+    jpeg_data = presign_jpeg.json()
+    upload_url_jpeg = jpeg_data["upload_url"]
+
+    upload_jpeg = client.post(
+        upload_url_jpeg.replace("/api", ""),
+        files={"file": ("photo.jpg", jpeg_content, "image/jpeg")}
+    )
+    assert upload_jpeg.status_code == 200
+
+
