@@ -70,6 +70,18 @@ export default function AnnouncementFeed() {
     return () => clearTimeout(timer)
   }, [search])
 
+  // Body scroll lock when announcement detail modal is open
+  useEffect(() => {
+    if (selectedAnnouncementId) {
+      document.body.classList.add('modal-open')
+    } else {
+      document.body.classList.remove('modal-open')
+    }
+    return () => {
+      document.body.classList.remove('modal-open')
+    }
+  }, [selectedAnnouncementId])
+
   const handleConfirmDeleteFeed = async () => {
     if (!deleteTarget) return
     setDeleting(true)
@@ -613,8 +625,15 @@ export default function AnnouncementFeed() {
 
       {/* Full Detail Modal / Full-screen on Mobile */}
       {selectedAnnouncementId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/60 sm:backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150">
-          <div className="w-full max-w-4xl min-h-screen sm:min-h-0 sm:my-8 bg-white sm:rounded-2xl overflow-hidden shadow-2xl">
+        <div
+          className="fixed inset-0 z-40 flex items-stretch sm:items-center justify-center sm:p-4 bg-black/60 sm:backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={(e) => {
+            // Close only if clicking the backdrop directly
+            if (e.target === e.currentTarget) setSelectedAnnouncementId(null)
+          }}
+        >
+          {/* Inner card — flex column so header is fixed and body scrolls */}
+          <div className="w-full max-w-4xl bg-white sm:rounded-2xl shadow-2xl flex flex-col h-full sm:h-auto sm:max-h-[calc(100dvh-2rem)] overflow-hidden">
             <AnnouncementDetail
               announcementId={selectedAnnouncementId}
               onClose={() => setSelectedAnnouncementId(null)}

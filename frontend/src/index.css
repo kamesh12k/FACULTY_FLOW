@@ -15,10 +15,12 @@
   }
 
   /* Lock body scroll when a mobile overlay/drawer is open */
-  body.drawer-open {
+  body.drawer-open,
+  body.modal-open {
     overflow: hidden;
     touch-action: none;
   }
+
 
   /* Ensure all elements use border-box sizing */
   *, *::before, *::after {

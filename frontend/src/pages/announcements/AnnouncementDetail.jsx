@@ -102,6 +102,26 @@ export default function AnnouncementDetail({ announcementId: propId, onClose, on
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showMoreMenu])
 
+  // Escape key: close modals in stack order — analytics first, then detail
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key !== 'Escape') return
+      if (previewAttachment) {
+        setPreviewAttachment(null)
+      } else if (showDeleteModal) {
+        setShowDeleteModal(false)
+      } else if (showAnalytics) {
+        setShowAnalytics(false)
+      } else if (showMoreMenu) {
+        setShowMoreMenu(false)
+      } else if (onClose) {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [previewAttachment, showDeleteModal, showAnalytics, showMoreMenu, onClose])
+
   const handleAcknowledge = async () => {
     setAcknowledging(true)
     try {
@@ -232,9 +252,9 @@ export default function AnnouncementDetail({ announcementId: propId, onClose, on
   const audienceText = formatAudience(data)
 
   return (
-    <div className="bg-white sm:rounded-2xl border-x-0 sm:border border-slate-200/80 shadow-md max-w-4xl mx-auto overflow-hidden pb-16 sm:pb-8">
-      {/* ── Top Responsive Header Toolbar (Desktop & Mobile) ── */}
-      <div className="px-3.5 sm:px-6 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2 print:hidden sticky top-0 z-30 backdrop-blur-md bg-slate-50/95">
+    <div className="flex flex-col h-full bg-white sm:rounded-2xl">
+      {/* ── Top Responsive Header Toolbar — pinned, never scrolls ── */}
+      <div className="px-3.5 sm:px-6 py-3 bg-slate-50/95 border-b border-slate-200 flex items-center justify-between gap-2 print:hidden shrink-0 z-10">
         <div className="flex items-center gap-2 min-w-0">
           <button
             type="button"
@@ -383,13 +403,14 @@ export default function AnnouncementDetail({ announcementId: propId, onClose, on
             )}
           </div>
 
+          {/* X Close button — always visible on all screen sizes */}
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 rounded-xl transition-colors hidden sm:inline-flex"
-              title="Close"
-              aria-label="Close"
+              className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-200/60 rounded-xl transition-colors flex items-center justify-center min-w-[36px] min-h-[36px]"
+              title="Close announcement"
+              aria-label="Close announcement"
             >
               <CloseIcon className="w-5 h-5" />
             </button>
@@ -397,6 +418,8 @@ export default function AnnouncementDetail({ announcementId: propId, onClose, on
         </div>
       </div>
 
+      {/* ── Scrollable Body: all announcement content lives here ── */}
+      <div className="flex-1 min-h-0 overflow-y-auto pb-20 sm:pb-8 overscroll-contain">
       {/* ── Main Official Content Container ── */}
       <div className="p-4 sm:p-8 space-y-6 max-w-3xl mx-auto">
         {/* Revision Banner if v > 1 */}
@@ -659,8 +682,11 @@ export default function AnnouncementDetail({ announcementId: propId, onClose, on
         </div>
       </div>
 
+      {/* ── End of Scrollable Body region ── */}
+      </div>
+
       {/* ── Mobile Sticky Bottom Action Bar (< 640px) ── */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 p-2.5 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-xl flex items-center justify-between gap-2 z-40 print:hidden">
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 p-2.5 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-xl flex items-center justify-between gap-2 z-50 print:hidden">
         {data.requires_acknowledgement && !data.is_acknowledged ? (
           <button
             type="button"
