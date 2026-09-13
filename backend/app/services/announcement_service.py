@@ -607,6 +607,20 @@ def get_announcement_detail(db: Session, current_user: User, announcement_id: in
     author_role = (announcement.author.role.value if announcement.author else "System").replace("_", " ").title()
     dept_name = announcement.department.name if announcement.department else None
 
+    # Compact publisher stats
+    total_recipients = None
+    viewed_count = None
+    acknowledged_count = None
+    if can_view_analytics:
+        recipients = resolve_recipient_user_ids(db, announcement)
+        total_recipients = len(recipients)
+        viewed_count = db.query(func.count(distinct(AnnouncementRead.user_id))).filter(
+            AnnouncementRead.announcement_id == announcement.id
+        ).scalar() or 0
+        acknowledged_count = db.query(func.count(distinct(AnnouncementAcknowledgement.user_id))).filter(
+            AnnouncementAcknowledgement.announcement_id == announcement.id
+        ).scalar() or 0
+
     return AnnouncementDetailOut(
         id=announcement.id,
         tenant_id=announcement.tenant_id,
@@ -646,6 +660,9 @@ def get_announcement_detail(db: Session, current_user: User, announcement_id: in
         can_moderate=can_moderate,
         can_acknowledge=can_ack,
         can_view_analytics=can_view_analytics,
+        total_recipients=total_recipients,
+        viewed_count=viewed_count,
+        acknowledged_count=acknowledged_count,
     )
 
 

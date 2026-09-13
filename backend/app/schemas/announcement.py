@@ -242,6 +242,10 @@ class AnnouncementDetailOut(BaseModel):
     can_acknowledge: bool = False
     can_view_analytics: bool = False
     
+    total_recipients: Optional[int] = None
+    viewed_count: Optional[int] = None
+    acknowledged_count: Optional[int] = None
+    
     model_config = ConfigDict(from_attributes=True)
 
 
