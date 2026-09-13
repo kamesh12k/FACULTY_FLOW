@@ -67,6 +67,29 @@ def can_manage_announcements(user: User) -> bool:
     return user.role in (Role.principal, Role.system_admin, Role.admin)
 
 
+def can_user_modify_announcement(announcement: Announcement, current_user: User) -> bool:
+    """Checks whether current_user has permission to edit or delete the given announcement."""
+    if not announcement or not current_user:
+        return False
+    # Author can always modify their own announcement
+    if announcement.created_by_id == current_user.id:
+        return True
+    # Principal, System Admin, and Governance have institution-wide authority
+    if current_user.role in (Role.principal, Role.system_admin, Role.governance):
+        return True
+    # College-wide Admin (Role.admin with no specific department_id)
+    if current_user.role == Role.admin and current_user.department_id is None:
+        return True
+    # Department HOD (Role.admin with department_id)
+    if current_user.role == Role.admin and current_user.department_id is not None:
+        target_dept_ids = {t.department_id for t in announcement.targets if t.department_id is not None}
+        if announcement.department_id:
+            target_dept_ids.add(announcement.department_id)
+        if announcement.department_id == current_user.department_id or current_user.department_id in target_dept_ids:
+            return True
+    return False
+
+
 def validate_target_permissions(
     db: Session,
     current_user: User,
@@ -282,14 +305,16 @@ def get_visible_announcements_query(db: Session, current_user: User):
     """Constructs the base SQLAlchemy query for announcements visible to current_user."""
     now = datetime.now(timezone.utc)
 
-    # Principal, System Admin, Governance have global visibility
-    if current_user.role in (Role.system_admin, Role.principal, Role.governance):
+    # Principal, System Admin, Governance, and College Admin have global visibility of all non-deleted
+    if current_user.role in (Role.system_admin, Role.principal, Role.governance) or (
+        current_user.role == Role.admin and current_user.department_id is None
+    ):
         return db.query(Announcement).filter(
             Announcement.status != AnnouncementStatus.DELETED.value,
         )
 
     # Regular users (Teachers, Staff, Managers, HODs viewing the feed)
-    # Visible if:
+    # Visible if not deleted and:
     # 1) Author
     # 2) Published (and published_at <= now and not expired) AND (Target is COLLEGE OR Target is User's Dept OR Target is User)
     base_published = and_(
@@ -316,7 +341,10 @@ def get_visible_announcements_query(db: Session, current_user: User):
         )
         conditions.append(and_(base_published, dept_target))
 
-    return db.query(Announcement).filter(or_(*conditions))
+    return db.query(Announcement).filter(
+        Announcement.status != AnnouncementStatus.DELETED.value,
+        or_(*conditions),
+    )
 
 
 def list_announcements(
@@ -335,10 +363,13 @@ def list_announcements(
 
     if search:
         s = f"%{search.strip()}%"
-        q = q.filter(
+        q = q.outerjoin(User, Announcement.created_by_id == User.id).filter(
             or_(
                 Announcement.title.ilike(s),
                 Announcement.body.ilike(s),
+                Announcement.type.ilike(s),
+                Announcement.priority.ilike(s),
+                User.name.ilike(s),
             )
         )
 
@@ -376,7 +407,12 @@ def list_announcements(
     total_count = q.count()
 
     # Pinned first, then published_at DESC
-    items = q.order_by(
+    items = q.options(
+        joinedload(Announcement.author),
+        joinedload(Announcement.department),
+        selectinload(Announcement.targets),
+        selectinload(Announcement.attachments),
+    ).order_by(
         Announcement.is_pinned.desc(),
         func.coalesce(Announcement.published_at, Announcement.created_at).desc(),
     ).offset((page - 1) * limit).limit(limit).all()
@@ -445,6 +481,8 @@ def list_announcements(
         dept_name = a.department.name if a.department else None
 
         body_snippet = a.body[:220] + ("..." if len(a.body) > 220 else "")
+        can_del = can_user_modify_announcement(a, current_user)
+        can_ed = can_del
 
         results.append(
             AnnouncementListItemOut(
@@ -474,6 +512,8 @@ def list_announcements(
                 reactions_summary=reactions_map.get(a.id, []),
                 is_read=a.id in user_reads,
                 is_acknowledged=a.id in user_acks,
+                can_delete=can_del,
+                can_edit=can_ed,
             )
         )
 
@@ -529,18 +569,11 @@ def get_announcement_detail(db: Session, current_user: User, announcement_id: in
     ).first()
 
     # Permissions
-    is_author = announcement.created_by_id == current_user.id
-    is_admin_or_principal = current_user.role in (Role.principal, Role.system_admin)
-    is_dept_hod = (
-        current_user.role == Role.admin and
-        current_user.department_id is not None and
-        announcement.department_id == current_user.department_id
-    )
-
-    can_edit = is_author or is_admin_or_principal or is_dept_hod
-    can_delete = is_author or is_admin_or_principal or is_dept_hod
-    can_moderate = is_admin_or_principal or is_dept_hod
-    can_view_analytics = is_author or is_admin_or_principal or is_dept_hod
+    can_modify = can_user_modify_announcement(announcement, current_user)
+    can_edit = can_modify
+    can_delete = can_modify
+    can_moderate = can_modify
+    can_view_analytics = can_modify
     can_reply = announcement.allow_replies and not announcement.is_locked
     can_ack = announcement.requires_acknowledgement and (ack_rec is None)
 
@@ -627,15 +660,7 @@ def update_announcement(
     if not announcement:
         raise HTTPException(status_code=404, detail="Announcement not found.")
 
-    is_author = announcement.created_by_id == current_user.id
-    is_admin = current_user.role in (Role.principal, Role.system_admin)
-    is_dept_hod = (
-        current_user.role == Role.admin and
-        current_user.department_id is not None and
-        announcement.department_id == current_user.department_id
-    )
-
-    if not (is_author or is_admin or is_dept_hod):
+    if not can_user_modify_announcement(announcement, current_user):
         raise HTTPException(status_code=403, detail="You do not have permission to edit this announcement.")
 
     # Version tracking if published circular body or title changed
@@ -771,16 +796,8 @@ def delete_announcement(db: Session, current_user: User, announcement_id: int) -
     if not announcement:
         raise HTTPException(status_code=404, detail="Announcement not found.")
 
-    is_author = announcement.created_by_id == current_user.id
-    is_admin = current_user.role in (Role.principal, Role.system_admin)
-    is_dept_hod = (
-        current_user.role == Role.admin and
-        current_user.department_id is not None and
-        announcement.department_id == current_user.department_id
-    )
-
-    if not (is_author or is_admin or is_dept_hod):
-        raise HTTPException(status_code=403, detail="Permission denied.")
+    if not can_user_modify_announcement(announcement, current_user):
+        raise HTTPException(status_code=403, detail="Permission denied. You cannot delete this announcement.")
 
     announcement.status = AnnouncementStatus.DELETED.value
     db.commit()
@@ -1144,19 +1161,7 @@ def get_announcement_analytics(db: Session, current_user: User, announcement_id:
     if not announcement:
         raise HTTPException(status_code=404, detail="Announcement not found.")
 
-    is_author = announcement.created_by_id == current_user.id
-    is_admin = current_user.role in (Role.principal, Role.system_admin, Role.governance)
-    target_dept_ids = {t.department_id for t in announcement.targets if t.department_id is not None}
-    if announcement.department_id:
-        target_dept_ids.add(announcement.department_id)
-
-    is_dept_hod = (
-        current_user.role == Role.admin and
-        current_user.department_id is not None and
-        (announcement.department_id == current_user.department_id or current_user.department_id in target_dept_ids)
-    )
-
-    if not (is_author or is_admin or is_dept_hod):
+    if not can_user_modify_announcement(announcement, current_user):
         raise HTTPException(status_code=403, detail="You do not have permission to view analytics for this announcement.")
 
     recipients = resolve_recipient_user_ids(db, announcement)

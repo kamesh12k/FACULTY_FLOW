@@ -255,3 +255,56 @@ def test_mention_discovery_20_faculty_in_department(db_session):
     assert stored_mention is not None
     assert stored_mention.mentioned_user_id == target_faculty.id
     assert stored_mention.mention_text == f"@{target_faculty.name}"
+
+
+def test_delete_announcement_and_search_filters(db_session):
+    principal = _make_user(db_session, name="Dr. Principal Admin", role=Role.principal, username="princ_del")
+    author_teacher = _make_user(db_session, name="Dr. Raman Author", role=Role.teacher, email="raman_del@college.edu", department="CSE")
+    other_teacher = _make_user(db_session, name="Prof Other", role=Role.teacher, email="other_del@college.edu", department="CSE")
+
+    # 1. Author creates announcement
+    ann_data = AnnouncementCreateIn(
+        title="Faculty Research Symposium 2026",
+        body="Submissions are open for upcoming research papers and presentations.",
+        type=AnnouncementType.ACADEMIC,
+        priority=AnnouncementPriority.HIGH,
+        target_type="COLLEGE",
+        publish_now=True,
+    )
+    ann = announcement_service.create_announcement(db_session, principal, ann_data)
+
+    # 2. Check feed and can_delete flag
+    feed, total = announcement_service.list_announcements(db_session, principal)
+    assert total >= 1
+    item = next(i for i in feed if i.id == ann.id)
+    assert item.can_delete is True
+
+    # Other teacher cannot delete
+    feed_other, _ = announcement_service.list_announcements(db_session, other_teacher)
+    item_other = next(i for i in feed_other if i.id == ann.id)
+    assert item_other.can_delete is False
+
+    # 3. Test search by title keyword
+    search_res, s_count = announcement_service.list_announcements(db_session, principal, search="Symposium")
+    assert any(i.id == ann.id for i in search_res)
+
+    # Test search by author name
+    search_author, _ = announcement_service.list_announcements(db_session, other_teacher, search="Principal")
+    assert any(i.id == ann.id for i in search_author)
+
+    # 4. Other teacher trying to delete should raise 403
+    with pytest.raises(Exception):
+        announcement_service.delete_announcement(db_session, other_teacher, ann.id)
+
+    # 5. Authorized user deletes announcement
+    del_res = announcement_service.delete_announcement(db_session, principal, ann.id)
+    assert del_res is True
+
+    # 6. Feed must no longer return the deleted announcement
+    feed_after, _ = announcement_service.list_announcements(db_session, principal)
+    assert not any(i.id == ann.id for i in feed_after)
+
+    # 7. Detail lookup should return 404
+    with pytest.raises(Exception):
+        announcement_service.get_announcement_detail(db_session, principal, ann.id)
+

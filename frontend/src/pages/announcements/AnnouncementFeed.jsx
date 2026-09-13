@@ -22,6 +22,8 @@ export default function AnnouncementFeed() {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('ALL')
   const [priorityFilter, setPriorityFilter] = useState('ALL')
+  const [hasAttachmentsOnly, setHasAttachmentsOnly] = useState(false)
+  const [pinnedOnly, setPinnedOnly] = useState(false)
 
   // Modals & Confirmation States
   const [showComposer, setShowComposer] = useState(false)
@@ -78,6 +80,8 @@ export default function AnnouncementFeed() {
         type: 'success',
         text: `Announcement "${deleteTarget.title}" was successfully deleted.`
       })
+      // Immediate optimistic update so it disappears immediately from feed
+      setAnnouncements(prev => prev.filter(a => a.id !== deleteTarget.id))
       setDeleteTarget(null)
       fetchFeed()
     } catch (err) {
@@ -95,11 +99,48 @@ export default function AnnouncementFeed() {
     { id: 'ack_pending', label: '⚠️ Action Required' },
   ]
 
+  const typeOptions = [
+    { id: 'ALL', label: 'All Types' },
+    { id: 'CIRCULAR', label: 'Circular' },
+    { id: 'NOTICE', label: 'Notice' },
+    { id: 'ACADEMIC', label: 'Academic' },
+    { id: 'ADMINISTRATIVE', label: 'Admin' },
+    { id: 'URGENT', label: 'Urgent' },
+    { id: 'EVENT', label: 'Event' },
+  ]
+
   const priorityStyles = {
     NORMAL: 'bg-slate-100 text-slate-700 border-slate-200',
     IMPORTANT: 'bg-amber-100 text-amber-900 border-amber-300',
     HIGH: 'bg-orange-100 text-orange-900 border-orange-300',
     URGENT: 'bg-rose-100 text-rose-900 border-rose-300 font-extrabold',
+  }
+
+  // Client-side quick filter for file attachments and pinned
+  const displayedAnnouncements = useMemo(() => {
+    return announcements.filter(item => {
+      if (hasAttachmentsOnly && (!item.attachments || item.attachments.length === 0)) return false
+      if (pinnedOnly && !item.is_pinned) return false
+      return true
+    })
+  }, [announcements, hasAttachmentsOnly, pinnedOnly])
+
+  const hasActiveFilters = Boolean(
+    search.trim() ||
+    typeFilter !== 'ALL' ||
+    priorityFilter !== 'ALL' ||
+    hasAttachmentsOnly ||
+    pinnedOnly ||
+    tab !== 'all'
+  )
+
+  const resetAllFilters = () => {
+    setTab('all')
+    setSearch('')
+    setTypeFilter('ALL')
+    setPriorityFilter('ALL')
+    setHasAttachmentsOnly(false)
+    setPinnedOnly(false)
   }
 
   return (
@@ -148,17 +189,17 @@ export default function AnnouncementFeed() {
       )}
 
       {/* Filter Tabs & Search Controls */}
-      <div className="space-y-3.5">
-        {/* Filter Pills */}
+      <div className="space-y-4">
+        {/* Main Feed Category Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
           {tabs.map((t) => (
             <button
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                 tab === t.id
-                  ? 'bg-primary-600 text-white shadow-xs'
+                  ? 'bg-primary-600 text-white shadow-sm ring-2 ring-primary-300/30'
                   : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
               }`}
             >
@@ -168,56 +209,155 @@ export default function AnnouncementFeed() {
         </div>
 
         {/* Search & Filter Dropdowns Bar */}
-        <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs">
-          <div className="relative flex-1 w-full">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search circulars by title, subject, or keywords..."
-              className="w-full text-xs pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:bg-white"
-            />
-            <span className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-600">
-              <SearchIcon />
-            </span>
-            {search && (
+        <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            {/* Search Input Box */}
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search circulars by title, topic, sender, or keywords..."
+                className="w-full text-xs sm:text-sm pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:bg-white transition-all"
+              />
+              <span className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <SearchIcon />
+              </span>
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200/60 transition-colors"
+                  title="Clear search"
+                >
+                  <CloseIcon className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Filter Dropdowns */}
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-700 hover:bg-slate-100 transition-colors focus:outline-hidden focus:ring-2 focus:ring-primary-500"
+                title="Filter by announcement category"
+              >
+                {typeOptions.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+                className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-700 hover:bg-slate-100 transition-colors focus:outline-hidden focus:ring-2 focus:ring-primary-500"
+                title="Filter by priority level"
+              >
+                <option value="ALL">All Priorities</option>
+                <option value="URGENT">Urgent Priority</option>
+                <option value="HIGH">High Priority</option>
+                <option value="IMPORTANT">Important</option>
+                <option value="NORMAL">Normal Priority</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Quick Filter Toggles & Status Summary Bar */}
+          <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 flex-wrap text-xs">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Quick:</span>
               <button
                 type="button"
-                onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-700"
+                onClick={() => setHasAttachmentsOnly(!hasAttachmentsOnly)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border ${
+                  hasAttachmentsOnly
+                    ? 'bg-primary-50 text-primary-800 border-primary-300 font-bold shadow-2xs'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
               >
-                <span className="w-3.5 h-3.5"><CloseIcon /></span>
+                📎 Has Files {hasAttachmentsOnly && '✓'}
               </button>
-            )}
+
+              <button
+                type="button"
+                onClick={() => setPinnedOnly(!pinnedOnly)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border ${
+                  pinnedOnly
+                    ? 'bg-amber-50 text-amber-900 border-amber-300 font-bold shadow-2xs'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                📌 Pinned {pinnedOnly && '✓'}
+              </button>
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={resetAllFilters}
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-colors"
+                >
+                  Reset Filters ↺
+                </button>
+              )}
+            </div>
+
+            <div className="text-[11px] font-semibold text-slate-500">
+              {loading ? (
+                <span>Loading notices...</span>
+              ) : (
+                <span>
+                  Showing <strong>{displayedAnnouncements.length}</strong> {displayedAnnouncements.length === 1 ? 'notice' : 'notices'}
+                  {search && <span> for &ldquo;<strong>{search}</strong>&rdquo;</span>}
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-700"
-            >
-              <option value="ALL">All Types</option>
-              <option value="CIRCULAR">Circular</option>
-              <option value="NOTICE">Notice</option>
-              <option value="ACADEMIC">Academic</option>
-              <option value="ADMINISTRATIVE">Administrative</option>
-              <option value="URGENT">Urgent</option>
-              <option value="EVENT">Event</option>
-            </select>
-
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-              className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-700"
-            >
-              <option value="ALL">All Priorities</option>
-              <option value="URGENT">Urgent</option>
-              <option value="HIGH">High</option>
-              <option value="IMPORTANT">Important</option>
-              <option value="NORMAL">Normal</option>
-            </select>
-          </div>
+          {/* Active Filter Chips */}
+          {hasActiveFilters && (
+            <div className="flex items-center gap-1.5 flex-wrap pt-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Active:</span>
+              {tab !== 'all' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-primary-50 text-primary-800 border border-primary-200">
+                  <span>Tab: {tabs.find(t => t.id === tab)?.label || tab}</span>
+                  <button type="button" onClick={() => setTab('all')} className="hover:text-primary-950 font-black ml-0.5">×</button>
+                </span>
+              )}
+              {search && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
+                  <span>Search: &ldquo;{search}&rdquo;</span>
+                  <button type="button" onClick={() => setSearch('')} className="hover:text-slate-950 font-black ml-0.5">×</button>
+                </span>
+              )}
+              {typeFilter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
+                  <span>Category: {typeFilter}</span>
+                  <button type="button" onClick={() => setTypeFilter('ALL')} className="hover:text-slate-950 font-black ml-0.5">×</button>
+                </span>
+              )}
+              {priorityFilter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
+                  <span>Priority: {priorityFilter}</span>
+                  <button type="button" onClick={() => setPriorityFilter('ALL')} className="hover:text-slate-950 font-black ml-0.5">×</button>
+                </span>
+              )}
+              {hasAttachmentsOnly && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
+                  <span>📎 Files Only</span>
+                  <button type="button" onClick={() => setHasAttachmentsOnly(false)} className="hover:text-slate-950 font-black ml-0.5">×</button>
+                </span>
+              )}
+              {pinnedOnly && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
+                  <span>📌 Pinned Only</span>
+                  <button type="button" onClick={() => setPinnedOnly(false)} className="hover:text-slate-950 font-black ml-0.5">×</button>
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -260,33 +400,31 @@ export default function AnnouncementFeed() {
             Retry
           </button>
         </div>
-      ) : announcements.length === 0 ? (
-        <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200 p-8 space-y-2">
-          <span className="text-4xl">📢</span>
-          <h3 className="font-extrabold text-base text-slate-900">No Announcements Yet</h3>
-          <p className="text-xs text-slate-600 max-w-sm mx-auto">
-            {tab !== 'all' || search
-              ? 'No announcements match your current filter settings. Try clearing your filters or search.'
+      ) : displayedAnnouncements.length === 0 ? (
+        <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200 p-8 space-y-3">
+          <span className="text-4xl">🔍</span>
+          <h3 className="font-extrabold text-base text-slate-900">
+            {hasActiveFilters ? 'No Matching Announcements Found' : 'No Announcements Yet'}
+          </h3>
+          <p className="text-xs text-slate-600 max-w-sm mx-auto leading-relaxed">
+            {hasActiveFilters
+              ? 'No announcements match your search keywords or active filter criteria. Try clearing search or resetting your filters.'
               : "You're all caught up! There are no active announcements addressed to you."}
           </p>
-          {(tab !== 'all' || search || typeFilter !== 'ALL' || priorityFilter !== 'ALL') && (
+          {hasActiveFilters && (
             <button
               type="button"
-              onClick={() => {
-                setTab('all')
-                setSearch('')
-                setTypeFilter('ALL')
-                setPriorityFilter('ALL')
-              }}
-              className="mt-2 text-xs font-bold text-primary-600 hover:underline"
+              onClick={resetAllFilters}
+              className="px-4 py-2 bg-primary-50 hover:bg-primary-100 text-primary-700 font-bold text-xs rounded-xl transition-colors inline-flex items-center gap-1.5 shadow-2xs"
             >
-              Reset All Filters
+              <span>Reset All Filters</span>
+              <span>↺</span>
             </button>
           )}
         </div>
       ) : (
         <div className="space-y-4">
-          {announcements.map((item) => (
+          {displayedAnnouncements.map((item) => (
             <div
               key={item.id}
               className={`bg-white rounded-2xl border p-5 sm:p-6 transition-all duration-200 hover:shadow-md ${
@@ -433,11 +571,11 @@ export default function AnnouncementFeed() {
                     <button
                       type="button"
                       onClick={() => setDeleteTarget(item)}
-                      className="px-2 py-1 text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-rose-200 transition-colors flex items-center gap-1"
-                      title="Delete announcement"
+                      className="px-3 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl border border-rose-200 transition-all flex items-center gap-1.5 shadow-2xs hover:shadow-xs"
+                      title="Permanently delete announcement"
                     >
-                      <TrashIcon className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Delete</span>
+                      <TrashIcon className="w-3.5 h-3.5 text-rose-600" />
+                      <span>Delete</span>
                     </button>
                   )}
 

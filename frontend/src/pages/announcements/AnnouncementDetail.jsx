@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   CloseIcon, PrinterIcon, DownloadIcon, CheckCircleIcon,
-  AlertTriangleIcon, PinIcon, LockIcon, SettingsIcon
+  AlertTriangleIcon, PinIcon, LockIcon, SettingsIcon, TrashIcon
 } from '../../components/icons'
 import { Spinner } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
@@ -168,9 +168,11 @@ export default function AnnouncementDetail({ announcementId: propId, onClose, on
             <button
               type="button"
               onClick={handleDelete}
-              className="px-2 py-1 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-lg border border-rose-200 transition-colors"
+              className="px-3 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl border border-rose-200 transition-all flex items-center gap-1.5 shadow-2xs hover:shadow-xs"
+              title="Permanently delete announcement"
             >
-              Delete
+              <TrashIcon className="w-3.5 h-3.5 text-rose-600" />
+              <span>Delete</span>
             </button>
           )}
           {onClose && (

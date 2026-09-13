@@ -192,6 +192,9 @@ class AnnouncementListItemOut(BaseModel):
     is_read: bool = False
     is_acknowledged: bool = False
     
+    can_delete: bool = False
+    can_edit: bool = False
+    
     model_config = ConfigDict(from_attributes=True)
 
 
