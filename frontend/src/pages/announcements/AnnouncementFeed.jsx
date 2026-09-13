@@ -301,19 +301,26 @@ export default function AnnouncementFeed() {
               {/* Attachments Chips */}
               {item.attachments && item.attachments.length > 0 && (
                 <div className="mt-3 flex items-center gap-2 flex-wrap">
-                  {item.attachments.map((att) => (
-                    <a
-                      key={att.id}
-                      href={att.download_url}
-                      download={att.file_name}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 transition-colors"
-                    >
-                      <span>📎</span>
-                      <span className="truncate max-w-[160px]">{att.file_name}</span>
-                    </a>
-                  ))}
+                  {item.attachments.map((att) => {
+                    const isImg = att.file_type?.includes('image') || /\.(jpg|jpeg|png|webp)$/i.test(att.file_name)
+                    return (
+                      <a
+                        key={att.id}
+                        href={att.download_url}
+                        download={att.file_name}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 transition-colors shadow-2xs"
+                      >
+                        {isImg ? (
+                          <img src={att.download_url} alt="" className="w-4 h-4 rounded object-cover border border-slate-200" />
+                        ) : (
+                          <span>{att.file_type?.includes('pdf') || att.file_name.endsWith('.pdf') ? '📄' : '📎'}</span>
+                        )}
+                        <span className="truncate max-w-[160px]">{att.file_name}</span>
+                      </a>
+                    )
+                  })}
                 </div>
               )}
 

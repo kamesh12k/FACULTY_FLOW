@@ -20,8 +20,12 @@ logger = logging.getLogger(__name__)
 ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
 ALLOWED_MIME_TYPES = {
     "application/pdf",
+    "application/x-pdf",
     "image/jpeg",
+    "image/jpg",
+    "image/pjpeg",
     "image/png",
+    "image/x-png",
     "image/webp",
 }
 
@@ -57,7 +61,18 @@ def validate_file_metadata(file_name: str, file_type: str, file_size: int) -> No
             detail=f"File extension '{ext}' is not supported. Allowed extensions: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
         )
 
-    mime = file_type.lower()
+    mime = (file_type or "").lower()
+    # Normalize MIME type from extension if missing or generic
+    if mime in {"", "application/octet-stream", "binary/octet-stream"}:
+        if ext in {".jpg", ".jpeg"}:
+            mime = "image/jpeg"
+        elif ext == ".png":
+            mime = "image/png"
+        elif ext == ".pdf":
+            mime = "application/pdf"
+        elif ext == ".webp":
+            mime = "image/webp"
+
     if mime not in ALLOWED_MIME_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -80,11 +95,11 @@ def validate_file_metadata(file_name: str, file_type: str, file_size: int) -> No
 def validate_file_magic_bytes(header: bytes, declared_type: str) -> bool:
     """Inspects header bytes to confirm actual file format matches declared type."""
     declared = declared_type.lower()
-    if declared == "application/pdf":
+    if declared in {"application/pdf", "application/x-pdf"}:
         return header.startswith(b"%PDF-")
-    elif declared == "image/jpeg":
+    elif declared in {"image/jpeg", "image/jpg", "image/pjpeg"}:
         return header.startswith(b"\xFF\xD8\xFF")
-    elif declared == "image/png":
+    elif declared in {"image/png", "image/x-png"}:
         return header.startswith(b"\x89PNG\r\n\x1a\n")
     elif declared == "image/webp":
         return header.startswith(b"RIFF") and len(header) >= 12 and header[8:12] == b"WEBP"

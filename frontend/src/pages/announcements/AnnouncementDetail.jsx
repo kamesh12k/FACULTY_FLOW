@@ -233,23 +233,34 @@ export default function AnnouncementDetail({ announcementId: propId, onClose, on
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {data.attachments.map((att) => {
                 const isPdf = att.file_type.includes('pdf') || att.file_name.endsWith('.pdf')
-                const isImg = att.file_type.includes('image')
+                const isImg = att.file_type.includes('image') || /\.(jpg|jpeg|png|webp)$/i.test(att.file_name)
                 const sizeMb = (att.file_size / (1024 * 1024)).toFixed(2)
+                const sizeKb = Math.round(att.file_size / 1024)
+                const sizeDisplay = att.file_size > 1024 * 1024 ? `${sizeMb} MB` : `${sizeKb} KB`
 
                 return (
                   <div
                     key={att.id}
                     className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3 hover:border-primary-300 transition-colors"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="text-2xl shrink-0">
-                        {isPdf ? '📄' : isImg ? '🖼️' : '📎'}
-                      </span>
+                    <div className="flex items-center gap-3 min-w-0">
+                      {isImg ? (
+                        <img
+                          src={att.download_url}
+                          alt={att.file_name}
+                          className="w-12 h-12 object-cover rounded-lg border border-slate-200 shrink-0 bg-white cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => setPreviewAttachment(att)}
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-2xl shrink-0">
+                          {isPdf ? '📄' : '📎'}
+                        </div>
+                      )}
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-slate-900 truncate" title={att.file_name}>
                           {att.file_name}
                         </p>
-                        <p className="text-[10px] text-slate-600 font-mono">{sizeMb} MB</p>
+                        <p className="text-[10px] text-slate-600 font-mono">{sizeDisplay}</p>
                       </div>
                     </div>
 

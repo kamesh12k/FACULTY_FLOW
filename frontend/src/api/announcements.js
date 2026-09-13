@@ -38,7 +38,9 @@ export const announcementApi = {
   uploadAttachmentStream: async (uploadUrl, file, onProgress) => {
     const formData = new FormData()
     formData.append('file', file)
-    return api.post(uploadUrl, formData, {
+    // Strip leading '/api' if present since api axios instance already has baseURL = '/api'
+    const endpoint = uploadUrl.startsWith('/api/') ? uploadUrl.slice(4) : uploadUrl
+    return api.post(endpoint, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress: (progressEvent) => {
         if (onProgress && progressEvent.total) {

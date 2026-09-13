@@ -58,6 +58,7 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
   const [scheduledAt, setScheduledAt] = useState('')
 
   const [submitting, setSubmitting] = useState(false)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
 
   // Fetch targetable candidate directory
   useEffect(() => {
@@ -75,6 +76,17 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
     fetchCandidates()
   }, [user])
 
+  // Helper to resolve MIME type accurately (handles Windows/Android empty file.type)
+  const resolveMimeType = (file) => {
+    if (file.type && file.type !== 'application/octet-stream') return file.type
+    const ext = file.name.split('.').pop().toLowerCase()
+    if (ext === 'pdf') return 'application/pdf'
+    if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg'
+    if (ext === 'png') return 'image/png'
+    if (ext === 'webp') return 'image/webp'
+    return 'application/octet-stream'
+  }
+
   // Handle File Selection and Direct Upload
   const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files || [])
@@ -91,14 +103,18 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
         continue
       }
 
+      const resolvedMime = resolveMimeType(file)
+      const isImg = resolvedMime.startsWith('image/') || /\.(jpg|jpeg|png|webp)$/i.test(file.name)
+      const previewUrl = isImg ? URL.createObjectURL(file) : null
+
       const tempId = Math.random().toString(36).substring(7)
-      setUploadingFiles((prev) => [...prev, { tempId, name: file.name, progress: 0 }])
+      setUploadingFiles((prev) => [...prev, { tempId, name: file.name, progress: 0, previewUrl, isImg }])
 
       try {
         // 1. Presign upload
         const presignRes = await announcementApi.presignAttachmentUpload({
           file_name: file.name,
-          file_type: file.type || 'application/octet-stream',
+          file_type: resolvedMime,
           file_size: file.size,
         })
 
@@ -115,7 +131,7 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
           }
         )
 
-        // 3. Complete and store attachment metadata
+        // 3. Complete and store attachment metadata with preview
         setAttachments((prev) => [
           ...prev,
           {
@@ -124,8 +140,11 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
             file_size: presign.file_size,
             storage_key: presign.storage_key,
             checksum_sha256: uploadRes.data.checksum_sha256,
+            previewUrl,
+            isImg,
           },
         ])
+        showToast(`Uploaded "${file.name}"`, 'success')
       } catch (err) {
         showToast(`Failed to upload "${file.name}": ${err.response?.data?.detail || err.message}`, 'error')
       } finally {
@@ -170,6 +189,30 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
 
   const handleClearFaculty = () => {
     setSelectedUserIds([])
+  }
+
+  const handleRequestPublish = () => {
+    if (!title.trim()) {
+      showToast('Please enter an announcement title', 'error')
+      return
+    }
+    if (!body.trim()) {
+      showToast('Please write the announcement message', 'error')
+      return
+    }
+    if (targetType === 'DEPARTMENT' && !selectedDeptIds.length) {
+      showToast('Please select at least one department', 'error')
+      return
+    }
+    if (targetType === 'USER' && !selectedUserIds.length) {
+      showToast('Please select at least one faculty member', 'error')
+      return
+    }
+    if (isScheduled && !scheduledAt) {
+      showToast('Please select a schedule publication date and time', 'error')
+      return
+    }
+    setShowConfirmModal(true)
   }
 
   const handleSubmit = async (publishNow = true) => {
@@ -507,45 +550,90 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
               </p>
             </div>
 
-            {/* Uploading progress chips */}
+            {/* Uploading progress indicator cards */}
             {uploadingFiles.length > 0 && (
               <div className="mt-3 space-y-2">
                 {uploadingFiles.map((uf) => (
-                  <div key={uf.tempId} className="bg-slate-100 rounded-lg p-2 flex items-center justify-between text-xs">
-                    <span className="font-semibold text-slate-800 truncate">{uf.name}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-24 bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                        <div className="bg-primary-600 h-1.5 transition-all" style={{ width: `${uf.progress}%` }} />
+                  <div key={uf.tempId} className="bg-indigo-50/70 border border-indigo-200/80 rounded-xl p-3 flex items-center justify-between gap-3 text-xs animate-pulse">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {uf.previewUrl ? (
+                        <img src={uf.previewUrl} alt={uf.name} className="w-10 h-10 object-cover rounded-lg border border-indigo-200 shrink-0" />
+                      ) : (
+                        <span className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-lg shrink-0">
+                          📄
+                        </span>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-800 truncate">{uf.name}</p>
+                        <p className="text-[10px] text-primary-700 font-semibold mt-0.5">Uploading file to storage ({uf.progress}%)...</p>
                       </div>
-                      <span className="font-mono text-[10px] text-slate-600">{uf.progress}%</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="w-20 bg-indigo-200/80 rounded-full h-2 overflow-hidden">
+                        <div className="bg-primary-600 h-2 transition-all duration-200 rounded-full" style={{ width: `${uf.progress}%` }} />
+                      </div>
+                      <span className="font-mono text-[10px] font-bold text-primary-700">{uf.progress}%</span>
                     </div>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Attached files list */}
+            {/* Attached files list with rich visual previews */}
             {attachments.length > 0 && (
-              <div className="mt-3 flex items-center gap-2 flex-wrap">
-                {attachments.map((att, idx) => (
-                  <div
-                    key={idx}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800"
-                  >
-                    <span>📎</span>
-                    <span className="truncate max-w-[180px]">{att.file_name}</span>
-                    <span className="text-[10px] text-slate-600 font-mono">
-                      ({(att.file_size / (1024 * 1024)).toFixed(1)} MB)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeAttachment(idx)}
-                      className="text-slate-600 hover:text-rose-600 p-0.5 rounded-sm"
-                    >
-                      <span className="w-3.5 h-3.5"><CloseIcon /></span>
-                    </button>
-                  </div>
-                ))}
+              <div className="mt-3.5 space-y-2">
+                <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                  Uploaded Attachments ({attachments.length}/5)
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {attachments.map((att, idx) => {
+                    const isImg = att.isImg || att.file_type?.startsWith('image/')
+                    const sizeMb = (att.file_size / (1024 * 1024)).toFixed(2)
+                    const sizeKb = Math.round(att.file_size / 1024)
+                    const sizeDisplay = att.file_size > 1024 * 1024 ? `${sizeMb} MB` : `${sizeKb} KB`
+
+                    return (
+                      <div
+                        key={idx}
+                        className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-2.5 shadow-2xs hover:border-primary-300 transition-all group"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {isImg && att.previewUrl ? (
+                            <img
+                              src={att.previewUrl}
+                              alt={att.file_name}
+                              className="w-11 h-11 object-cover rounded-lg border border-slate-200 shrink-0 bg-white"
+                            />
+                          ) : (
+                            <div className="w-11 h-11 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-xl shrink-0">
+                              {att.file_type?.includes('pdf') || att.file_name.endsWith('.pdf') ? '📄' : '📎'}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-900 truncate" title={att.file_name}>
+                              {att.file_name}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[10px] text-slate-500 font-mono">{sizeDisplay}</span>
+                              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded">
+                                ✓ Uploaded
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => removeAttachment(idx)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
+                          title="Remove attachment"
+                        >
+                          <span className="w-4 h-4"><CloseIcon /></span>
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -658,15 +746,127 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
             <button
               type="button"
               disabled={submitting}
-              onClick={() => handleSubmit(true)}
+              onClick={handleRequestPublish}
               className="px-5 py-2 bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-md hover:shadow-lg transition-all disabled:opacity-50 flex items-center gap-2"
             >
               {submitting && <Spinner size="sm" className="border-white border-t-transparent" />}
-              <span>{isScheduled ? 'Schedule Announcement' : 'Publish Announcement'}</span>
+              <span>{isScheduled ? 'Schedule Announcement...' : 'Publish Announcement...'}</span>
             </button>
           </div>
         </div>
       </div>
+
+      {/* ── Publish Confirmation Modal ── */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 flex flex-col gap-5 animate-in zoom-in-95 duration-200">
+            {/* Modal Icon & Header */}
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-600 to-indigo-700 text-white flex items-center justify-center text-2xl shadow-lg shrink-0">
+                📢
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900 tracking-tight">
+                  {isScheduled ? 'Confirm Scheduled Broadcast' : 'Confirm Instant Broadcast'}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5 font-medium">
+                  Please review the target audience and circular specifications before publishing.
+                </p>
+              </div>
+            </div>
+
+            {/* Broadcast Details Matrix */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-3 text-xs">
+              <div className="border-b border-slate-200/60 pb-2.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Notice Title</p>
+                <p className="text-sm font-extrabold text-slate-900 mt-0.5 line-clamp-2">{title}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 border-b border-slate-200/60 pb-2.5">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Category & Level</p>
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    <span className="px-2 py-0.5 bg-primary-100 text-primary-800 font-bold rounded-md text-[10px]">
+                      {ANNOUNCEMENT_TYPES.find(t => t.id === type)?.label || type}
+                    </span>
+                    <span className={`px-2 py-0.5 font-bold rounded-md text-[10px] ${PRIORITIES.find(p => p.id === priority)?.badge || ''}`}>
+                      {priority}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Target Audience</p>
+                  <p className="font-bold text-slate-800 mt-1">
+                    {targetType === 'COLLEGE' && '🏛️ Entire College (All Faculty)'}
+                    {targetType === 'DEPARTMENT' && `📂 ${selectedDeptIds.length} Department(s)`}
+                    {targetType === 'USER' && `👤 ${selectedUserIds.length} Selected Faculty`}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 border-b border-slate-200/60 pb-2.5">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Attachments</p>
+                  <p className="font-bold text-slate-800 mt-0.5">
+                    {attachments.length > 0 ? `📎 ${attachments.length} file(s) attached` : 'None'}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Formal Acknowledgment</p>
+                  <p className={`font-bold mt-0.5 ${requiresAck ? 'text-amber-700' : 'text-slate-600'}`}>
+                    {requiresAck ? '⚠️ Mandatory Required' : 'Optional / Informational'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Delivery Timing */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Publication Timing</p>
+                <p className="font-bold text-slate-800 mt-0.5">
+                  {isScheduled && scheduledAt
+                    ? `🕒 Scheduled for ${new Date(scheduledAt).toLocaleString()}`
+                    : '⚡ Instant Broadcast (Immediate push notifications & feed delivery)'}
+                </p>
+              </div>
+            </div>
+
+            {/* Warning / Advisory Note */}
+            <div className="px-3.5 py-2.5 bg-amber-50/90 border border-amber-200/80 rounded-xl flex items-start gap-2 text-xs text-amber-900">
+              <span className="text-sm shrink-0">🔔</span>
+              <p className="text-[11px] leading-relaxed">
+                Publishing will record this circular in official logs and trigger alerts for all recipient dashboards and mobile devices.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3 pt-1">
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => setShowConfirmModal(false)}
+                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+              >
+                Back to Edit
+              </button>
+
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => {
+                  setShowConfirmModal(false)
+                  handleSubmit(true)
+                }}
+                className="px-6 py-2.5 bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                {submitting && <Spinner size="sm" className="border-white border-t-transparent" />}
+                <span>{isScheduled ? 'Confirm & Schedule' : 'Confirm & Publish Now'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
