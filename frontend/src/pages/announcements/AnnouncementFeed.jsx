@@ -626,14 +626,22 @@ export default function AnnouncementFeed() {
       {/* Full Detail Modal / Full-screen on Mobile */}
       {selectedAnnouncementId && (
         <div
-          className="fixed inset-0 z-40 flex items-stretch sm:items-center justify-center sm:p-4 bg-black/60 sm:backdrop-blur-xs animate-in fade-in duration-150"
+          className="fixed inset-0 z-40 flex items-end sm:items-center justify-center sm:p-4 bg-black/60 sm:backdrop-blur-xs animate-in fade-in duration-150"
           onClick={(e) => {
             // Close only if clicking the backdrop directly
             if (e.target === e.currentTarget) setSelectedAnnouncementId(null)
           }}
         >
-          {/* Inner card — flex column so header is fixed and body scrolls */}
-          <div className="w-full max-w-4xl bg-white sm:rounded-2xl shadow-2xl flex flex-col h-full sm:h-auto sm:max-h-[calc(100dvh-2rem)] overflow-hidden">
+          {/*
+            Card sizing strategy:
+            - Mobile: h-[100dvh] — fills full dynamic viewport height (accounts for browser chrome)
+            - Desktop (sm+): explicit h-[calc(100dvh-2rem)] — gives a CONCRETE height
+              so that flex-1 children can calculate their sizes deterministically.
+              max-h alone (h-auto + max-h) is insufficient because a child with
+              flex-1 in an auto-height parent has no reference size and expands to
+              full content height — preventing the body scroll container from working.
+          */}
+          <div className="w-full max-w-4xl bg-white sm:rounded-2xl shadow-2xl flex flex-col h-[100dvh] sm:h-[calc(100dvh-2rem)] overflow-hidden">
             <AnnouncementDetail
               announcementId={selectedAnnouncementId}
               onClose={() => setSelectedAnnouncementId(null)}
@@ -647,6 +655,7 @@ export default function AnnouncementFeed() {
           </div>
         </div>
       )}
+
 
       {/* Feed Delete Confirmation Modal */}
       {deleteTarget && (

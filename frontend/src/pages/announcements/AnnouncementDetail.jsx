@@ -252,7 +252,7 @@ export default function AnnouncementDetail({ announcementId: propId, onClose, on
   const audienceText = formatAudience(data)
 
   return (
-    <div className="flex flex-col h-full bg-white sm:rounded-2xl">
+    <div className="flex flex-col flex-1 min-h-0 bg-white sm:rounded-2xl">
       {/* ── Top Responsive Header Toolbar — pinned, never scrolls ── */}
       <div className="px-3.5 sm:px-6 py-3 bg-slate-50/95 border-b border-slate-200 flex items-center justify-between gap-2 print:hidden shrink-0 z-10">
         <div className="flex items-center gap-2 min-w-0">
