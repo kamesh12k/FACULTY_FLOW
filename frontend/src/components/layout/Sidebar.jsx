@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import FacultyFlowLogo from '../brand/FacultyFlowLogo'
 import { useAuth } from '../../context/AuthContext'
