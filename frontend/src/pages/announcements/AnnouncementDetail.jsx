@@ -24,6 +24,8 @@ export default function AnnouncementDetail({ announcementId: propId, onClose, on
   const [showAnalytics, setShowAnalytics] = useState(false)
   const [acknowledging, setAcknowledging] = useState(false)
   const [previewAttachment, setPreviewAttachment] = useState(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const fetchDetail = async () => {
     try {
@@ -63,16 +65,23 @@ export default function AnnouncementDetail({ announcementId: propId, onClose, on
     }
   }
 
-  const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this announcement?')) return
+  const handleDelete = () => {
+    setShowDeleteModal(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    setDeleting(true)
     try {
       await announcementApi.deleteAnnouncement(announcementId)
-      showToast('Announcement deleted', 'success')
-      if (onRefreshList) onRefreshList()
+      showToast('Announcement permanently deleted', 'success')
+      setShowDeleteModal(false)
+      if (onRefreshList) onRefreshList(`Announcement "${data?.title || ''}" was deleted`)
       if (onClose) onClose()
       else navigate('/announcements')
     } catch (err) {
       showToast(err.response?.data?.detail || 'Failed to delete announcement', 'error')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -417,6 +426,68 @@ export default function AnnouncementDetail({ announcementId: propId, onClose, on
                   className="max-w-full max-h-full object-contain mx-auto rounded-lg shadow-md"
                 />
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 shadow-xs">
+                <AlertTriangleIcon className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug">Delete Announcement Circular?</h3>
+                <p className="text-xs text-slate-500 font-medium">Confirm permanent deletion</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Target Circular</span>
+              <p className="font-extrabold text-slate-900 text-sm line-clamp-2">{data?.title}</p>
+              <div className="flex items-center gap-2 text-slate-500 pt-0.5">
+                <span>Category: <strong className="text-slate-700 font-semibold">{data?.type}</strong></span>
+                <span>•</span>
+                <span>Priority: <strong className="text-slate-700 font-semibold">{data?.priority}</strong></span>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-rose-50 rounded-2xl border border-rose-200/80 text-xs text-rose-800 space-y-1">
+              <p className="font-bold flex items-center gap-1.5 text-rose-900">
+                <span>⚠️</span> Permanent & Irreversible Action
+              </p>
+              <p className="leading-relaxed text-[11px]">
+                Deleting this circular will immediately revoke access across all faculty dashboards and feeds. All uploaded files, faculty acknowledgements, and conversation replies will be permanently purged.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+              >
+                Cancel, Keep Circular
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+                className="px-5 py-2.5 text-xs font-extrabold text-white bg-rose-600 hover:bg-rose-700 active:scale-95 rounded-xl transition-all shadow-md flex items-center gap-2 disabled:opacity-60"
+              >
+                {deleting ? (
+                  <>
+                    <Spinner size="xs" className="border-white border-t-transparent" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <span>Yes, Delete Announcement</span>
+                )}
+              </button>
             </div>
           </div>
         </div>

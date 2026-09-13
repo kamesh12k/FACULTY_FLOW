@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
   SearchIcon, FilterIcon, PlusIcon, PinIcon, MessageSquareIcon,
-  DownloadIcon, CheckCircleIcon, AlertTriangleIcon, CloseIcon
+  DownloadIcon, CheckCircleIcon, AlertTriangleIcon, CloseIcon, TrashIcon
 } from '../../components/icons'
 import { Spinner } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
@@ -23,10 +23,13 @@ export default function AnnouncementFeed() {
   const [typeFilter, setTypeFilter] = useState('ALL')
   const [priorityFilter, setPriorityFilter] = useState('ALL')
 
-  // Modals
+  // Modals & Confirmation States
   const [showComposer, setShowComposer] = useState(false)
   const [selectedAnnouncementId, setSelectedAnnouncementId] = useState(null)
   const [analyticsAnnouncementId, setAnalyticsAnnouncementId] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [confirmationBanner, setConfirmationBanner] = useState(null)
 
   const canPublish = isPrincipal || isAdmin || isSystemAdmin
 
@@ -64,6 +67,25 @@ export default function AnnouncementFeed() {
     }, 300)
     return () => clearTimeout(timer)
   }, [search])
+
+  const handleConfirmDeleteFeed = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await announcementApi.deleteAnnouncement(deleteTarget.id)
+      showToast(`Announcement "${deleteTarget.title}" was permanently deleted.`, 'success')
+      setConfirmationBanner({
+        type: 'success',
+        text: `Announcement "${deleteTarget.title}" was successfully deleted.`
+      })
+      setDeleteTarget(null)
+      fetchFeed()
+    } catch (err) {
+      showToast(err.response?.data?.detail || 'Failed to delete announcement', 'error')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const tabs = [
     { id: 'all', label: 'All Notices' },
@@ -107,6 +129,23 @@ export default function AnnouncementFeed() {
           </button>
         )}
       </div>
+      {/* Top Confirmation Banner */}
+      {confirmationBanner && (
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3 text-xs sm:text-sm text-emerald-900 font-bold animate-in fade-in duration-150">
+          <div className="flex items-center gap-2.5">
+            <span className="w-5 h-5 text-emerald-600 shrink-0"><CheckCircleIcon /></span>
+            <span>{confirmationBanner.text}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setConfirmationBanner(null)}
+            className="p-1 text-emerald-700 hover:bg-emerald-100 rounded-lg transition-colors shrink-0"
+            title="Dismiss"
+          >
+            <CloseIcon className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Filter Tabs & Search Controls */}
       <div className="space-y-3.5">
@@ -390,6 +429,18 @@ export default function AnnouncementFeed() {
                     </button>
                   )}
 
+                  {item.can_delete && (
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(item)}
+                      className="px-2 py-1 text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-rose-200 transition-colors flex items-center gap-1"
+                      title="Delete announcement"
+                    >
+                      <TrashIcon className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Delete</span>
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => setSelectedAnnouncementId(item.id)}
@@ -409,7 +460,16 @@ export default function AnnouncementFeed() {
         <AnnouncementComposerModal
           user={user}
           onClose={() => setShowComposer(false)}
-          onCreated={() => fetchFeed()}
+          onCreated={(newId) => {
+            fetchFeed()
+            setConfirmationBanner({
+              type: 'success',
+              text: 'Announcement broadcasted and published successfully!'
+            })
+            if (newId) {
+              setSelectedAnnouncementId(newId)
+            }
+          }}
         />
       )}
 
@@ -420,8 +480,75 @@ export default function AnnouncementFeed() {
             <AnnouncementDetail
               announcementId={selectedAnnouncementId}
               onClose={() => setSelectedAnnouncementId(null)}
-              onRefreshList={() => fetchFeed()}
+              onRefreshList={(msg) => {
+                fetchFeed()
+                if (msg) {
+                  setConfirmationBanner({ type: 'success', text: msg })
+                }
+              }}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Feed Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 shadow-xs">
+                <AlertTriangleIcon className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug">Delete Announcement Circular?</h3>
+                <p className="text-xs text-slate-500 font-medium">Confirm permanent deletion</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Target Circular</span>
+              <p className="font-extrabold text-slate-900 text-sm line-clamp-2">{deleteTarget.title}</p>
+              <div className="flex items-center gap-2 text-slate-500 pt-0.5">
+                <span>Category: <strong className="text-slate-700 font-semibold">{deleteTarget.type}</strong></span>
+                <span>•</span>
+                <span>Priority: <strong className="text-slate-700 font-semibold">{deleteTarget.priority}</strong></span>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-rose-50 rounded-2xl border border-rose-200/80 text-xs text-rose-800 space-y-1">
+              <p className="font-bold flex items-center gap-1.5 text-rose-900">
+                <span>⚠️</span> Permanent & Irreversible Action
+              </p>
+              <p className="leading-relaxed text-[11px]">
+                Deleting this circular will permanently remove it from all faculty feeds. All attached files, read receipts, and replies will be completely purged from the system.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+              >
+                Cancel, Keep Circular
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteFeed}
+                disabled={deleting}
+                className="px-5 py-2.5 text-xs font-extrabold text-white bg-rose-600 hover:bg-rose-700 active:scale-95 rounded-xl transition-all shadow-md flex items-center gap-2 disabled:opacity-60"
+              >
+                {deleting ? (
+                  <>
+                    <Spinner size="xs" className="border-white border-t-transparent" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <span>Yes, Delete Announcement</span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -37,6 +37,7 @@ function MessageItem({
 }) {
   const { showToast } = useToast()
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   const handleToggleReaction = async (emoji) => {
     try {
@@ -59,10 +60,10 @@ function MessageItem({
   }
 
   const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to remove this message?')) return
     try {
       await announcementApi.deleteMessage(message.id)
       showToast('Message removed', 'success')
+      setConfirmingDelete(false)
       onRefresh()
     } catch (err) {
       showToast(err.response?.data?.detail || 'Failed to remove message', 'error')
@@ -181,14 +182,35 @@ function MessageItem({
 
             {/* Delete button (Author or Moderator) */}
             {(isAuthor || canModerate) && !message.is_deleted && (
-              <button
-                type="button"
-                onClick={handleDelete}
-                className="p-1 text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                title="Delete message"
-              >
-                <span className="w-3.5 h-3.5"><CloseIcon /></span>
-              </button>
+              confirmingDelete ? (
+                <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-lg text-xs animate-in fade-in duration-100">
+                  <span className="text-[11px] font-bold text-rose-700">Delete reply?</span>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    className="font-extrabold text-rose-700 hover:underline text-[11px]"
+                  >
+                    Yes
+                  </button>
+                  <span className="text-slate-300">•</span>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingDelete(false)}
+                    className="text-slate-500 hover:text-slate-700 text-[11px]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(true)}
+                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                  title="Delete message"
+                >
+                  <span className="w-3.5 h-3.5"><CloseIcon /></span>
+                </button>
+              )
             )}
           </div>
         </div>

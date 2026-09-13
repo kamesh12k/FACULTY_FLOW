@@ -59,6 +59,7 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
 
   const [submitting, setSubmitting] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [publishSuccessResult, setPublishSuccessResult] = useState(null)
 
   // Fetch targetable candidate directory
   useEffect(() => {
@@ -254,17 +255,19 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
         attachments,
       }
 
-      await announcementApi.createAnnouncement(payload)
+      const res = await announcementApi.createAnnouncement(payload)
+      const createdData = res.data
       showToast(
-        publishNow
-          ? 'Announcement published successfully'
+        publishNow && !isScheduled
+          ? 'Announcement published & broadcasted successfully!'
           : isScheduled
-          ? 'Announcement scheduled successfully'
-          : 'Draft saved',
+          ? 'Announcement scheduled successfully!'
+          : 'Draft saved successfully!',
         'success'
       )
-      onCreated()
-      onClose()
+      setShowConfirmModal(false)
+      setPublishSuccessResult(createdData)
+      if (onCreated) onCreated(createdData.id)
     } catch (err) {
       showToast(err.response?.data?.detail || 'Failed to publish announcement', 'error')
     } finally {
@@ -279,10 +282,16 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
           <div>
             <h2 className="font-extrabold text-lg text-slate-900">
-              {isHod ? 'Publish Department Announcement' : 'Publish Institutional Circular'}
+              {publishSuccessResult
+                ? '✅ Official Circular Broadcasted'
+                : isHod
+                ? 'Publish Department Announcement'
+                : 'Publish Institutional Circular'}
             </h2>
             <p className="text-xs text-slate-600">
-              {isHod
+              {publishSuccessResult
+                ? `Confirmation Reference #AN-${publishSuccessResult.id}`
+                : isHod
                 ? `Posting as HOD (${user.department || 'Departmental'})`
                 : 'Posting as Institutional Administrator / Principal'}
             </p>
@@ -295,8 +304,110 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-6 overflow-y-auto space-y-5">
+        {publishSuccessResult ? (
+          <div className="p-6 sm:p-8 text-center space-y-6 animate-in zoom-in-95 duration-200 overflow-y-auto">
+            <div className="w-20 h-20 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-sm ring-8 ring-emerald-50">
+              <CheckCircleIcon className="w-12 h-12" />
+            </div>
+
+            <div className="space-y-2">
+              <span className="px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
+                {publishSuccessResult.status === 'SCHEDULED' ? 'Scheduled Successfully' : 'Published & Broadcasted'}
+              </span>
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">
+                {publishSuccessResult.status === 'SCHEDULED' ? 'Announcement Scheduled!' : 'Announcement Published Successfully!'}
+              </h3>
+              <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+                {publishSuccessResult.status === 'SCHEDULED'
+                  ? 'Your circular is safely saved and scheduled for automated broadcast at the appointed date and time.'
+                  : 'Your communication has been broadcasted to all selected recipients and is now live on the faculty announcement feed.'}
+              </p>
+            </div>
+
+            {/* Receipt / Details Card */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-left max-w-lg mx-auto space-y-3.5 shadow-2xs">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Official Circular</span>
+                  <h4 className="font-bold text-base text-slate-900 leading-snug">{publishSuccessResult.title}</h4>
+                </div>
+                <span className="shrink-0 px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-white border border-slate-200 text-slate-700 shadow-2xs">
+                  #AN-{publishSuccessResult.id}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/80 text-xs">
+                <div>
+                  <span className="text-slate-500 block font-medium">Audience Scope</span>
+                  <span className="font-bold text-slate-800">
+                    {publishSuccessResult.target_type === 'COLLEGE'
+                      ? '🏛️ Entire College'
+                      : `${publishSuccessResult.targets?.length || 1} Departments / Recipients`}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block font-medium">Priority & Category</span>
+                  <span className="font-bold text-slate-800">
+                    {publishSuccessResult.priority} • {publishSuccessResult.type}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block font-medium">Attachments</span>
+                  <span className="font-bold text-slate-800">
+                    {publishSuccessResult.attachments?.length
+                      ? `📎 ${publishSuccessResult.attachments.length} file(s) attached`
+                      : 'None'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block font-medium">Acknowledgment</span>
+                  <span className="font-bold text-slate-800">
+                    {publishSuccessResult.requires_acknowledgement ? '⚠️ Mandatory Signature' : '✓ Standard Notice'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* CTAs */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 max-w-lg mx-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  onCreated(publishSuccessResult.id)
+                  onClose()
+                }}
+                className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                <span>View Circular Details →</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onCreated()
+                  onClose()
+                }}
+                className="w-full sm:w-auto px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all"
+              >
+                Done & Return to Feed
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTitle('')
+                  setBody('')
+                  setAttachments([])
+                  setPublishSuccessResult(null)
+                }}
+                className="w-full sm:w-auto px-3 py-3 text-xs font-semibold text-slate-500 hover:text-slate-800 hover:underline transition-all"
+              >
+                + Publish Another
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5">
           {/* Title & Classification */}
           <div className="space-y-4">
             <div>
@@ -754,6 +865,8 @@ export default function AnnouncementComposerModal({ user, onClose, onCreated }) 
             </button>
           </div>
         </div>
+        </>
+      )}
       </div>
 
       {/* ── Publish Confirmation Modal ── */}
