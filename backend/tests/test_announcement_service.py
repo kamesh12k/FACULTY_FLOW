@@ -167,3 +167,91 @@ def test_circular_revision_version_tracking(db_session):
     assert updated.version == 2
     assert updated.revision_notes == "Updated Lab slot for 3rd year CS."
     assert "Version 2" in updated.body
+
+
+def test_mention_discovery_20_faculty_in_department(db_session):
+    """
+    Validates that:
+    1. A department with 20 faculty returns all 20 candidates (no 5-item cutoff).
+    2. Partial name search works case-insensitively.
+    3. The 20th record can be found individually.
+    4. Department isolation is preserved (foreign department faculty not exposed).
+    5. Structured mentions and notifications are generated.
+    """
+    from app.models.department import Department
+    from app.models.announcement import MessageMention
+
+    dept_cs = Department(name="Computer Science & Engineering", code="CSE_TEST")
+    dept_me = Department(name="Mechanical Engineering", code="ME_TEST")
+    db_session.add_all([dept_cs, dept_me])
+    db_session.commit()
+
+    # Create HOD and 19 other teachers in CSE (total 20 faculty in department)
+    hod = _make_user(db_session, name="HOD CSE", role=Role.admin, username="hod_cse_test", department="CSE_TEST")
+    faculty_list = [hod]
+    for i in range(1, 20):
+        t = _make_user(
+            db_session,
+            name=f"Faculty {i:02d} CS",
+            role=Role.teacher,
+            email=f"cs_faculty_{i:02d}@college.edu",
+            department="CSE_TEST",
+        )
+        faculty_list.append(t)
+
+    # Create 3 faculty in foreign department (Mechanical)
+    me_teacher = _make_user(
+        db_session,
+        name="Foreign ME Teacher",
+        role=Role.teacher,
+        email="me_foreign@college.edu",
+        department="ME_TEST",
+    )
+
+    # HOD creates department announcement
+    ann_data = AnnouncementCreateIn(
+        title="Department Faculty Meeting Notice",
+        body="All departmental faculty please note the meeting agenda.",
+        type=AnnouncementType.NOTICE,
+        target_type="DEPARTMENT",
+        department_ids=[dept_cs.id],
+        publish_now=True,
+    )
+    ann = announcement_service.create_announcement(db_session, hod, ann_data)
+
+    # 1. Test discovering all 20 faculty in department
+    cand_all = announcement_service.get_mention_candidates(db_session, faculty_list[1], ann.id, limit=50)
+    assert len(cand_all) == 20, f"Expected 20 faculty members, got {len(cand_all)}"
+    candidate_names = [c.name for c in cand_all]
+    assert "HOD CSE" in candidate_names
+    assert "Faculty 19 CS" in candidate_names  # Last alphabetical faculty member present!
+
+    # Foreign department faculty must NOT be in the results
+    assert "Foreign ME Teacher" not in candidate_names
+
+    # 2. Test search: query for specific individual (e.g. "Faculty 15 CS")
+    cand_15 = announcement_service.get_mention_candidates(db_session, faculty_list[1], ann.id, query="faculty 15")
+    assert len(cand_15) == 1
+    assert cand_15[0].name == "Faculty 15 CS"
+
+    # 3. Test case-insensitivity: query "FACULTY 19"
+    cand_upper = announcement_service.get_mention_candidates(db_session, faculty_list[1], ann.id, query="FACULTY 19")
+    assert len(cand_upper) == 1
+    assert cand_upper[0].name == "Faculty 19 CS"
+
+    # 4. Test posting a message with mention
+    target_faculty = cand_15[0]
+    msg = announcement_service.add_message(
+        db=db_session,
+        current_user=faculty_list[1],
+        announcement_id=ann.id,
+        content=f"Please review this @{target_faculty.name} regarding project allocation.",
+        mentioned_user_ids=[target_faculty.id],
+    )
+    assert msg.id is not None
+
+    # Verify structured mention was recorded in DB
+    stored_mention = db_session.query(MessageMention).filter(MessageMention.message_id == msg.id).first()
+    assert stored_mention is not None
+    assert stored_mention.mentioned_user_id == target_faculty.id
+    assert stored_mention.mention_text == f"@{target_faculty.name}"

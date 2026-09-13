@@ -24,6 +24,8 @@ export const announcementApi = {
   getAnnouncementAnalytics: (id) => api.get(`/announcements/${id}/analytics`),
 
   getConversationMessages: (announcementId) => api.get(`/announcements/${announcementId}/messages`),
+ 
+  getMentionCandidates: (announcementId, params = {}) => api.get(`/announcements/${announcementId}/mention-candidates`, { params }),
 
   postMessage: (announcementId, data) => api.post(`/announcements/${announcementId}/messages`, data),
 

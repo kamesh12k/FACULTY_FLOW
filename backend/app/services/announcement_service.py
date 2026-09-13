@@ -947,10 +947,25 @@ def add_message(
     db.add(msg)
     db.flush()
 
-    # Mentions handling
-    if mentioned_user_ids:
-        # Validate users exist and belong to permissible scope
-        valid_users = db.query(User).filter(User.id.in_(mentioned_user_ids), User.is_active == True).all()  # noqa: E712
+    # Mentions handling: combine explicit IDs and text mentions (@Name)
+    all_mentioned_ids = set(mentioned_user_ids or [])
+    text_mention_matches = re.findall(r"@([A-Za-z0-9_.\s]{2,50})", clean_content)
+    if text_mention_matches:
+        for raw_name in text_mention_matches:
+            cand = raw_name.strip()
+            matched = db.query(User).filter(
+                func.lower(User.name) == cand.lower(),
+                User.is_active == True,  # noqa: E712
+            ).first()
+            if matched:
+                all_mentioned_ids.add(matched.id)
+
+    if all_mentioned_ids:
+        # Validate users exist and belong to active directory
+        valid_users = db.query(User).filter(
+            User.id.in_(list(all_mentioned_ids)),
+            User.is_active == True,  # noqa: E712
+        ).all()
         for u in valid_users:
             mention = MessageMention(
                 message_id=msg.id,
@@ -1240,3 +1255,93 @@ def get_candidate_directory(db: Session, current_user: User) -> CandidateDirecto
     ]
 
     return CandidateDirectoryOut(departments=dept_out, faculty=faculty_out)
+
+
+def get_mention_candidates(
+    db: Session,
+    current_user: User,
+    announcement_id: int,
+    query: Optional[str] = None,
+    limit: int = 50,
+) -> List[CandidateFacultyItem]:
+    """
+    Returns authorized faculty candidates that can be @mentioned in an announcement conversation.
+    - Principal & System Admin: can mention any active faculty/staff across college.
+    - HOD & Teachers: can mention active faculty within their own department
+      and any active faculty participating in/targeted by this announcement.
+    - Search query filters by name, email, or username case-insensitively.
+    - Bounded by limit (default 50, max 100).
+    """
+    announcement = db.query(Announcement).filter(
+        Announcement.id == announcement_id,
+        Announcement.status != AnnouncementStatus.DELETED.value,
+    ).first()
+    if not announcement:
+        raise HTTPException(status_code=404, detail="Announcement not found.")
+
+    # Validate that current_user has access to view/participate in this announcement
+    if current_user.role not in (Role.system_admin, Role.principal, Role.governance):
+        if announcement.created_by_id != current_user.id:
+            recipients = resolve_recipient_user_ids(db, announcement)
+            if current_user.id not in recipients:
+                raise HTTPException(status_code=403, detail="Not authorized to participate in this announcement.")
+
+    # Base candidate query: active users in faculty / staff / admin roles
+    faculty_query = db.query(User).filter(
+        User.is_active == True,  # noqa: E712
+        User.role.in_([Role.teacher, Role.admin, Role.principal, Role.system_admin]),
+    )
+
+    is_elevated = current_user.role in (Role.principal, Role.system_admin)
+    is_college_wide = announcement.target_summary == "COLLEGE"
+
+    if not is_elevated and not is_college_wide:
+        allowed_dept_ids = set()
+        if current_user.department_id:
+            allowed_dept_ids.add(current_user.department_id)
+        if announcement.department_id:
+            allowed_dept_ids.add(announcement.department_id)
+
+        target_records = db.query(AnnouncementTarget).filter(
+            AnnouncementTarget.announcement_id == announcement.id
+        ).all()
+        for t in target_records:
+            if t.department_id:
+                allowed_dept_ids.add(t.department_id)
+
+        filter_conditions = []
+        if allowed_dept_ids:
+            filter_conditions.append(User.department_id.in_(list(allowed_dept_ids)))
+        if announcement.created_by_id:
+            filter_conditions.append(User.id == announcement.created_by_id)
+
+        if filter_conditions:
+            faculty_query = faculty_query.filter(or_(*filter_conditions))
+        elif current_user.department_id:
+            faculty_query = faculty_query.filter(User.department_id == current_user.department_id)
+
+    # Search filtering
+    if query and query.strip():
+        search_pattern = f"%{query.strip().lower()}%"
+        faculty_query = faculty_query.filter(
+            or_(
+                func.lower(User.name).like(search_pattern),
+                func.lower(User.email).like(search_pattern),
+                func.lower(User.username).like(search_pattern),
+            )
+        )
+
+    bounded_limit = min(max(limit, 1), 100)
+    faculty = faculty_query.order_by(User.name.asc()).limit(bounded_limit).all()
+
+    return [
+        CandidateFacultyItem(
+            id=f.id,
+            name=f.name,
+            email=f.email or f.username,
+            department_id=f.department_id,
+            department_name=f.department_rel.name if f.department_rel else f.department_old,
+            role=f.role.value,
+        )
+        for f in faculty
+    ]

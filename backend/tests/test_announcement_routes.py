@@ -85,3 +85,71 @@ def test_announcement_api_lifecycle(client, db_session):
     assert analytics["viewed_count"] >= 1
     assert analytics["acknowledged_count"] >= 1
     assert analytics["acknowledgement_rate_pct"] > 0
+
+    # 9. Teacher discovers mention candidates via dedicated endpoint
+    cand_resp = client.get(f"/announcements/{aid}/mention-candidates", headers=t_headers)
+    assert cand_resp.status_code == 200
+    cands = cand_resp.json()
+    assert isinstance(cands, list)
+    assert len(cands) >= 1
+    names = [c["name"] for c in cands]
+    assert "Teacher User" in names
+
+    # 10. Search with query parameter
+    search_resp = client.get(f"/announcements/{aid}/mention-candidates?q=principal", headers=t_headers)
+    assert search_resp.status_code == 200
+    search_cands = search_resp.json()
+    assert any(c["name"] == "Principal User" for c in search_cands)
+
+
+def test_mention_candidates_department_isolation_and_security(client, db_session):
+    from app.models.department import Department
+
+    # HOD and Teacher of CSE
+    hod_cse = _make_user(db_session, name="HOD CSE Admin", email="hod_cse_iso@test.com", username="hod_cse_iso", role=Role.admin, department="CSE_SEC")
+    teacher_cse = _make_user(db_session, name="Teacher CSE Staff", email="teacher_cse_iso@test.com", username="teacher_cse_iso", role=Role.teacher, department="CSE_SEC")
+
+    # HOD and Teacher of ECE (foreign department)
+    hod_ece = _make_user(db_session, name="HOD ECE Admin", email="hod_ece_iso@test.com", username="hod_ece_iso", role=Role.admin, department="ECE_SEC")
+    teacher_ece = _make_user(db_session, name="Teacher ECE Staff", email="teacher_ece_iso@test.com", username="teacher_ece_iso", role=Role.teacher, department="ECE_SEC")
+
+    dept_cse = db_session.query(Department).filter(Department.name == "CSE_SEC").first()
+
+    hod_cse_headers = make_auth_headers(hod_cse)
+    teacher_cse_headers = make_auth_headers(teacher_cse)
+    teacher_ece_headers = make_auth_headers(teacher_ece)
+
+    # 1. HOD CSE creates CSE-department announcement
+    create_payload = {
+        "title": "CSE Department Internal Notice",
+        "body": "All CSE department faculty please attend.",
+        "type": "CIRCULAR",
+        "priority": "HIGH",
+        "target_type": "DEPARTMENT",
+        "publish_now": True,
+        "allow_replies": True,
+        "target_department_ids": [dept_cse.id] if dept_cse else [],
+    }
+    resp = client.post("/announcements", json=create_payload, headers=hod_cse_headers)
+    assert resp.status_code == 201
+    aid = resp.json()["id"]
+
+    # 2. Teacher CSE can get mention candidates, but only CSE faculty
+    cands_resp = client.get(f"/announcements/{aid}/mention-candidates", headers=teacher_cse_headers)
+    assert cands_resp.status_code == 200
+    cands = cands_resp.json()
+    cands_names = [c["name"] for c in cands]
+    assert any("CSE" in n for n in cands_names)
+    assert "Teacher ECE Staff" not in cands_names
+    assert "HOD ECE Admin" not in cands_names
+
+    # 3. Even if Teacher CSE searches specifically for "?q=ECE", foreign faculty are NOT returned
+    search_resp = client.get(f"/announcements/{aid}/mention-candidates?q=ECE", headers=teacher_cse_headers)
+    assert search_resp.status_code == 200
+    search_cands = search_resp.json()
+    assert len(search_cands) == 0
+
+    # 4. Teacher ECE (unauthorized user from foreign department) cannot view or get mention candidates for CSE announcement
+    foreign_resp = client.get(f"/announcements/{aid}/mention-candidates", headers=teacher_ece_headers)
+    assert foreign_resp.status_code in (403, 404)
+

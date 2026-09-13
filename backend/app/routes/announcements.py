@@ -17,7 +17,7 @@ from app.models.announcement import Announcement, AnnouncementAttachment
 from app.schemas.announcement import (
     AnnouncementCreateIn, AnnouncementUpdateIn, AnnouncementListItemOut,
     AnnouncementDetailOut, AnnouncementAnalyticsOut, CandidateDirectoryOut,
-    PresignUploadIn, PresignUploadOut, MessageCreateIn, MessageOut,
+    CandidateFacultyItem, PresignUploadIn, PresignUploadOut, MessageCreateIn, MessageOut,
     ReactionToggleIn
 )
 from app.services import announcement_service
@@ -172,6 +172,24 @@ def get_announcement_analytics(
 
 
 # ── Threaded Conversation Endpoints ──
+@router.get("/{announcement_id}/mention-candidates", response_model=List[CandidateFacultyItem])
+def get_mention_candidates(
+    announcement_id: int,
+    q: Optional[str] = Query(None, description="Search query for faculty name or email"),
+    limit: int = Query(50, ge=1, le=100, description="Max candidates to return"),
+    current_user: User = Depends(require_credentials_set),
+    db: Session = Depends(get_db),
+):
+    """Returns permissible faculty members that current user can @mention in this announcement thread."""
+    return announcement_service.get_mention_candidates(
+        db=db,
+        current_user=current_user,
+        announcement_id=announcement_id,
+        query=q,
+        limit=limit,
+    )
+
+
 @router.get("/{announcement_id}/messages", response_model=List[MessageOut])
 def get_conversation_messages(
     announcement_id: int,
