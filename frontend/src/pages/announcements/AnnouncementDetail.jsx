@@ -137,20 +137,35 @@ export default function AnnouncementDetail({ announcementId: propId, onClose, on
   }
 
   const handleConfirmDelete = async () => {
+    // Guard against double-click
+    if (deleting) return
     setDeleting(true)
     try {
       await announcementApi.deleteAnnouncement(announcementId)
-      showToast('Announcement permanently deleted', 'success')
+      showToast(`Announcement "${data?.title || ''}" deleted successfully`, 'success')
+      // Close the delete modal, then the detail panel
       setShowDeleteModal(false)
+      setDeleting(false) // reset before unmount so no stale-state warning
       if (onRefreshList) onRefreshList(`Announcement "${data?.title || ''}" was deleted`)
       if (onClose) onClose()
       else navigate('/announcements')
     } catch (err) {
-      showToast(err.response?.data?.detail || 'Failed to delete announcement', 'error')
-    } finally {
-      setDeleting(false)
+      const status = err.response?.status
+      if (status === 404) {
+        // Already deleted (e.g. from a double-click race) — treat as success
+        showToast('Announcement deleted successfully', 'success')
+        setShowDeleteModal(false)
+        setDeleting(false)
+        if (onRefreshList) onRefreshList(`Announcement was deleted`)
+        if (onClose) onClose()
+        else navigate('/announcements')
+      } else {
+        showToast(err.response?.data?.detail || 'Failed to delete announcement', 'error')
+        setDeleting(false)
+      }
     }
   }
+
 
   const handleTogglePinAnnouncement = async () => {
     if (!data) return
