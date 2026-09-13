@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { PinIcon, MessageSquareIcon, CloseIcon } from '../../components/icons'
 import { announcementApi } from '../../api/announcements'
 import { useToast } from '../../components/ui/Toast'
